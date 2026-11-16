@@ -99,11 +99,12 @@ export function Modal({ open, title, onClose, children }: { open: boolean; title
   useEffect(() => {
     const d = ref.current;
     if (!d) return;
-    if (open && !d.open) d.showModal?.(); else if (!open && d.open) d.close?.();
+    // jsdom has no showModal; fall back to a plain open dialog there.
+    if (open && !d.open) { if (d.showModal) d.showModal(); else d.setAttribute('open', ''); }
   }, [open]);
   if (!open) return null;
   return (
-    <dialog ref={ref} open onClose={onClose} onCancel={onClose} aria-label={title}
+    <dialog ref={ref} onClose={onClose} onCancel={onClose} aria-label={title}
       className="m-auto w-[min(92vw,34rem)] rounded-lg border border-line bg-panel p-0 text-ink shadow-xl backdrop:bg-rail/50">
       <div className="flex items-center justify-between border-b border-line px-5 py-3">
         <h2 className="font-semibold">{title}</h2>
