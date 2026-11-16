@@ -1,1 +1,44 @@
+@import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Sans+Condensed:wght@500;600&display=swap');
 @import 'tailwindcss';
+
+@theme {
+  --font-sans: 'IBM Plex Sans', system-ui, sans-serif;
+  --font-cond: 'IBM Plex Sans Condensed', 'IBM Plex Sans', sans-serif;
+
+  --color-ink: #1b2433;
+  --color-muted: #5b6678;
+  --color-chalk: #eef1f5;
+  --color-panel: #ffffff;
+  --color-line: #d9dfe8;
+  --color-rail: #142031;
+  --color-rail-2: #1d2c42;
+  --color-accent: #1f5fbf;
+  --color-accent-soft: #e3ecfa;
+
+  --color-free: #22c55e;
+  --color-inuse: #3b82f6;
+  --color-reserved: #f59e0b;
+  --color-broken: #ef4444;
+}
+
+html, body, #root { height: 100%; }
+body {
+  background: var(--color-chalk);
+  color: var(--color-ink);
+  font-family: var(--font-sans);
+  font-feature-settings: 'tnum';
+  -webkit-font-smoothing: antialiased;
+}
+
+:focus-visible { outline: 2px solid var(--color-accent); outline-offset: 2px; }
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { animation: none !important; transition: none !important; }
+}
+
+/* Status LED: the one visual motif used everywhere a PC status appears. */
+.led {
+  display: inline-block; width: .625rem; height: .625rem; border-radius: 9999px;
+  box-shadow: 0 0 0 2px color-mix(in srgb, currentColor 22%, transparent), 0 0 8px currentColor;
+  background: currentColor;
+}
