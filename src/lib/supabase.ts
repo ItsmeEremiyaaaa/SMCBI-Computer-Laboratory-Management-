@@ -51,7 +51,8 @@ export function createSupabaseApi(url: string, key: string): Api {
         email: i.email.trim(), password: i.password,
         options: { data: { full_name: i.full_name, department: i.department, course: i.course }, emailRedirectTo: window.location.origin },
       });
-      if (error) throw new Error(/Database error/.test(error.message) ? 'Use your @smcbi.edu.ph email.' : error.message);
+      // The only sign-up rule the database enforces now is the school email domain.
+      if (error) throw new Error(/Database error/.test(error.message) ? 'Sign-up failed. Check that you used your @smcbi.edu.ph email.' : error.message);
     },
     async signOut() { await sb.auth.signOut(); },
 

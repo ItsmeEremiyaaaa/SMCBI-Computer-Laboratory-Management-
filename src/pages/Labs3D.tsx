@@ -7,6 +7,7 @@ import { useLoad } from '../hooks/useLoad';
 import { api } from '../lib/api';
 import PcPanel from '../components/PcPanel';
 import SeatGrid from '../components/SeatGrid';
+import SceneBoundary from '../components/SceneBoundary';
 import { Alert, Led, PageHeader, STATUS_LABEL, STATUSES } from '../components/ui';
 
 const LabScene = lazy(() => import('../components/LabScene'));
@@ -55,9 +56,11 @@ export default function Labs3D() {
       <div className="grid gap-4 lg:grid-cols-[1fr_20rem]">
         <div className="relative h-[62vh] min-h-[380px] overflow-hidden rounded-lg border border-line bg-[#dfe5ee]">
           {lab && (mode === '3d'
-            ? <Suspense fallback={<p className="p-6 text-sm text-muted">Loading 3D view…</p>}>
-                <LabScene lab={lab} pcs={pcs} selectedId={selectedId} onSelect={select} />
-              </Suspense>
+            ? <SceneBoundary onError={() => setMode('2d')} fallback={<SeatGrid lab={lab} pcs={pcs} selectedId={selectedId} onSelect={select} />}>
+                <Suspense fallback={<p className="p-6 text-sm text-muted">Loading 3D view…</p>}>
+                  <LabScene lab={lab} pcs={pcs} selectedId={selectedId} onSelect={select} />
+                </Suspense>
+              </SceneBoundary>
             : <SeatGrid lab={lab} pcs={pcs} selectedId={selectedId} onSelect={select} />)}
           <ul className="pointer-events-none absolute bottom-3 left-3 flex flex-wrap gap-x-4 gap-y-1 rounded-md bg-panel/90 px-3 py-2 text-sm shadow-sm backdrop-blur">
             {STATUSES.map((s) => (

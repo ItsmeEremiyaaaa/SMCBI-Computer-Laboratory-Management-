@@ -31,6 +31,9 @@ export function useLabLive(labId: string | null) {
     return () => { alive = false; offPc(); offRes(); clearInterval(t); };
   }, [labId, loadRes]);
 
+  // New Manila day → load that day's bookings (screens are often left open overnight).
+  useEffect(() => { loadRes().catch(() => {}); }, [now.date, loadRes]);
+
   const live: LivePc[] = pcs.map((pc) => ({
     ...pc, shown: shownStatus(pc, today, now), current: activeReservation(pc, today, now),
   }));

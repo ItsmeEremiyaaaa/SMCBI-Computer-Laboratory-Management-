@@ -109,7 +109,9 @@ begin
     new.id,
     coalesce(nullif(trim(new.raw_user_meta_data->>'full_name'), ''), split_part(new.email, '@', 1)),
     new.email,
-    nullif(new.raw_user_meta_data->>'department', ''),
+    -- ignore an unknown department instead of failing the whole sign-up
+    case when new.raw_user_meta_data->>'department' in ('BSIT', 'BSBA', 'BSHM', 'BEED', 'BSED')
+      then new.raw_user_meta_data->>'department' end,
     nullif(new.raw_user_meta_data->>'course', '')
   );
   return new;
@@ -121,6 +123,9 @@ create trigger on_auth_user_created after insert on auth.users
 create function public.protect_profile() returns trigger
 language plpgsql set search_path = '' as $$
 begin
+  -- SQL Editor / service role (no signed-in user): allowed, e.g. promoting the first admin.
+  -- Anonymous API clients can't reach this: the update policy needs a signed-in user.
+  if auth.uid() is null then return new; end if;
   if (new.role, new.approved, new.email) is distinct from (old.role, old.approved, old.email)
      and (not public.has_role('admin') or new.id = auth.uid()) then
     raise exception 'Not allowed for your role.';
