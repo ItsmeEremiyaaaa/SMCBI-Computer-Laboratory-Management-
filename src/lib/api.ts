@@ -2,6 +2,7 @@ import type {
   Lab, LabEvent, Pc, PcStatus, Profile, Reservation, ReservationInput, ResStatus, Role, Student,
 } from './types';
 import { createMock } from './mock';
+import { createSupabaseApi } from './supabase';
 
 export interface SignUpInput {
   full_name: string; email: string; password: string; department: string; course: string;
@@ -46,6 +47,8 @@ export interface Api {
   stats(): Promise<Stats>;
 }
 
-export const CONFLICT_MSG = 'This slot overlaps an approved reservation.';
+const url = import.meta.env.VITE_SUPABASE_URL as string | undefined;
+const key = import.meta.env.VITE_SUPABASE_ANON_KEY as string | undefined;
 
-export const api: Api = createMock();
+// No Supabase settings → demo mode with sample data in the browser.
+export const api: Api = url && key ? createSupabaseApi(url, key) : createMock();
