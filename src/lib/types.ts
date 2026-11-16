@@ -1,0 +1,77 @@
+export type Role = 'admin' | 'staff' | 'teacher';
+export type PcStatus = 'free' | 'in_use' | 'broken';
+export type ShownStatus = PcStatus | 'reserved';
+export type ResStatus = 'pending' | 'approved' | 'rejected' | 'completed';
+export type EventType = 'academic' | 'personal' | 'holiday' | 'meeting';
+
+export const DEPARTMENTS = ['BSIT', 'BSBA', 'BSHM', 'BEED', 'BSED'] as const;
+export const YEAR_LEVELS = ['1st Year', '2nd Year', '3rd Year', '4th Year', '5th Year'] as const;
+export const EVENT_TYPES: EventType[] = ['academic', 'personal', 'holiday', 'meeting'];
+
+export interface Profile {
+  id: string;
+  full_name: string;
+  email: string;
+  role: Role;
+  approved: boolean;
+  department: string | null;
+  course: string | null;
+  phone: string | null;
+  address: string | null;
+}
+
+export interface Lab { id: string; name: string; rows: number; cols: number }
+
+export interface Pc {
+  id: string;
+  lab_id: string;
+  label: string;
+  row: number;
+  col: number;
+  status: PcStatus;
+  note: string | null;
+  updated_at: string;
+}
+
+export interface Reservation {
+  id: string;
+  title: string;
+  lab_id: string;
+  pc_id: string | null;
+  purpose: string;
+  date: string; // YYYY-MM-DD
+  start_time: string; // HH:MM
+  end_time: string;
+  requester_id: string;
+  requester_name: string;
+  participants: number | null;
+  requirements: string | null;
+  status: ResStatus;
+  admin_notes: string | null;
+  reviewed_at: string | null;
+}
+
+export type ReservationInput = Pick<Reservation,
+  'title' | 'lab_id' | 'pc_id' | 'purpose' | 'date' | 'start_time' | 'end_time' | 'participants' | 'requirements'>;
+
+export interface Student {
+  id: string;
+  student_id: string;
+  full_name: string;
+  email: string;
+  course: string;
+  section: string;
+  year_level: string;
+  phone: string | null;
+  address: string | null;
+}
+
+export interface LabEvent {
+  id: string;
+  title: string;
+  description: string | null;
+  event_date: string;
+  event_time: string;
+  event_type: EventType;
+  owner_id: string;
+}
