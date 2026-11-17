@@ -1,4 +1,4 @@
-import { lazy, Suspense, useEffect, useState } from 'react';
+import { lazy, Suspense, useEffect, useRef, useState } from 'react';
 import { NavLink, useParams } from 'react-router-dom';
 import { Box, Grid3x3 } from 'lucide-react';
 import { useAuth } from '../auth';
@@ -16,64 +16,92 @@ const hasWebGL = (() => {
   try { const c = document.createElement('canvas'); return !!(c.getContext('webgl2') || c.getContext('webgl')); } catch { return false; }
 })();
 
-// Centered SMCBI Loading Animation with pulsing glow, rotating ring and smooth reveal
+// Centered SMCBI Loading Animation with smooth circular reveal transition matching the web intro
 function LabLoadingOverlay({ labName, ready }: { labName?: string; ready: boolean }) {
   const [visible, setVisible] = useState(true);
+  const containerRef = useRef<HTMLDivElement>(null);
+  const sealRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    if (ready) {
-      const timer = setTimeout(() => setVisible(false), 550);
-      return () => clearTimeout(timer);
-    } else {
+    if (!ready) {
       setVisible(true);
+      return;
     }
+
+    const container = containerRef.current;
+    const seal = sealRef.current;
+    if (!container || typeof container.animate !== 'function') {
+      const timer = setTimeout(() => setVisible(false), 600);
+      return () => clearTimeout(timer);
+    }
+
+    const radius = Math.hypot(window.innerWidth, window.innerHeight);
+    const timing = { duration: 950, easing: 'cubic-bezier(.65, 0, .25, 1)', fill: 'forwards' as const };
+
+    const anim = Promise.all([
+      container.animate(
+        [
+          { clipPath: `circle(${radius}px at 50% 50%)` },
+          { clipPath: `circle(0px at 50% 50%)` },
+        ],
+        timing,
+      ).finished,
+      seal
+        ? seal.animate(
+            [
+              { transform: 'scale(1)', opacity: 1 },
+              { transform: 'scale(0.55)', opacity: 0 },
+            ],
+            timing,
+          ).finished
+        : Promise.resolve(),
+    ]);
+
+    anim.then(() => setVisible(false)).catch(() => setVisible(false));
   }, [ready]);
 
   if (!visible && ready) return null;
 
   return (
     <div
-      className={`fixed inset-0 z-50 flex flex-col items-center justify-center bg-[#dfe5ee] transition-all duration-500 ease-out ${
-        ready ? 'pointer-events-none opacity-0 scale-105' : 'opacity-100 scale-100'
-      }`}
+      ref={containerRef}
+      className="navy-weave fixed inset-0 z-50 flex flex-col items-center justify-center text-white"
       aria-label="Loading 3D Laboratory"
     >
-      <div className="relative flex flex-col items-center justify-center">
-        {/* Animated Glow Rings & Orbit around the centered SMCBI Seal */}
+      <div ref={sealRef} className="relative flex flex-col items-center justify-center">
+        {/* Animated Glow Rings & Centered SMCBI Seal */}
         <div className="relative flex items-center justify-center">
-          <span className="absolute h-28 w-28 rounded-full bg-accent/25 animate-ping duration-1000 opacity-60" />
-          <div className="absolute h-24 w-24 rounded-full border-2 border-accent/20 border-t-accent animate-spin duration-1000" />
-          {/* Centered SMCBI Logo */}
-          <div className="relative grid h-20 w-20 place-items-center rounded-full bg-white p-1 shadow-2xl ring-4 ring-white/90">
+          <span className="absolute h-36 w-36 rounded-full bg-blue-400/20 animate-ping duration-1000 opacity-50" />
+          <div className="relative grid h-24 w-24 place-items-center rounded-full bg-white p-1.5 shadow-[0_0_0_8px_rgba(255,255,255,0.1),0_20px_50px_rgba(0,0,0,0.5)]">
             <img
               src="/smcbi-seal.webp"
-              width={68}
-              height={68}
-              alt="SMCBI Logo"
+              width={82}
+              height={82}
+              alt="SMCBI Seal"
               className="rounded-full select-none"
             />
           </div>
         </div>
 
         {/* Institution and Loading Status Text */}
-        <div className="mt-5 text-center">
-          <p className="text-[11px] font-semibold uppercase tracking-widest text-accent">St. Mary's College of Bansalan</p>
-          <h2 className="mt-1 font-cond text-2xl font-bold tracking-tight text-ink">
+        <div className="mt-6 text-center">
+          <p className="text-xs font-semibold uppercase tracking-widest text-blue-200">St. Mary's College of Bansalan</p>
+          <h2 className="mt-1 font-cond text-2xl font-bold tracking-tight text-white">
             {labName ? labName.replace('Computer Laboratory', 'ComLab') : 'Loading Laboratory'}
           </h2>
-          <p className="mt-1.5 flex items-center justify-center gap-2 text-xs text-muted">
+          <p className="mt-2 flex items-center justify-center gap-2 text-xs text-blue-200/80">
             <span>Rendering 3D Environment</span>
             <span className="inline-flex gap-1">
-              <span className="h-1 w-1 rounded-full bg-accent animate-bounce" style={{ animationDelay: '0ms' }} />
-              <span className="h-1 w-1 rounded-full bg-accent animate-bounce" style={{ animationDelay: '150ms' }} />
-              <span className="h-1 w-1 rounded-full bg-accent animate-bounce" style={{ animationDelay: '300ms' }} />
+              <span className="h-1 w-1 rounded-full bg-white animate-bounce" style={{ animationDelay: '0ms' }} />
+              <span className="h-1 w-1 rounded-full bg-white animate-bounce" style={{ animationDelay: '150ms' }} />
+              <span className="h-1 w-1 rounded-full bg-white animate-bounce" style={{ animationDelay: '300ms' }} />
             </span>
           </p>
         </div>
 
         {/* Subtle Progress Bar */}
-        <div className="mt-4 h-1 w-44 overflow-hidden rounded-full bg-accent-soft">
-          <div className="h-full w-full rounded-full bg-accent animate-pulse" />
+        <div className="mt-4 h-1 w-44 overflow-hidden rounded-full bg-white/20">
+          <div className="h-full w-full rounded-full bg-blue-300 animate-pulse" />
         </div>
       </div>
     </div>

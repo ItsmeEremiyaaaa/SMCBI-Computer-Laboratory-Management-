@@ -27,12 +27,12 @@ export default function IntroSplash() {
 
     let cancelled = false;
     const run = async () => {
-      // 1. seal arrives
+      // 1. seal arrives smoothly with stately easing
       await s.animate(
-        [{ opacity: 0, transform: 'scale(.6)' }, { opacity: 1, transform: 'scale(1.04)' }, { transform: 'scale(1)' }],
-        { duration: 650, easing: 'cubic-bezier(.2,.8,.2,1)', fill: 'both' },
+        [{ opacity: 0, transform: 'scale(.65)' }, { opacity: 1, transform: 'scale(1.02)' }, { transform: 'scale(1)' }],
+        { duration: 1000, easing: 'cubic-bezier(.16, 1, .3, 1)', fill: 'both' },
       ).finished;
-      await new Promise((r) => setTimeout(r, 350));
+      await new Promise((r) => setTimeout(r, 500));
       if (cancelled) return;
 
       // 2. fly to the sidebar logo; the blue field closes into a circle around it
@@ -45,7 +45,7 @@ export default function IntroSplash() {
       const dy = cy - (from.top + from.height / 2);
       const scale = visible ? target.width / from.width : 0.4;
       const radius = Math.hypot(innerWidth, innerHeight);
-      const timing = { duration: 850, easing: 'cubic-bezier(.65,0,.35,1)', fill: 'forwards' as const };
+      const timing = { duration: 1200, easing: 'cubic-bezier(.65, 0, .25, 1)', fill: 'forwards' as const };
 
       await Promise.all([
         s.animate(
@@ -61,7 +61,7 @@ export default function IntroSplash() {
     };
     run().catch(done);
     // Hidden tabs don't run animations; never leave the blue screen up for long.
-    const safety = setTimeout(done, 3000);
+    const safety = setTimeout(done, 4200);
     return () => { cancelled = true; clearTimeout(safety); };
   }, [show]);
 

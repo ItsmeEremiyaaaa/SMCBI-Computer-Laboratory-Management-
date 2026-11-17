@@ -1,12 +1,12 @@
-import { useEffect, useRef, useState } from 'react';
-import { Canvas, useFrame, useThree } from '@react-three/fiber';
-import { Bounds, ContactShadows, Html, OrbitControls, RoundedBox, useBounds } from '@react-three/drei';
-import { Box3, MathUtils, type Group, type MeshStandardMaterial } from 'three';
+import { useRef, useState } from 'react';
+import { Canvas, useFrame } from '@react-three/fiber';
+import { Bounds, ContactShadows, OrbitControls, RoundedBox } from '@react-three/drei';
+import { MathUtils, type Group, type MeshStandardMaterial } from 'three';
 import type { LivePc } from '../hooks/useLabLive';
 import type { Lab } from '../lib/types';
 import type { SceneProps } from './SeatGrid';
 import { LAYOUTS } from '../lib/layouts';
-import { STATUS_COLOR, STATUS_LABEL } from './ui';
+import { STATUS_COLOR } from './ui';
 
 // Modeled on the SMCBI labs: Lab 1/2 have long white benches with white partitions;
 // Netlab has separate dark-top tables on metal legs. Both use white monobloc chairs.
@@ -152,32 +152,18 @@ function Workstation({ pc, pos, rot = 0, style, selected, onSelect }:
           <meshBasicMaterial color={selected ? '#1f5fbf' : '#7fa6dd'} />
         </mesh>
       )}
-      {(selected || hover) && (
-        <Html position={[0, DESK_H + (selected ? 1.05 : 0.78), -0.2]} center distanceFactor={8} style={{ pointerEvents: 'none' }}>
-          <div className="whitespace-nowrap rounded bg-rail px-2 py-1 text-xs font-medium text-white shadow">
-            {pc.label} · {STATUS_LABEL[pc.shown]}
-          </div>
-        </Html>
-      )}
     </group>
   );
 }
 
-// Detailed 3D Architectural Doorway with realistic frame, oak slab, frosted vision glass, stainless lever handle, and illuminated sign
+// Detailed 3D Architectural Doorway with realistic frame, oak slab, frosted vision glass, and stainless lever handle
 function Doorway({
   position,
   rotationY = 0,
-  signText,
-  signType = 'exit',
-  subText,
 }: {
   position: [number, number, number];
   rotationY?: number;
-  signText: string;
-  signType?: 'exit' | 'path';
-  subText?: string;
 }) {
-  const isExit = signType === 'exit';
   return (
     <group position={position} rotation-y={rotationY}>
       {/* Outer door frame casing */}
@@ -231,33 +217,6 @@ function Doorway({
           <cylinderGeometry args={[0.012, 0.012, 0.09, 16]} />
           <meshStandardMaterial color="#e2e8f0" metalness={0.9} roughness={0.2} />
         </mesh>
-      </group>
-
-      {/* Overhead Illuminated Sign */}
-      <group position={[0, 2.48, 0.04]}>
-        <mesh castShadow>
-          <boxGeometry args={[0.82, 0.24, 0.04]} />
-          <meshStandardMaterial color={isExit ? '#064e3b' : '#1e3a8a'} roughness={0.3} />
-        </mesh>
-        <mesh position={[0, 0, 0.022]}>
-          <planeGeometry args={[0.78, 0.2]} />
-          <meshStandardMaterial
-            color={isExit ? '#10b981' : '#3b82f6'}
-            emissive={isExit ? '#059669' : '#1d4ed8'}
-            emissiveIntensity={0.85}
-          />
-        </mesh>
-        <Html position={[0, 0, 0.035]} center distanceFactor={7} style={{ pointerEvents: 'none' }}>
-          <div
-            className={`flex items-center gap-1.5 whitespace-nowrap rounded px-2.5 py-1 text-[11px] font-bold tracking-wide shadow-lg ${
-              isExit ? 'bg-emerald-600 text-white' : 'bg-blue-600 text-white'
-            }`}
-          >
-            <span>{isExit ? '🚪' : '➔'}</span>
-            <span>{signText}</span>
-            {subText && <span className="text-[9px] font-normal opacity-85">({subText})</span>}
-          </div>
-        </Html>
       </group>
     </group>
   );
@@ -683,17 +642,10 @@ function Room({ lab, w, d, style }: { lab: Lab; w: number; d: number; style: Sty
         <boxGeometry args={[w, 0.25, 0.03]} />
         <meshStandardMaterial color="#1e3a8a" roughness={0.3} />
       </mesh>
-      {/* Back Wall Laboratory Guidelines Notice Board */}
+      {/* Back Wall Laboratory Guidelines Notice Board (clean cork/slate board without text clutter) */}
       <group position={[0, 1.8, back - 0.06]}>
         <mesh><boxGeometry args={[2.8, 1.2, 0.03]} /><meshStandardMaterial color="#334155" /></mesh>
-        <mesh position={[0, 0, -0.018]}><planeGeometry args={[2.7, 1.1]} /><meshStandardMaterial color="#f8fafc" /></mesh>
-        <Html position={[0, 0, -0.025]} center distanceFactor={7} style={{ pointerEvents: 'none' }}>
-          <div className="flex flex-col items-center justify-center p-3 text-center text-slate-800 select-none">
-            <span className="text-[11px] font-bold uppercase tracking-wider text-blue-900">Laboratory Guidelines & Regulations</span>
-            <span className="text-[9px] text-slate-500">St. Mary's College of Bansalan · College of Computer Studies</span>
-            <span className="mt-1 text-[8px] text-slate-400">Keep workstations clean · No food or drinks · Report broken hardware</span>
-          </div>
-        </Html>
+        <mesh position={[0, 0, -0.018]}><planeGeometry args={[2.7, 1.1]} /><meshStandardMaterial color="#cbd5e1" roughness={0.7} /></mesh>
       </group>
 
       {/* Front Wall Decor (Whiteboard, Display, Clock, Crucifix, Banner, Teacher Station) */}
@@ -707,19 +659,9 @@ function Room({ lab, w, d, style }: { lab: Lab; w: number; d: number; style: Sty
       {lab.id === 'lab1' && (
         <>
           {/* Door to ComLab 2 on the front wall */}
-          <Doorway
-            position={[-w / 2 + 1.4, 0, front + 0.06]}
-            rotationY={0}
-            signText="TO COMLAB 2"
-            signType="path"
-            subText="Path"
-          />
+          <Doorway position={[-w / 2 + 1.4, 0, front + 0.06]} rotationY={0} />
           {/* Glass window beside the door, before the whiteboard */}
-          <FrontWallWindow
-            position={[-w / 2 + 3.6, 1.6, front + 0.06]}
-            w={2.0}
-            h={1.4}
-          />
+          <FrontWallWindow position={[-w / 2 + 3.6, 1.6, front + 0.06]} w={2.0} h={1.4} />
         </>
       )}
 
@@ -727,35 +669,13 @@ function Room({ lab, w, d, style }: { lab: Lab; w: number; d: number; style: Sty
       {lab.id === 'lab2' && (
         <>
           {/* Door for NetLab path (left side front wall) */}
-          <Doorway
-            position={[-w / 2 + 1.25, 0, front + 0.06]}
-            rotationY={0}
-            signText="TO NETLAB"
-            signType="path"
-            subText="NetLab Path"
-          />
+          <Doorway position={[-w / 2 + 1.25, 0, front + 0.06]} rotationY={0} />
           {/* Glass window beside door to ComLab 1, before the whiteboard */}
-          <FrontWallWindow
-            position={[w / 2 - 3.4, 1.6, front + 0.06]}
-            w={1.8}
-            h={1.4}
-          />
+          <FrontWallWindow position={[w / 2 - 3.4, 1.6, front + 0.06]} w={1.8} h={1.4} />
           {/* Door for ComLab 1 path on the front wall */}
-          <Doorway
-            position={[w / 2 - 1.35, 0, front + 0.06]}
-            rotationY={0}
-            signText="TO COMLAB 1"
-            signType="path"
-            subText="Path"
-          />
+          <Doorway position={[w / 2 - 1.35, 0, front + 0.06]} rotationY={0} />
           {/* Exit door on right wall */}
-          <Doorway
-            position={[w / 2, 0, front + 5.5]}
-            rotationY={-Math.PI / 2}
-            signText="EXIT"
-            signType="exit"
-            subText="Main Hallway"
-          />
+          <Doorway position={[w / 2, 0, front + 5.5]} rotationY={-Math.PI / 2} />
         </>
       )}
 
@@ -763,21 +683,9 @@ function Room({ lab, w, d, style }: { lab: Lab; w: number; d: number; style: Sty
       {lab.id === 'netlab' && (
         <>
           {/* Door for path to ComLab 2 on front wall */}
-          <Doorway
-            position={[w / 2 - 1.35, 0, front + 0.06]}
-            rotationY={0}
-            signText="TO COMLAB 2"
-            signType="path"
-            subText="Path"
-          />
+          <Doorway position={[w / 2 - 1.35, 0, front + 0.06]} rotationY={0} />
           {/* Door for going out on left wall */}
-          <Doorway
-            position={[-w / 2, 0, front + 2.4]}
-            rotationY={Math.PI / 2}
-            signText="EXIT"
-            signType="exit"
-            subText="Main Hallway"
-          />
+          <Doorway position={[-w / 2, 0, front + 2.4]} rotationY={Math.PI / 2} />
         </>
       )}
 
@@ -794,20 +702,6 @@ function Room({ lab, w, d, style }: { lab: Lab; w: number; d: number; style: Sty
       <IndoorPlant position={[-w / 2 + 0.6, 0, front + 0.8]} />
     </group>
   );
-}
-
-// Fly the camera to the selected workstation; back out to the whole room when cleared.
-function FocusCamera({ selectedId }: { selectedId: string | null }) {
-  const bounds = useBounds();
-  const scene = useThree((s) => s.scene);
-  const first = useRef(true);
-  useEffect(() => {
-    if (first.current) { first.current = false; return; } // initial framing is done by <Bounds fit>
-    const pc = selectedId ? scene.getObjectByName(`pc:${selectedId}`) : null;
-    if (pc) bounds.refresh(new Box3().setFromObject(pc).expandByScalar(1.6)).fit();
-    else bounds.refresh().fit();
-  }, [selectedId, bounds, scene]);
-  return null;
 }
 
 function ReadySignal({ onReady }: { onReady?: () => void }) {
@@ -838,10 +732,9 @@ export default function LabScene({ lab, pcs, selectedId, onSelect, onReady }: Sc
       <hemisphereLight args={['#ffffff', '#c4ccd6', 1]} />
       <directionalLight position={[5, 10, 6]} intensity={1.1} castShadow shadow-mapSize={[2048, 2048]}
         shadow-camera-left={-12} shadow-camera-right={12} shadow-camera-top={12} shadow-camera-bottom={-12} />
-      {/* Bounds frames the room for whatever aspect the canvas has (phone or desktop). */}
+      {/* Bounds frames the room cleanly. Camera stays in default view when clicking monitors for accurate inspection */}
       <Bounds fit margin={0.8} maxDuration={0.9}>
         <Room lab={lab} w={w} d={d} style={style} />
-        <FocusCamera selectedId={selectedId} />
       </Bounds>
       {style === 'island' && <Spines lab={lab} pcs={pcs} />}
       {pcs.map((pc) => {
