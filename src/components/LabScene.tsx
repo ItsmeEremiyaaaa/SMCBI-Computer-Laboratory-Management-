@@ -1,7 +1,6 @@
 import { useMemo, useRef, useState } from 'react';
 import { Canvas, useFrame } from '@react-three/fiber';
-import { Billboard, ContactShadows, OrbitControls, RoundedBox, useTexture } from '@react-three/drei';
-import * as THREE from 'three';
+import { ContactShadows, OrbitControls, RoundedBox } from '@react-three/drei';
 import { CanvasTexture, MathUtils, type Group, type MeshStandardMaterial } from 'three';
 import type { LivePc } from '../hooks/useLabLive';
 import type { Lab } from '../lib/types';
@@ -9,74 +8,262 @@ import type { SceneProps } from './SeatGrid';
 import { LAYOUTS } from '../lib/layouts';
 import { STATUS_COLOR } from './ui';
 
-// Cached frame geometries for all 12 columns, 6 rows of the character atlas
-const spriteGeoCache = new Map<string, THREE.PlaneGeometry>();
-function getSpriteGeometry(col: number, row: number, width: number, height: number, flipped = false) {
-  const key = `${col}_${row}_${width}_${height}_${flipped}`;
-  let geo = spriteGeoCache.get(key);
-  if (!geo) {
-    geo = new THREE.PlaneGeometry(width, height);
-    const u0 = flipped ? (col + 1) / 12 : col / 12;
-    const u1 = flipped ? col / 12 : (col + 1) / 12;
-    const v0 = (5 - row) / 6;
-    const v1 = (6 - row) / 6;
-    const uvs = new Float32Array([
-      u0, v1,
-      u1, v1,
-      u0, v0,
-      u1, v0,
-    ]);
-    geo.setAttribute('uv', new THREE.BufferAttribute(uvs, 2));
-    spriteGeoCache.set(key, geo);
-  }
-  return geo;
-}
-
-// Student actively seated at their assigned workstation
-function SeatedStudent({
-  pcId,
-  rot,
-  material,
-}: {
-  pcId: string;
-  pos?: [number, number, number];
-  rot: number;
-  material: THREE.Material;
-}) {
+// Student actively seated at their assigned workstation in full 3D low-poly
+function SeatedStudent3D({ pcId }: { pcId: string }) {
   const hash = useMemo(() => {
     let h = 0;
     for (let i = 0; i < pcId.length; i++) h = (h * 31 + pcId.charCodeAt(i)) >>> 0;
     return h;
   }, [pcId]);
 
-  const gender = hash % 2 === 0 ? 'male' : 'female';
-  // Row 0 is Male Desk Interaction; Row 1 is Female Desk Interaction
-  const row = gender === 'male' ? 0 : 1;
+  const isMale = hash % 2 === 0;
 
-  // Seated proportions matching Blender desk interaction model
-  const spriteW = 0.82;
-  const spriteH = 1.32;
-
-  // Fixed angle focusing solely on monitor PC based on workstation orientation
-  const col = useMemo(() => {
-    if (rot < -0.1) {
-      // Left island: monitor is East / right -> face right into monitor
-      return (hash >> 2) % 3 === 0 ? 9 : 8;
-    } else if (rot > 0.1) {
-      // Right island: monitor is West / left -> face left into monitor
-      return (hash >> 2) % 3 === 0 ? 3 : 4;
-    } else {
-      // End seats & Netlab: monitor is North / forward -> back view facing into monitor
-      return (hash >> 2) % 4 === 0 ? 5 : (hash >> 2) % 4 === 1 ? 7 : 6;
-    }
-  }, [rot, hash]);
-
-  const geo = useMemo(() => getSpriteGeometry(col, row, spriteW, spriteH, false), [col, row]);
+  // Palette: SMCBI College Uniform
+  const skinMat = <meshStandardMaterial color="#f0c29e" roughness={0.6} />;
+  const hairMat = <meshStandardMaterial color={hash % 3 === 0 ? "#1c140e" : hash % 3 === 1 ? "#261a12" : "#2d1e16"} roughness={0.7} />;
+  const maleShirtMat = <meshStandardMaterial color="#4f8ee6" roughness={0.5} />; // light blue polo
+  const malePantsMat = <meshStandardMaterial color="#1e293b" roughness={0.6} />; // dark navy trousers
+  const femaleBlouseMat = <meshStandardMaterial color="#f8fafc" roughness={0.4} />; // crisp white blouse
+  const femaleNavyMat = <meshStandardMaterial color="#1e3a8a" roughness={0.5} />; // SMCBI navy collar & skirt
+  const socksMat = <meshStandardMaterial color="#f1f5f9" roughness={0.5} />;
+  const shoesMat = <meshStandardMaterial color="#0f172a" roughness={0.4} />; // black leather shoes
 
   return (
-    <Billboard lockX={true} lockZ={true} position={[0, 0, 0.52]}>
-      <mesh position={[0, spriteH / 2, 0]} geometry={geo} material={material} />
-    </Billboard>
+    <group position={[0, 0, 0.48]}>
+      {/* Hips / Seat resting on chair */}
+      <mesh position={[0, 0.45, 0.04]} castShadow>
+        <boxGeometry args={[0.34, 0.12, 0.28]} />
+        {isMale ? malePantsMat : femaleNavyMat}
+      </mesh>
+
+      {/* Thighs extending forward toward desk */}
+      {[-0.09, 0.09].map((lx) => (
+        <mesh key={lx} position={[lx, 0.45, -0.12]} castShadow>
+          <boxGeometry args={[0.13, 0.11, 0.28]} />
+          {isMale ? malePantsMat : skinMat}
+        </mesh>
+      ))}
+
+      {/* Female Skirt flare */}
+      {!isMale && (
+        <mesh position={[0, 0.46, -0.04]} castShadow>
+          <boxGeometry args={[0.36, 0.15, 0.32]} />
+          {femaleNavyMat}
+        </mesh>
+      )}
+
+      {/* Lower legs / Calves extending vertically to floor */}
+      {[-0.09, 0.09].map((lx) => (
+        <group key={lx} position={[lx, 0, -0.24]}>
+          <mesh position={[0, 0.21, 0]} castShadow>
+            <boxGeometry args={[0.11, 0.36, 0.11]} />
+            {isMale ? malePantsMat : socksMat}
+          </mesh>
+          <mesh position={[0, 0.04, -0.04]} castShadow>
+            <boxGeometry args={[0.12, 0.07, 0.19]} />
+            {shoesMat}
+          </mesh>
+        </group>
+      ))}
+
+      {/* Torso */}
+      <group position={[0, 0.68, 0.02]}>
+        <mesh castShadow>
+          <boxGeometry args={[0.34, 0.34, 0.20]} />
+          {isMale ? maleShirtMat : femaleBlouseMat}
+        </mesh>
+        {/* Female Sailor Collar & Tie */}
+        {!isMale && (
+          <>
+            <mesh position={[0, 0.12, -0.105]}>
+              <boxGeometry args={[0.22, 0.12, 0.015]} />
+              {femaleNavyMat}
+            </mesh>
+            <mesh position={[0, 0.02, -0.108]}>
+              <boxGeometry args={[0.04, 0.16, 0.015]} />
+              {femaleNavyMat}
+            </mesh>
+          </>
+        )}
+        {/* Male Polo Collar */}
+        {isMale && (
+          <mesh position={[0, 0.14, -0.103]}>
+            <boxGeometry args={[0.16, 0.07, 0.015]} />
+            <meshStandardMaterial color="#2563eb" roughness={0.4} />
+          </mesh>
+        )}
+      </group>
+
+      {/* Arms resting forward on desk and typing at keyboard */}
+      {[-0.19, 0.19].map((sx, i) => (
+        <group key={i}>
+          {/* Upper arm (shoulder to elbow) */}
+          <mesh position={[sx, 0.72, -0.08]} rotation-x={0.4} castShadow>
+            <boxGeometry args={[0.09, 0.22, 0.09]} />
+            {isMale ? maleShirtMat : femaleBlouseMat}
+          </mesh>
+          {/* Forearm (elbow to wrist) extending forward to desk top */}
+          <mesh position={[sx * 0.85, 0.66, -0.24]} rotation-x={-0.1} castShadow>
+            <boxGeometry args={[0.08, 0.08, 0.24]} />
+            {skinMat}
+          </mesh>
+          {/* Hand on desk/keyboard */}
+          <mesh position={[sx * 0.72, 0.66, -0.36]} castShadow>
+            <boxGeometry args={[0.08, 0.05, 0.09]} />
+            {skinMat}
+          </mesh>
+        </group>
+      ))}
+
+      {/* Neck */}
+      <mesh position={[0, 0.88, 0.0]}>
+        <cylinderGeometry args={[0.045, 0.05, 0.08, 8]} />
+        {skinMat}
+      </mesh>
+
+      {/* Head */}
+      <group position={[0, 1.02, -0.02]}>
+        {/* Face */}
+        <mesh castShadow>
+          <boxGeometry args={[0.20, 0.22, 0.19]} />
+          {skinMat}
+        </mesh>
+        {/* Hair */}
+        <mesh position={[0, 0.06, 0.01]} castShadow>
+          <boxGeometry args={[0.22, 0.14, 0.21]} />
+          {hairMat}
+        </mesh>
+        {/* Hair back */}
+        <mesh position={[0, -0.03, 0.07]} castShadow>
+          <boxGeometry args={[0.21, 0.16, 0.08]} />
+          {hairMat}
+        </mesh>
+        {/* Female longer hair down shoulders */}
+        {!isMale && (
+          <mesh position={[0, -0.12, 0.08]} castShadow>
+            <boxGeometry args={[0.23, 0.18, 0.08]} />
+            {hairMat}
+          </mesh>
+        )}
+      </group>
+    </group>
+  );
+}
+
+// 3D Low-Poly Teacher at the whiteboard
+function Teacher3D({ gender }: { gender: 'male' | 'female' }) {
+  const isMale = gender === 'male';
+  const skinMat = <meshStandardMaterial color="#f0c29e" roughness={0.6} />;
+  const hairMat = <meshStandardMaterial color="#2b1d14" roughness={0.7} />;
+  const pantsMat = <meshStandardMaterial color="#1e293b" roughness={0.6} />;
+  const whiteMat = <meshStandardMaterial color="#f8fafc" roughness={0.4} />;
+  const brownVestMat = <meshStandardMaterial color="#78350f" roughness={0.5} />;
+  const navyBlazerMat = <meshStandardMaterial color="#1e3a8a" roughness={0.5} />;
+  const skirtMat = <meshStandardMaterial color="#475569" roughness={0.6} />;
+  const shoesMat = <meshStandardMaterial color="#0f172a" roughness={0.4} />;
+  const glassesMat = <meshStandardMaterial color="#0f172a" roughness={0.2} metalness={0.8} />;
+
+  return (
+    <group>
+      {/* Legs */}
+      {isMale ? (
+        [-0.10, 0.10].map((lx) => (
+          <group key={lx} position={[lx, 0, 0]}>
+            <mesh position={[0, 0.44, 0]} castShadow>
+              <boxGeometry args={[0.13, 0.84, 0.13]} />
+              {pantsMat}
+            </mesh>
+            <mesh position={[0, 0.04, 0.04]} castShadow>
+              <boxGeometry args={[0.13, 0.08, 0.22]} />
+              {shoesMat}
+            </mesh>
+          </group>
+        ))
+      ) : (
+        <>
+          <mesh position={[0, 0.62, 0]} castShadow>
+            <boxGeometry args={[0.34, 0.42, 0.22]} />
+            {skirtMat}
+          </mesh>
+          {[-0.09, 0.09].map((lx) => (
+            <group key={lx} position={[lx, 0, 0]}>
+              <mesh position={[0, 0.24, 0]} castShadow>
+                <boxGeometry args={[0.09, 0.44, 0.09]} />
+                {skinMat}
+              </mesh>
+              <mesh position={[0, 0.04, 0.03]} castShadow>
+                <boxGeometry args={[0.10, 0.07, 0.18]} />
+                {shoesMat}
+              </mesh>
+            </group>
+          ))}
+        </>
+      )}
+
+      {/* Torso */}
+      <group position={[0, 1.10, 0]}>
+        <mesh castShadow>
+          <boxGeometry args={[0.36, 0.46, 0.22]} />
+          {isMale ? brownVestMat : navyBlazerMat}
+        </mesh>
+        {isMale ? (
+          <>
+            <mesh position={[0, 0.12, 0.113]}>
+              <boxGeometry args={[0.12, 0.18, 0.01]} />
+              {whiteMat}
+            </mesh>
+            <mesh position={[0, 0.08, 0.116]}>
+              <boxGeometry args={[0.04, 0.22, 0.01]} />
+              <meshStandardMaterial color="#0f172a" />
+            </mesh>
+          </>
+        ) : (
+          <mesh position={[0, 0.10, 0.113]}>
+            <boxGeometry args={[0.12, 0.16, 0.01]} />
+            {whiteMat}
+          </mesh>
+        )}
+      </group>
+
+      {/* Arms */}
+      <mesh position={[-0.22, 1.05, 0]} castShadow>
+        <boxGeometry args={[0.09, 0.44, 0.09]} />
+        {isMale ? whiteMat : navyBlazerMat}
+      </mesh>
+      {/* Right arm gesturing toward classroom */}
+      <group position={[0.22, 1.25, 0]} rotation-z={-0.6} rotation-y={0.3}>
+        <mesh position={[0, -0.18, 0]} castShadow>
+          <boxGeometry args={[0.09, 0.38, 0.09]} />
+          {isMale ? whiteMat : navyBlazerMat}
+        </mesh>
+        <mesh position={[0, -0.40, 0]}>
+          <boxGeometry args={[0.08, 0.08, 0.08]} />
+          {skinMat}
+        </mesh>
+      </group>
+
+      {/* Head */}
+      <group position={[0, 1.48, 0]}>
+        <mesh castShadow>
+          <boxGeometry args={[0.21, 0.24, 0.20]} />
+          {skinMat}
+        </mesh>
+        <mesh position={[0, 0.07, 0]} castShadow>
+          <boxGeometry args={[0.23, 0.14, 0.22]} />
+          {hairMat}
+        </mesh>
+        {!isMale && (
+          <mesh position={[0, 0.06, -0.14]} castShadow>
+            <sphereGeometry args={[0.07, 8, 8]} />
+            {hairMat}
+          </mesh>
+        )}
+        <mesh position={[0, 0.01, 0.11]}>
+          <boxGeometry args={[0.18, 0.04, 0.02]} />
+          {glassesMat}
+        </mesh>
+      </group>
+    </group>
   );
 }
 
@@ -239,8 +426,8 @@ function getCrackTexture(): CanvasTexture {
   return crackTextureCache;
 }
 
-function Workstation({ pc, pos, rot = 0, style, selected, onSelect, isOccupied, atlasMaterial }:
-  { pc: LivePc; pos: [number, number, number]; rot?: number; style: Style; selected: boolean; onSelect: () => void; isOccupied?: boolean; atlasMaterial?: THREE.Material }) {
+function Workstation({ pc, pos, rot = 0, style, selected, onSelect, isOccupied }:
+  { pc: LivePc; pos: [number, number, number]; rot?: number; style: Style; selected: boolean; onSelect: () => void; isOccupied?: boolean }) {
   const [hover, setHover] = useState(false);
   const monitor = useRef<Group>(null);
   const screen = useRef<MeshStandardMaterial>(null);
@@ -318,9 +505,9 @@ function Workstation({ pc, pos, rot = 0, style, selected, onSelect, isOccupied, 
       <mesh position={[0, DESK_H + 0.025, 0.1]}><boxGeometry args={[0.44, 0.018, 0.14]} />{black}</mesh>
       <mesh position={[0.32, DESK_H + 0.025, 0.12]}><boxGeometry args={[0.06, 0.02, 0.1]} />{black}</mesh>
       <Monobloc position={[0, 0, 0.62]} />
-      {/* Realtime Classroom Monitoring: Student actively working at desk when class is in session */}
-      {isOccupied && pc.shown !== 'broken' && atlasMaterial && (
-        <SeatedStudent pcId={pc.id} pos={pos} rot={rot} material={atlasMaterial} />
+      {/* Realtime Classroom Monitoring: Student actively working at desk in 3D when class is in session */}
+      {isOccupied && pc.shown !== 'broken' && (
+        <SeatedStudent3D pcId={pc.id} />
       )}
       {(selected || hover) && (
         <mesh rotation-x={-Math.PI / 2} position={[0, 0.006, 0.3]}>
@@ -798,21 +985,6 @@ function SceneContent({
   const d = style === 'island' ? (sideRows(lab) + (lab.rows > sideRows(lab) ? 1 : 0)) * ISLAND_ROW + 7.5 : lab.rows * DZ + 4.5;
   const front = -d / 2;
 
-  const atlasTexture = useTexture('/sprites/uniform_atlas.png');
-  atlasTexture.minFilter = THREE.LinearFilter;
-  atlasTexture.magFilter = THREE.LinearFilter;
-
-  const atlasMaterial = useMemo(
-    () =>
-      new THREE.MeshBasicMaterial({
-        map: atlasTexture,
-        transparent: true,
-        alphaTest: 0.1,
-        side: THREE.DoubleSide,
-      }),
-    [atlasTexture]
-  );
-
   return (
     <>
       <Room lab={lab} w={w} d={d} style={style} />
@@ -829,7 +1001,6 @@ function SceneContent({
             selected={pc.id === selectedId}
             onSelect={() => onSelect(pc.id)}
             isOccupied={isOccupied}
-            atlasMaterial={atlasMaterial}
           />
         );
       })}
@@ -837,20 +1008,12 @@ function SceneContent({
       {/* Instructors at Whiteboard during active class */}
       {isOccupied && (
         <group>
-          <Billboard lockX={true} lockZ={true} position={[-1.1, 0, front + 1.45]}>
-            <mesh
-              position={[0, 1.68 / 2, 0]}
-              geometry={getSpriteGeometry(0, 4, 0.95, 1.68, false)}
-              material={atlasMaterial}
-            />
-          </Billboard>
-          <Billboard lockX={true} lockZ={true} position={[1.1, 0, front + 1.45]}>
-            <mesh
-              position={[0, 1.62 / 2, 0]}
-              geometry={getSpriteGeometry(0, 5, 0.90, 1.62, false)}
-              material={atlasMaterial}
-            />
-          </Billboard>
+          <group position={[-1.1, 0, front + 1.45]}>
+            <Teacher3D gender="male" />
+          </group>
+          <group position={[1.1, 0, front + 1.45]}>
+            <Teacher3D gender="female" />
+          </group>
         </group>
       )}
 
@@ -905,5 +1068,3 @@ export default function LabScene({
     </Canvas>
   );
 }
-
-useTexture.preload('/sprites/uniform_atlas.png');
