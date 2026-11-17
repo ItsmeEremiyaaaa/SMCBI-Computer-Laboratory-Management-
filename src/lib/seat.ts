@@ -1,4 +1,4 @@
-import type { Pc, Reservation, ShownStatus } from './types';
+import type { ClassSchedule, Pc, Reservation, ShownStatus } from './types';
 
 type Slot = Pick<Reservation, 'lab_id' | 'pc_id' | 'date' | 'start_time' | 'end_time'>;
 export type Now = { date: string; time: string };
@@ -29,4 +29,21 @@ export function activeReservation(pc: Pc, approved: Reservation[], now: Now): Re
 export function shownStatus(pc: Pc, approved: Reservation[], now: Now): ShownStatus {
   if (pc.status === 'broken') return 'broken';
   return activeReservation(pc, approved, now) ? 'reserved' : pc.status;
+}
+
+// ISO weekday of a YYYY-MM-DD date: 1 = Monday … 7 = Sunday.
+export const isoWeekday = (date: string) => new Date(`${date}T00:00:00Z`).getUTCDay() || 7;
+
+// Weekly classes meeting on `date`, shaped as approved whole-lab bookings so every
+// screen and rule that understands reservations understands classes too.
+export function classesOn(date: string, schedules: ClassSchedule[]): Reservation[] {
+  const dow = isoWeekday(date);
+  return schedules
+    .filter((s) => s.day_of_week === dow && s.starts_on <= date && date <= s.ends_on)
+    .map((s) => ({
+      id: `class-${s.id}-${date}`, title: `${s.section}: ${s.subject}`, lab_id: s.lab_id, pc_id: null,
+      purpose: 'Regular class', date, start_time: s.start_time, end_time: s.end_time,
+      requester_id: '', requester_name: s.instructor, participants: null, requirements: null,
+      status: 'approved', admin_notes: null, reviewed_at: null,
+    }));
 }

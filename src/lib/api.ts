@@ -1,4 +1,5 @@
 import type {
+  ClassSchedule, ScheduleInput,
   Lab, LabEvent, Pc, PcStatus, Profile, Reservation, ReservationInput, ResStatus, Role, Student,
 } from './types';
 import { createMock } from './mock';
@@ -43,6 +44,10 @@ export interface Api {
   listEvents(): Promise<LabEvent[]>;
   saveEvent(e: EventInput): Promise<void>;
   deleteEvent(id: string): Promise<void>;
+
+  listSchedules(): Promise<ClassSchedule[]>;
+  saveSchedule(s: ScheduleInput): Promise<void>;
+  deleteSchedule(id: string): Promise<void>;
 
   stats(): Promise<Stats>;
 }

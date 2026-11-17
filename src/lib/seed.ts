@@ -1,5 +1,6 @@
 import { manilaNow } from './seat';
-import type { Lab, LabEvent, Pc, Profile, Reservation, Student } from './types';
+import { TIMETABLE } from './timetable';
+import type { ClassSchedule, Lab, LabEvent, Pc, Profile, Reservation, Student } from './types';
 
 export interface MockState {
   profiles: Profile[];
@@ -8,6 +9,7 @@ export interface MockState {
   reservations: Reservation[];
   students: Student[];
   events: LabEvent[];
+  schedules: ClassSchedule[];
 }
 
 const person = (id: string, full_name: string, role: Profile['role'], approved: boolean, department: string): Profile => ({
@@ -70,9 +72,12 @@ export function seed(): MockState {
       stu(3, 'Carla Mendoza', 'BSBA', 'C', '1st Year'), stu(4, 'Dan Garcia', 'BSHM', 'A', '3rd Year'),
       stu(5, 'Ella Ramos', 'BEED', 'A', '2nd Year'), stu(6, 'Felix Tan', 'BSED', 'B', '4th Year'),
     ],
+    schedules: seedSchedules(),
     events: [
       { id: 'e1', title: 'Lab maintenance', description: 'All labs closed for cleaning', event_date: addDays(now.date, 3), event_time: '08:00', event_type: 'meeting', owner_id: 'admin' },
       { id: 'e2', title: 'Midterm week', description: null, event_date: addDays(now.date, 7), event_time: '07:30', event_type: 'academic', owner_id: 'admin' },
     ],
   };
 }
+
+export const seedSchedules = (): ClassSchedule[] => TIMETABLE.map((s, i) => ({ ...s, id: `cls${i + 1}` }));

@@ -90,3 +90,27 @@ describe('mock api', () => {
     expect((await b.listPcs('lab2')).find((p) => p.id === 'lab2-pc10')?.status).toBe('in_use');
   });
 });
+
+describe('mock class schedule', () => {
+  const cls = {
+    lab_id: 'lab1', section: 'BSIT 9Z', subject: 'Test class', instructor: 'T', day_of_week: 1,
+    start_time: '08:00', end_time: '11:00', starts_on: '2099-01-01', ends_on: '2099-12-31',
+  };
+  it('blocks approving a booking during a weekly class', async () => {
+    const api = await asAdmin();
+    await api.saveSchedule(cls);
+    const r = await api.createReservation(input({ date: '2099-01-05', start_time: '10:00', end_time: '12:00' })); // a Monday
+    await expect(api.reviewReservation(r.id, 'approved')).rejects.toThrow(/class/i);
+  });
+  it('rejects two classes in the same lab at the same time', async () => {
+    const api = await asAdmin();
+    await api.saveSchedule(cls);
+    await expect(api.saveSchedule({ ...cls, section: 'BSIT 9Y', start_time: '10:00', end_time: '12:00' })).rejects.toThrow(/overlaps/i);
+  });
+  it('only admins can change the schedule', async () => {
+    const api = createMock(null);
+    await api.signIn('teacher@smcbi.edu.ph', 'x');
+    await expect(api.saveSchedule(cls)).rejects.toThrow(/not allowed/i);
+    expect((await api.listSchedules()).length).toBeGreaterThan(0);
+  });
+});

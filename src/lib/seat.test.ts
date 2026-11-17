@@ -1,4 +1,4 @@
-import { manilaNow, shownStatus, slotsOverlap } from './seat';
+import { classesOn, manilaNow, shownStatus, slotsOverlap } from './seat';
 import type { Pc, Reservation } from './types';
 
 const slot = (pc_id: string | null, start_time: string, end_time: string, lab_id = 'lab1') => ({
@@ -56,5 +56,30 @@ describe('shownStatus', () => {
 describe('manilaNow', () => {
   it('uses Asia/Manila time across midnight', () => {
     expect(manilaNow(new Date('2026-11-16T16:30:00Z'))).toEqual({ date: '2026-11-17', time: '00:30' });
+  });
+});
+
+describe('classesOn', () => {
+  const cls = {
+    id: 'c1', lab_id: 'lab2', section: 'BSIT 1A', subject: 'IT121 Computer Programming 2', instructor: 'Caballero',
+    day_of_week: 3, start_time: '09:00', end_time: '12:00', starts_on: '2026-11-02', ends_on: '2027-03-31',
+  };
+  it('turns a weekly class into an approved whole-lab booking on its weekday', () => {
+    expect(classesOn('2026-11-18', [cls])).toEqual([expect.objectContaining({
+      lab_id: 'lab2', pc_id: null, date: '2026-11-18', start_time: '09:00', end_time: '12:00', status: 'approved',
+      title: 'BSIT 1A: IT121 Computer Programming 2', requester_name: 'Caballero',
+    })]);
+  });
+  it('skips other weekdays and dates outside the semester', () => {
+    expect(classesOn('2026-11-19', [cls])).toEqual([]);
+    expect(classesOn('2026-10-28', [cls])).toEqual([]);
+    expect(classesOn('2027-04-07', [cls])).toEqual([]);
+  });
+  it('treats Sunday as day 7', () => {
+    expect(classesOn('2026-11-22', [{ ...cls, day_of_week: 7 }])).toHaveLength(1);
+  });
+  it('makes the lab show as reserved during class', () => {
+    const p = { ...pc('free'), lab_id: 'lab2' };
+    expect(shownStatus(p, classesOn('2026-11-18', [cls]), { date: '2026-11-18', time: '10:00' })).toBe('reserved');
   });
 });

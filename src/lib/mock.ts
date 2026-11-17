@@ -1,9 +1,9 @@
 // Demo backend: in-memory state persisted to localStorage. Used when Supabase isn't configured.
 import type { Api } from './api';
-import { manilaNow, slotsOverlap } from './seat';
-import { seed, type MockState } from './seed';
+import { classesOn, manilaNow, slotsOverlap } from './seat';
+import { seed, seedSchedules, type MockState } from './seed';
 import type { Pc, Profile, Role } from './types';
-import { isSchoolEmail, validateReservation, validateStudent } from './validate';
+import { isSchoolEmail, schedulesOverlap, validateReservation, validateSchedule, validateStudent } from './validate';
 
 type Store = Pick<Storage, 'getItem' | 'setItem'>;
 const KEY = 'comlab-mock';
@@ -18,6 +18,7 @@ const uid = () => Math.random().toString(36).slice(2, 10);
 export function createMock(storage: Store | null = browserStorage()): Api {
   let state: MockState;
   try { state = JSON.parse(storage?.getItem(KEY) ?? 'null') ?? seed(); } catch { state = seed(); }
+  state.schedules ??= seedSchedules(); // demo data saved before weekly classes existed
   let sessionId: string | null = null;
   try { sessionId = storage?.getItem(SESSION_KEY) ?? null; } catch { /* private mode */ }
 
@@ -100,6 +101,8 @@ export function createMock(storage: Store | null = browserStorage()): Api {
       if (!r) throw new Error('Reservation not found.');
       if (status === 'approved' && state.reservations.some((o) => o.id !== id && o.status === 'approved' && slotsOverlap(o, r)))
         throw new Error('This slot overlaps an approved reservation.');
+      if (status === 'approved' && classesOn(r.date, state.schedules).some((c) => slotsOverlap(c, r)))
+        throw new Error('This slot overlaps a regular class in this lab.');
       Object.assign(r, { status, admin_notes: notes ?? r.admin_notes, reviewed_at: new Date().toISOString() });
       changedRes();
     },
@@ -150,6 +153,22 @@ export function createMock(storage: Store | null = browserStorage()): Api {
       const e = state.events.find((x) => x.id === id);
       if (e && e.owner_id !== p.id && p.role !== 'admin') throw new Error('Not allowed for your role.');
       state.events = state.events.filter((x) => x.id !== id); save();
+    },
+
+    async listSchedules() { me(); return clone(state.schedules); },
+    async saveSchedule(s) {
+      need('admin');
+      const errs = validateSchedule(s);
+      if (errs.length) throw new Error(errs.join(' '));
+      if (state.schedules.some((o) => o.id !== s.id && schedulesOverlap(o, s)))
+        throw new Error('This class overlaps another class in the same lab.');
+      const existing = state.schedules.find((x) => x.id === s.id);
+      if (existing) Object.assign(existing, s); else state.schedules.push({ ...s, id: uid() });
+      save(); resListeners.forEach((f) => f());
+    },
+    async deleteSchedule(id) {
+      need('admin');
+      state.schedules = state.schedules.filter((x) => x.id !== id); save(); resListeners.forEach((f) => f());
     },
 
     async stats() {

@@ -2,12 +2,14 @@
 // in supabase/migrations; this file only maps rows and errors.
 import { createClient } from '@supabase/supabase-js';
 import type { Api } from './api';
-import type { Pc, Profile, Reservation } from './types';
+import type { ClassSchedule, Pc, Profile, Reservation } from './types';
 
 export const hhmm = (t: string) => t.slice(0, 5);
 
 export function friendlyError(e: { message: string; code?: string }): Error {
   if (e.message === 'conflict') return new Error('This slot overlaps an approved reservation.');
+  if (e.message === 'class_conflict') return new Error('This slot overlaps a regular class in this lab.');
+  if (e.message === 'schedule_conflict') return new Error('This class overlaps another class in the same lab.');
   if (e.code === '42501' || /row-level security/.test(e.message)) return new Error('Not allowed for your role.');
   if (e.code === '23505') {
     if (/student_id/.test(e.message)) return new Error('Student ID already exists.');
@@ -76,6 +78,7 @@ export function createSupabaseApi(url: string, key: string): Api {
     subscribeReservations(cb) {
       const ch = sb.channel(`res:${Math.random().toString(36).slice(2)}`)
         .on('postgres_changes', { event: '*', schema: 'public', table: 'reservations' }, () => cb())
+        .on('postgres_changes', { event: '*', schema: 'public', table: 'class_schedules' }, () => cb())
         .subscribe();
       return () => { sb.removeChannel(ch); };
     },
@@ -128,6 +131,19 @@ export function createSupabaseApi(url: string, key: string): Api {
       else ok(await sb.from('events').insert(e));
     },
     async deleteEvent(id) { ok(await sb.from('events').delete().eq('id', id)); },
+
+    async listSchedules() {
+      return (ok(await sb.from('class_schedules').select('*').order('day_of_week').order('start_time')) as ClassSchedule[])
+        .map((c) => ({ ...c, start_time: hhmm(c.start_time), end_time: hhmm(c.end_time) }));
+    },
+    async saveSchedule({ id, ...c }) {
+      const rows = ok(await (id ? sb.from('class_schedules').update(c).eq('id', id) : sb.from('class_schedules').insert(c)).select('id'));
+      if (!rows.length) throw new Error('Not allowed for your role.');
+    },
+    async deleteSchedule(id) {
+      const rows = ok(await sb.from('class_schedules').delete().eq('id', id).select('id'));
+      if (!rows.length) throw new Error('Not allowed for your role.');
+    },
 
     async stats() {
       const count = async (q: PromiseLike<{ count: number | null; error: { message: string } | null }>) => {

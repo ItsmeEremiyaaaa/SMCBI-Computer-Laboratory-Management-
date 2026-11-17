@@ -75,3 +75,18 @@ export interface LabEvent {
   event_type: EventType;
   owner_id: string;
 }
+
+// A weekly class held in a lab, e.g. every Wednesday 9:00–12:00 for the semester.
+export interface ClassSchedule {
+  id: string;
+  lab_id: string;
+  section: string;
+  subject: string;
+  instructor: string;
+  day_of_week: number; // 1 = Monday … 7 = Sunday
+  start_time: string;
+  end_time: string;
+  starts_on: string;
+  ends_on: string;
+}
+export type ScheduleInput = Omit<ClassSchedule, 'id'> & { id?: string };

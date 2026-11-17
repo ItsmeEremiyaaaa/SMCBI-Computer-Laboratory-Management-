@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from 'react';
 import { api } from '../lib/api';
-import { activeReservation, manilaNow, shownStatus } from '../lib/seat';
+import { activeReservation, classesOn, manilaNow, shownStatus } from '../lib/seat';
 import type { Pc, Reservation, ShownStatus } from '../lib/types';
 
 export type LivePc = Pc & { shown: ShownStatus; current?: Reservation };
@@ -15,7 +15,9 @@ export function useLabLive(labId: string | null) {
   const [error, setError] = useState<string | null>(null);
 
   const loadRes = useCallback(async () => {
-    setToday(await api.listReservations({ status: 'approved', date: manilaNow().date }));
+    const date = manilaNow().date;
+    const [res, classes] = await Promise.all([api.listReservations({ status: 'approved', date }), api.listSchedules()]);
+    setToday([...res, ...classesOn(date, classes)]);
   }, []);
 
   useEffect(() => {
