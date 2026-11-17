@@ -16,7 +16,7 @@ describe('useLabLive', () => {
     await api.reviewReservation(r.id, 'approved');
 
     const { result } = renderHook(() => useLabLive('lab1'));
-    await waitFor(() => expect(result.current.pcs).toHaveLength(30));
+    await waitFor(() => expect(result.current.pcs).toHaveLength(40));
     expect(result.current.pcs.some((p) => p.shown === 'reserved')).toBe(false);
 
     await act(async () => { vi.advanceTimersByTime(60_000); });

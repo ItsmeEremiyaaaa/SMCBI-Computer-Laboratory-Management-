@@ -4,24 +4,67 @@ import { Bounds, ContactShadows, Html, OrbitControls, RoundedBox } from '@react-
 import type { LivePc } from '../hooks/useLabLive';
 import type { Lab } from '../lib/types';
 import type { SceneProps } from './SeatGrid';
+import { LAYOUTS } from '../lib/layouts';
 import { STATUS_COLOR, STATUS_LABEL } from './ui';
 
 // Modeled on the SMCBI labs: Lab 1/2 have long white benches with white partitions;
 // Netlab has separate dark-top tables on metal legs. Both use white monobloc chairs.
-type Style = 'bench' | 'table';
-const styleOf = (lab: Lab): Style => (/netlab/i.test(lab.id + lab.name) ? 'table' : 'bench');
-
-const DX = 1.15; // seat width along a bench
-const DZ = 1.9; // row spacing
-const AISLE = 1.3; // center aisle
+const DX = 1.15; // seat width (Netlab tables)
+const DZ = 1.9; // row spacing (Netlab tables)
 const DESK_D = 0.7;
 const DESK_H = 0.75;
 
-function seatX(col: number, cols: number) {
-  const half = Math.ceil(cols / 2);
-  const x = (col - (cols - 1) / 2) * DX;
-  return x + (col >= half ? AISLE / 2 : -AISLE / 2);
+// Labs with wooden-support islands (Comlab 1 and 2) vs. separate dark tables (Netlab).
+type Style = 'island' | 'table';
+const styleOf = (lab: Lab): Style => (LAYOUTS[lab.id]?.island ? 'island' : 'table');
+
+// Island geometry. Layout columns per island: 0 = left, 1 = wood, 2 = right, 3 = gap.
+const ISLAND_GAP = 3.6; // centre-to-centre between islands
+const ISLAND_ROW = 1.2; // seat spacing along the wood
+
+const islandCount = (lab: Lab) => Math.ceil(lab.cols / 4);
+const islandX = (i: number, n: number) => (i - (n - 1) / 2) * ISLAND_GAP;
+// Rows along the wood (the end row, if any, sits across the back end instead).
+const sideRows = (lab: Lab) => LAYOUTS[lab.id]?.island?.endRow ?? lab.rows;
+const sideZ = (row: number, lab: Lab) => (row - (sideRows(lab) - 1) / 2) * ISLAND_ROW - 0.4;
+
+// Where a PC sits and which way it faces (rotation about Y; 0 = monitor toward the front).
+function place(pc: LivePc, lab: Lab, style: Style): { pos: [number, number, number]; rot: number } {
+  if (style !== 'island') return { pos: [seatX(pc.col, lab.cols), 0, rowZ(pc.row, lab.rows)], rot: 0 };
+  const cx = islandX(Math.floor(pc.col / 4), islandCount(lab));
+  const left = pc.col % 4 === 0;
+  if (pc.row !== LAYOUTS[lab.id]?.island?.endRow) {
+    // side seats: monitor against the wood, student sits outside
+    return { pos: [cx + (left ? -0.55 : 0.55), 0, sideZ(pc.row, lab)], rot: left ? -Math.PI / 2 : Math.PI / 2 };
+  }
+  // end seats across the back end of the wood, facing it
+  return { pos: [cx + (left ? -0.58 : 0.58), 0, sideZ(sideRows(lab) - 1, lab) + ISLAND_ROW / 2 + 0.65], rot: 0 };
 }
+
+// One wooden support per island, as long as that island's run of side seats.
+function Spines({ lab, pcs }: { lab: Lab; pcs: LivePc[] }) {
+  const n = islandCount(lab);
+  const endRow = LAYOUTS[lab.id]?.island?.endRow;
+  return (
+    <>
+      {Array.from({ length: n }, (_, i) => {
+        const rows = pcs.filter((p) => Math.floor(p.col / 4) === i && p.row !== endRow).map((p) => p.row);
+        if (!rows.length) return null;
+        const z0 = sideZ(Math.min(...rows), lab) - ISLAND_ROW / 2;
+        const z1 = sideZ(Math.max(...rows), lab) + ISLAND_ROW / 2;
+        return (
+          <mesh key={i} position={[islandX(i, n), (DESK_H + 0.3) / 2, (z0 + z1) / 2]} castShadow receiveShadow>
+            <boxGeometry args={[0.12, DESK_H + 0.3, z1 - z0]} />
+            <meshStandardMaterial color="#b98a58" roughness={0.75} />
+          </mesh>
+        );
+      })}
+    </>
+  );
+}
+
+// Aisles are empty grid columns/rows in the layout, so placement is a plain grid.
+const seatX = (col: number, cols: number) => (col - (cols - 1) / 2) * DX;
 const rowZ = (row: number, rows: number) => (row - (rows - 1) / 2) * DZ + 1.2;
 
 function Monobloc({ position }: { position: [number, number, number] }) {
@@ -37,17 +80,28 @@ function Monobloc({ position }: { position: [number, number, number] }) {
   );
 }
 
-function Workstation({ pc, pos, style, selected, onSelect }:
-  { pc: LivePc; pos: [number, number, number]; style: Style; selected: boolean; onSelect: () => void }) {
+function Workstation({ pc, pos, rot = 0, style, selected, onSelect }:
+  { pc: LivePc; pos: [number, number, number]; rot?: number; style: Style; selected: boolean; onSelect: () => void }) {
   const [hover, setHover] = useState(false);
   const color = STATUS_COLOR[pc.shown];
   const glow = pc.shown === 'broken' ? 0.7 : pc.shown === 'free' ? 0.85 : 1.5;
   const black = <meshStandardMaterial color="#15181d" roughness={0.45} />;
   return (
-    <group position={pos}
+    <group position={pos} rotation-y={rot}
       onClick={(e) => { e.stopPropagation(); onSelect(); }}
       onPointerOver={(e) => { e.stopPropagation(); setHover(true); document.body.style.cursor = 'pointer'; }}
       onPointerOut={() => { setHover(false); document.body.style.cursor = ''; }}>
+      {style === 'island' && <>
+        {/* Comlab 1: white desk against the wooden support */}
+        <mesh position={[0, DESK_H, -0.02]} castShadow receiveShadow>
+          <boxGeometry args={[1.08, 0.04, DESK_D - 0.04]} />
+          <meshStandardMaterial color={selected || hover ? '#dce8f8' : '#f7f7f5'} roughness={0.35} />
+        </mesh>
+        {[-0.52, 0.52].map((x) => (
+          <mesh key={x} position={[x, DESK_H / 2, -0.02]} castShadow><boxGeometry args={[0.03, DESK_H, DESK_D - 0.08]} />
+            <meshStandardMaterial color="#ebe6dc" /></mesh>
+        ))}
+      </>}
       {style === 'table' && <>
         {/* Netlab: own dark table on metal legs */}
         <mesh position={[0, DESK_H, 0]} castShadow receiveShadow>
@@ -95,41 +149,6 @@ function Workstation({ pc, pos, style, selected, onSelect }:
 }
 
 // Lab 1/2: one continuous white bench per row and side, with partitions between seats.
-function Benches({ lab }: { lab: Lab }) {
-  const half = Math.ceil(lab.cols / 2);
-  const blocks = [[0, half - 1], [half, lab.cols - 1]].filter(([a, b]) => a <= b);
-  const white = <meshStandardMaterial color="#f7f7f5" roughness={0.35} />;
-  return (
-    <>
-      {Array.from({ length: lab.rows }, (_, r) => blocks.map(([a, b]) => {
-        const x0 = seatX(a, lab.cols) - DX / 2;
-        const x1 = seatX(b, lab.cols) + DX / 2;
-        const w = x1 - x0;
-        const cx = (x0 + x1) / 2;
-        const z = rowZ(r, lab.rows);
-        return (
-          <group key={`${r}-${a}`} position={[cx, 0, z]}>
-            <mesh position={[0, DESK_H, 0]} castShadow receiveShadow><boxGeometry args={[w, 0.04, DESK_D]} />{white}</mesh>
-            {/* front modesty panel rising above the desk, like the photos */}
-            <mesh position={[0, DESK_H / 2 + 0.17, -DESK_D / 2]} castShadow><boxGeometry args={[w, DESK_H + 0.34, 0.025]} />{white}</mesh>
-            {/* end panels */}
-            {[-w / 2, w / 2].map((x) => (
-              <mesh key={x} position={[x, DESK_H / 2, 0]} castShadow><boxGeometry args={[0.03, DESK_H, DESK_D]} />
-                <meshStandardMaterial color="#e9e3d6" /></mesh>
-            ))}
-            {/* partitions between seats */}
-            {Array.from({ length: b - a }, (_, i) => (
-              <mesh key={i} position={[x0 - cx + (i + 1) * DX, DESK_H + 0.16, -0.05]} castShadow>
-                <boxGeometry args={[0.025, 0.32, DESK_D - 0.12]} />{white}
-              </mesh>
-            ))}
-          </group>
-        );
-      }))}
-    </>
-  );
-}
-
 function Frame({ position, w, h, color }: { position: [number, number, number]; w: number; h: number; color: string }) {
   return (
     <group position={position}>
@@ -152,7 +171,7 @@ function Room({ w, d, style }: { w: number; d: number; style: Style }) {
 
       {/* front wall */}
       <mesh position={[0, 1.6, front]} receiveShadow><boxGeometry args={[w, 3.2, 0.1]} />{wall}</mesh>
-      {style === 'bench' ? <>
+      {style === 'island' ? <>
         {/* whiteboard in a light wood frame, frosted glass panels on both sides */}
         <mesh position={[0, 1.45, front + 0.06]}><boxGeometry args={[3.4, 1.5, 0.04]} /><meshStandardMaterial color="#d8c39b" /></mesh>
         <mesh position={[0, 1.45, front + 0.085]}><boxGeometry args={[3.25, 1.36, 0.01]} /><meshStandardMaterial color="#fbfbfb" roughness={0.15} /></mesh>
@@ -197,8 +216,8 @@ function Room({ w, d, style }: { w: number; d: number; style: Style }) {
 
 export default function LabScene({ lab, pcs, selectedId, onSelect }: SceneProps) {
   const style = styleOf(lab);
-  const w = lab.cols * DX + AISLE + 3;
-  const d = lab.rows * DZ + 4.5;
+  const w = style === 'island' ? islandCount(lab) * ISLAND_GAP + 2.4 : lab.cols * DX + 3;
+  const d = style === 'island' ? (sideRows(lab) + (lab.rows > sideRows(lab) ? 1 : 0)) * ISLAND_ROW + 7.5 : lab.rows * DZ + 4.5;
   return (
     <Canvas shadows dpr={[1, 2]} camera={{ position: [0, w * 0.4, d / 2 + w * 0.6], fov: 45 }} onPointerMissed={() => onSelect('')}>
       <color attach="background" args={['#dfe5ee']} />
@@ -209,11 +228,12 @@ export default function LabScene({ lab, pcs, selectedId, onSelect }: SceneProps)
       <Bounds fit margin={0.8}>
         <Room w={w} d={d} style={style} />
       </Bounds>
-      {style === 'bench' && <Benches lab={lab} />}
-      {pcs.map((pc) => (
-        <Workstation key={pc.id} pc={pc} style={style} selected={pc.id === selectedId} onSelect={() => onSelect(pc.id)}
-          pos={[seatX(pc.col, lab.cols), 0, rowZ(pc.row, lab.rows)]} />
-      ))}
+      {style === 'island' && <Spines lab={lab} pcs={pcs} />}
+      {pcs.map((pc) => {
+        const { pos, rot } = place(pc, lab, style);
+        return <Workstation key={pc.id} pc={pc} style={style} pos={pos} rot={rot}
+          selected={pc.id === selectedId} onSelect={() => onSelect(pc.id)} />;
+      })}
       <ContactShadows position={[0, 0.003, 0]} scale={Math.max(w, d)} opacity={0.2} blur={2.5} far={2} />
       <OrbitControls makeDefault maxPolarAngle={1.35} minDistance={3} maxDistance={40} enableDamping />
     </Canvas>

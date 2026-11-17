@@ -13,11 +13,11 @@ async function asAdmin() {
 }
 
 describe('mock api', () => {
-  it('seeds 3 labs with 30 PCs each', async () => {
+  it('seeds 3 labs with their real PC counts', async () => {
     const api = await asAdmin();
     const labs = await api.listLabs();
     expect(labs.map((l) => l.name)).toEqual(['Computer Laboratory 1', 'Computer Laboratory 2', 'Computer Laboratory Netlab']);
-    for (const l of labs) expect(await api.listPcs(l.id)).toHaveLength(30);
+    expect((await Promise.all(labs.map((l) => api.listPcs(l.id)))).map((p) => p.length)).toEqual([40, 44, 42]);
   });
 
   it('seeds admin, staff, approved teacher and pending teacher', async () => {

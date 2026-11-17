@@ -49,9 +49,9 @@ function LabTile({ lab, pcs }: { lab: Lab; pcs: LivePc[] }) {
         </div>
         <span className="rounded-full bg-accent-soft px-2.5 py-1 text-xs font-semibold text-accent">{free} free</span>
       </div>
-      <div className="mt-4 grid gap-1.5" style={{ gridTemplateColumns: `repeat(${lab.cols}, minmax(0, 1fr))` }} aria-hidden>
+      <div className="mt-4 grid gap-1" style={{ gridTemplateColumns: `repeat(${lab.cols}, minmax(0, 1fr))` }} aria-hidden>
         {mine.map((p) => <span key={p.id} className="led !h-2.5 !w-full !rounded-sm" title={`${p.label}: ${STATUS_LABEL[p.shown]}`}
-          style={{ color: STATUS_COLOR[p.shown] }} />)}
+          style={{ color: STATUS_COLOR[p.shown], gridRow: p.row + 1, gridColumn: p.col + 1 }} />)}
       </div>
       <div className="mt-4 h-1.5 overflow-hidden rounded-full bg-accent-soft" aria-label={`${pct}% free`}>
         <div className="h-full rounded-full bg-accent" style={{ width: `${pct}%` }} />

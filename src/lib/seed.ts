@@ -1,4 +1,5 @@
 import { manilaNow } from './seat';
+import { LAYOUTS, seatsFor } from './layouts';
 import { TIMETABLE } from './timetable';
 import type { ClassSchedule, Lab, LabEvent, Pc, Profile, Reservation, Student } from './types';
 
@@ -25,15 +26,13 @@ const addDays = (date: string, n: number) => {
 
 export function seed(): MockState {
   const labs: Lab[] = [
-    { id: 'lab1', name: 'Computer Laboratory 1', rows: 5, cols: 6 },
-    { id: 'lab2', name: 'Computer Laboratory 2', rows: 5, cols: 6 },
-    { id: 'netlab', name: 'Computer Laboratory Netlab', rows: 5, cols: 6 },
+    { id: 'lab1', name: 'Computer Laboratory 1', rows: LAYOUTS.lab1.rows, cols: LAYOUTS.lab1.cols },
+    { id: 'lab2', name: 'Computer Laboratory 2', rows: LAYOUTS.lab2.rows, cols: LAYOUTS.lab2.cols },
+    { id: 'netlab', name: 'Computer Laboratory Netlab', rows: LAYOUTS.netlab.rows, cols: LAYOUTS.netlab.cols },
   ];
-  const pcs: Pc[] = labs.flatMap((lab) =>
-    Array.from({ length: lab.rows * lab.cols }, (_, i) => ({
-      id: `${lab.id}-pc${pad(i + 1)}`, lab_id: lab.id, label: `PC-${pad(i + 1)}`,
-      row: Math.floor(i / lab.cols), col: i % lab.cols, status: 'free' as const, note: null, updated_at: new Date().toISOString(),
-    })));
+  const pcs: Pc[] = labs.flatMap((lab) => seatsFor(lab.id).map((s) => ({
+    ...s, lab_id: lab.id, status: 'free' as const, note: null, updated_at: new Date().toISOString(),
+  })));
   // A lived-in demo: some PCs in use or broken.
   for (const [id, status, note] of [
     ['lab1-pc02', 'in_use', null], ['lab1-pc03', 'in_use', null], ['lab1-pc09', 'in_use', null],
