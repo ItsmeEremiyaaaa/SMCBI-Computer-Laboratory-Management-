@@ -360,42 +360,6 @@ function FrontWallWindow({
   );
 }
 
-// Wall-mounted 9U Server / Network Switch Rack Cabinet with status LEDs
-function ServerRack({ position }: { position: [number, number, number] }) {
-  return (
-    <group position={position}>
-      {/* 9U Rack cabinet chassis */}
-      <mesh position={[0, 0.5, 0]} castShadow>
-        <boxGeometry args={[0.55, 0.88, 0.45]} />
-        <meshStandardMaterial color="#0f172a" roughness={0.35} metalness={0.7} />
-      </mesh>
-      {/* Smoked glass door */}
-      <mesh position={[0, 0.5, 0.23]}>
-        <planeGeometry args={[0.48, 0.8]} />
-        <meshStandardMaterial color="#38bdf8" transparent opacity={0.25} roughness={0.1} metalness={0.4} />
-      </mesh>
-      {/* Patch panels & switches with glowing status LEDs */}
-      {[0.25, 0.42, 0.58, 0.72].map((y, idx) => (
-        <group key={idx} position={[0, y, 0.18]}>
-          <mesh>
-            <boxGeometry args={[0.46, 0.08, 0.06]} />
-            <meshStandardMaterial color="#1e293b" />
-          </mesh>
-          {[-0.18, -0.12, -0.06, 0, 0.06, 0.12, 0.18].map((lx, li) => {
-            const ledColor = (idx + li) % 3 === 0 ? '#10b981' : (idx + li) % 3 === 1 ? '#38bdf8' : '#f59e0b';
-            return (
-              <mesh key={li} position={[lx, 0, 0.032]}>
-                <boxGeometry args={[0.015, 0.015, 0.005]} />
-                <meshStandardMaterial color={ledColor} emissive={ledColor} emissiveIntensity={2.5} toneMapped={false} />
-              </mesh>
-            );
-          })}
-        </group>
-      ))}
-    </group>
-  );
-}
-
 // Split Inverter Air Conditioning Unit
 function AirConditioner({ position, rotationY = 0 }: { position: [number, number, number]; rotationY?: number }) {
   return (
@@ -448,46 +412,10 @@ function FireExtinguisher({ position, rotationY = 0 }: { position: [number, numb
   );
 }
 
-// Potted Sansevieria (Snake Plant)
-function IndoorPlant({ position }: { position: [number, number, number] }) {
-  return (
-    <group position={position}>
-      <mesh position={[0, 0.22, 0]} castShadow>
-        <cylinderGeometry args={[0.22, 0.18, 0.44, 24]} />
-        <meshStandardMaterial color="#f8fafc" roughness={0.3} />
-      </mesh>
-      <mesh position={[0, 0.42, 0]}>
-        <cylinderGeometry args={[0.2, 0.2, 0.04, 16]} />
-        <meshStandardMaterial color="#29201a" roughness={0.9} />
-      </mesh>
-      {[
-        { pos: [0, 0.72, 0] as [number, number, number], rot: [0.08, 0.2, -0.05] as [number, number, number], h: 0.65 },
-        { pos: [-0.08, 0.65, 0.05] as [number, number, number], rot: [-0.1, -0.3, 0.1] as [number, number, number], h: 0.52 },
-        { pos: [0.08, 0.68, -0.04] as [number, number, number], rot: [0.12, 0.8, -0.08] as [number, number, number], h: 0.58 },
-        { pos: [0.03, 0.62, 0.09] as [number, number, number], rot: [-0.15, 0.4, 0.06] as [number, number, number], h: 0.46 },
-        { pos: [-0.06, 0.6, -0.07] as [number, number, number], rot: [0.1, -0.7, -0.1] as [number, number, number], h: 0.44 },
-      ].map((leaf, idx) => (
-        <group key={idx} position={leaf.pos} rotation={leaf.rot}>
-          <mesh castShadow>
-            <boxGeometry args={[0.08, leaf.h, 0.015]} />
-            <meshStandardMaterial color="#2d6a4f" roughness={0.5} />
-          </mesh>
-          <mesh position={[0, 0, 0.009]}>
-            <planeGeometry args={[0.07, leaf.h - 0.04]} />
-            <meshStandardMaterial color="#52b788" roughness={0.6} />
-          </mesh>
-        </group>
-      ))}
-    </group>
-  );
-}
-
-// Front Wall Features: Whiteboard with pen tray & eraser, 65" TV display, Clock, Crucifix, Lab Banner, Teacher Station
+// Front Wall Features: Clean Whiteboard with pen tray & eraser, and Centered Teacher Station
 function FrontWallDecor({
-  lab,
   w,
   front,
-  style,
 }: {
   lab: Lab;
   w: number;
@@ -537,35 +465,6 @@ function FrontWallDecor({
         </mesh>
       </group>
 
-      {/* 65" Interactive Presentation Screen / Smart Display */}
-      <group position={[2.85, 1.6, front + 0.06]}>
-        <mesh castShadow>
-          <boxGeometry args={[1.45, 0.9, 0.04]} />
-          <meshStandardMaterial color="#0f172a" roughness={0.3} />
-        </mesh>
-        <mesh position={[0, 0, 0.022]}>
-          <planeGeometry args={[1.38, 0.83]} />
-          <meshStandardMaterial color="#0b1329" emissive="#1d4ed8" emissiveIntensity={0.35} />
-        </mesh>
-      </group>
-
-      {/* Catholic Crucifix */}
-      <group position={[0, 2.76, front + 0.08]}>
-        <mesh><boxGeometry args={[0.05, 0.44, 0.03]} /><meshStandardMaterial color="#4a2f1d" roughness={0.7} /></mesh>
-        <mesh position={[0, 0.09, 0]}><boxGeometry args={[0.26, 0.045, 0.03]} /><meshStandardMaterial color="#4a2f1d" roughness={0.7} /></mesh>
-        {/* Corpus figure detail */}
-        <mesh position={[0, 0.07, 0.02]}><boxGeometry args={[0.07, 0.16, 0.02]} /><meshStandardMaterial color="#fef08a" metalness={0.7} roughness={0.3} /></mesh>
-      </group>
-
-      {/* Classroom Wall Clock */}
-      <group position={[-2.85, 2.3, front + 0.07]}>
-        <mesh><cylinderGeometry args={[0.22, 0.22, 0.03, 32]} rotation-x={Math.PI / 2} /><meshStandardMaterial color="#1e293b" /></mesh>
-        <mesh position={[0, 0, 0.016]}><circleGeometry args={[0.2, 32]} /><meshStandardMaterial color="#ffffff" /></mesh>
-        <mesh position={[0, 0.06, 0.018]}><boxGeometry args={[0.012, 0.12, 0.005]} /><meshStandardMaterial color="#000000" /></mesh>
-        <mesh position={[0.04, 0, 0.018]}><boxGeometry args={[0.09, 0.01, 0.005]} /><meshStandardMaterial color="#000000" /></mesh>
-        <mesh position={[0, 0, 0.02]}><circleGeometry args={[0.015, 16]} /><meshStandardMaterial color="#dc2626" /></mesh>
-      </group>
-
       {/* Teacher's Station: Centered in front of the whiteboard */}
       <group position={[0, 0, front + 1.4]}>
         <mesh position={[0, DESK_H, 0]} castShadow>
@@ -605,12 +504,16 @@ function Room({ lab, w, d, style }: { lab: Lab; w: number; d: number; style: Sty
   const front = -d / 2;
   const back = d / 2;
 
-  // Door positions for side walls:
-  // lab1: NO exit door on right wall (full windows corner). Door to ComLab 2 is on front wall.
-  // lab2: Exit door on right wall. Door to NetLab & door to ComLab 1 are on front wall.
-  // netlab: Exit door on left wall.
-  const leftDoorZs = lab.id === 'netlab' ? [front + 2.4] : [];
-  const rightDoorZs = lab.id === 'lab2' ? [front + 5.5] : [];
+  // Window bay subdivisions along the depth of the room
+  const bayCount = Math.max(4, Math.floor(d / 2.0));
+  const bayLength = d / bayCount;
+  // Exit door integrated in the window wall at the cactus location (front-left corner bay)
+  const exitDoorZ = front + bayLength * 0.5;
+
+  // Left wall has the exit door for all labs at the cactus location
+  const leftDoorZs = [exitDoorZ];
+  // Right wall has continuous full windows
+  const rightDoorZs: number[] = [];
 
   return (
     <group>
@@ -627,7 +530,7 @@ function Room({ lab, w, d, style }: { lab: Lab; w: number; d: number; style: Sty
         {wall}
       </mesh>
 
-      {/* Back Wall (Closing the room when looking from front to back) */}
+      {/* Back Wall */}
       <mesh position={[0, 1.6, back]} receiveShadow>
         <boxGeometry args={[w, 3.2, 0.1]} />
         {wall}
@@ -642,64 +545,41 @@ function Room({ lab, w, d, style }: { lab: Lab; w: number; d: number; style: Sty
         <boxGeometry args={[w, 0.25, 0.03]} />
         <meshStandardMaterial color="#1e3a8a" roughness={0.3} />
       </mesh>
-      {/* Back Wall Laboratory Guidelines Notice Board (clean cork/slate board without text clutter) */}
-      <group position={[0, 1.8, back - 0.06]}>
-        <mesh><boxGeometry args={[2.8, 1.2, 0.03]} /><meshStandardMaterial color="#334155" /></mesh>
-        <mesh position={[0, 0, -0.018]}><planeGeometry args={[2.7, 1.1]} /><meshStandardMaterial color="#cbd5e1" roughness={0.7} /></mesh>
-      </group>
 
-      {/* Front Wall Decor (Whiteboard, Display, Clock, Crucifix, Banner, Teacher Station) */}
+      {/* Front Wall Decor (Clean Whiteboard & Centered Teacher Station) */}
       <FrontWallDecor lab={lab} w={w} front={front} style={style} />
 
       {/* Glass Windows on Left and Right Walls */}
       <GlassWindowWall side={-1} w={w} d={d} front={front} doorZList={leftDoorZs} />
       <GlassWindowWall side={1} w={w} d={d} front={front} doorZList={rightDoorZs} />
 
-      {/* ComLab 1: Door to ComLab 2 - Window - Whiteboard (No exit door, full windows corner) */}
+      {/* Exit Door in the window at the cactus location (left wall) for all labs */}
+      <Doorway position={[-w / 2, 0, exitDoorZ]} rotationY={Math.PI / 2} />
+
+      {/* Fire Extinguisher mounted right beside the exit door */}
+      <FireExtinguisher position={[-w / 2 + 0.08, 1.05, exitDoorZ + 0.9]} rotationY={Math.PI / 2} />
+
+      {/* ComLab 1: Door to ComLab 2 on the front wall & Window beside it */}
       {lab.id === 'lab1' && (
         <>
-          {/* Door to ComLab 2 on the front wall */}
           <Doorway position={[-w / 2 + 1.4, 0, front + 0.06]} rotationY={0} />
-          {/* Glass window beside the door, before the whiteboard */}
           <FrontWallWindow position={[-w / 2 + 3.6, 1.6, front + 0.06]} w={2.0} h={1.4} />
         </>
       )}
 
-      {/* ComLab 2: Door to NetLab (front left), Whiteboard, Window, Door to ComLab 1 (front right), Exit Door */}
+      {/* ComLab 2: Door to NetLab (front left), Window, Door to ComLab 1 (front right) */}
       {lab.id === 'lab2' && (
         <>
-          {/* Door for NetLab path (left side front wall) */}
           <Doorway position={[-w / 2 + 1.25, 0, front + 0.06]} rotationY={0} />
-          {/* Glass window beside door to ComLab 1, before the whiteboard */}
           <FrontWallWindow position={[w / 2 - 3.4, 1.6, front + 0.06]} w={1.8} h={1.4} />
-          {/* Door for ComLab 1 path on the front wall */}
           <Doorway position={[w / 2 - 1.35, 0, front + 0.06]} rotationY={0} />
-          {/* Exit door on right wall */}
-          <Doorway position={[w / 2, 0, front + 5.5]} rotationY={-Math.PI / 2} />
         </>
       )}
 
-      {/* NetLab: Door to ComLab 2 & Exit door */}
-      {lab.id === 'netlab' && (
-        <>
-          {/* Door for path to ComLab 2 on front wall */}
-          <Doorway position={[w / 2 - 1.35, 0, front + 0.06]} rotationY={0} />
-          {/* Door for going out on left wall */}
-          <Doorway position={[-w / 2, 0, front + 2.4]} rotationY={Math.PI / 2} />
-        </>
-      )}
+      {/* NetLab: "as netlab in the end, just the exit put" - only the exit door, no extra doors */}
 
-      {/* High-Tech Server Rack Cabinet in front corner */}
-      <ServerRack position={[w / 2 - 0.7, 0, front + 0.6]} />
-
-      {/* Wall-Mounted Split Inverter Air Conditioner */}
+      {/* Wall-Mounted Split Inverter Air Conditioner on right wall */}
       <AirConditioner position={[w / 2 - 0.14, 2.1, front + 1.8]} rotationY={-Math.PI / 2} />
-
-      {/* Safety Fire Extinguisher Station */}
-      <FireExtinguisher position={[w / 2 - 0.06, 1.05, front + 3.8]} rotationY={-Math.PI / 2} />
-
-      {/* Corner Snake Plant in Ceramic Planter */}
-      <IndoorPlant position={[-w / 2 + 0.6, 0, front + 0.8]} />
     </group>
   );
 }
@@ -719,11 +599,17 @@ export default function LabScene({ lab, pcs, selectedId, onSelect, onReady }: Sc
   const style = styleOf(lab);
   const w = style === 'island' ? islandCount(lab) * ISLAND_GAP + 2.4 : lab.cols * DX + 3;
   const d = style === 'island' ? (sideRows(lab) + (lab.rows > sideRows(lab) ? 1 : 0)) * ISLAND_ROW + 7.5 : lab.rows * DZ + 4.5;
+  const front = -d / 2;
+  const back = d / 2;
+  const camY = Math.max(9.2, d * 0.75);
+  const camZ = back + Math.max(6.0, w * 0.48);
+  const targetZ = front * 0.18;
+
   return (
     <Canvas
       shadows
       dpr={[1, 2]}
-      camera={{ position: [0, w * 0.4, d / 2 + w * 0.6], fov: 45 }}
+      camera={{ position: [0, camY, camZ], fov: 42 }}
       onPointerMissed={() => onSelect('')}
       onCreated={() => onReady?.()}
     >
@@ -732,8 +618,8 @@ export default function LabScene({ lab, pcs, selectedId, onSelect, onReady }: Sc
       <hemisphereLight args={['#ffffff', '#c4ccd6', 1]} />
       <directionalLight position={[5, 10, 6]} intensity={1.1} castShadow shadow-mapSize={[2048, 2048]}
         shadow-camera-left={-12} shadow-camera-right={12} shadow-camera-top={12} shadow-camera-bottom={-12} />
-      {/* Bounds frames the room cleanly. Camera stays in default view when clicking monitors for accurate inspection */}
-      <Bounds fit margin={0.8} maxDuration={0.9}>
+      {/* Bounds fit with maxDuration={0} ensures the default camera is instantly framed when render finishes */}
+      <Bounds fit margin={0.82} maxDuration={0}>
         <Room lab={lab} w={w} d={d} style={style} />
       </Bounds>
       {style === 'island' && <Spines lab={lab} pcs={pcs} />}
@@ -743,7 +629,7 @@ export default function LabScene({ lab, pcs, selectedId, onSelect, onReady }: Sc
           selected={pc.id === selectedId} onSelect={() => onSelect(pc.id)} />;
       })}
       <ContactShadows position={[0, 0.003, 0]} scale={Math.max(w, d)} opacity={0.2} blur={2.5} far={2} />
-      <OrbitControls makeDefault maxPolarAngle={1.35} minDistance={3} maxDistance={40} enableDamping />
+      <OrbitControls makeDefault target={[0, 1.2, targetZ]} maxPolarAngle={1.35} minDistance={3} maxDistance={40} enableDamping />
     </Canvas>
   );
 }
