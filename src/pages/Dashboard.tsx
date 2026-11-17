@@ -1,6 +1,6 @@
 import { useEffect, type ReactNode } from 'react';
 import { Link } from 'react-router-dom';
-import { CalendarClock, CalendarDays, ClipboardList, Hourglass, MonitorCheck, MonitorSmartphone, Plus, Users, type LucideIcon } from 'lucide-react';
+import { ArrowRight, CalendarClock, CalendarDays, ClipboardList, Hourglass, Monitor, MonitorCheck, MonitorSmartphone, Plus, Users, type LucideIcon } from 'lucide-react';
 import { useAuth } from '../auth';
 import { useLabLive, type LivePc } from '../hooks/useLabLive';
 import { useLoad } from '../hooks/useLoad';
@@ -39,28 +39,60 @@ function StatCard({ icon: Icon, label, value, note, to }: { icon: LucideIcon; la
 function LabTile({ lab, pcs }: { lab: Lab; pcs: LivePc[] }) {
   const mine = pcs.filter((p) => p.lab_id === lab.id).sort((a, b) => a.row - b.row || a.col - b.col);
   const free = mine.filter((p) => p.shown === 'free').length;
+  const inUse = mine.filter((p) => p.shown === 'in_use').length;
+  const reserved = mine.filter((p) => p.shown === 'reserved').length;
+  const broken = mine.filter((p) => p.shown === 'broken').length;
   const pct = mine.length ? Math.round((free / mine.length) * 100) : 0;
   return (
-    <Link to={`/labs/${lab.id}`} className="card group block p-5 transition-transform hover:-translate-y-0.5">
-      <div className="flex items-start justify-between gap-2">
-        <div>
-          <h3 className="font-semibold text-ink">{short(lab.name)}</h3>
-          <p className="text-xs text-muted">{mine.length} workstations</p>
+    <Link to={`/labs/${lab.id}`} className="card group flex flex-col justify-between p-5 transition-all hover:-translate-y-1 hover:shadow-md">
+      <div>
+        <div className="flex items-start justify-between gap-2">
+          <div className="flex items-center gap-3">
+            <span className="grid h-10 w-10 place-items-center rounded-xl bg-accent-soft text-accent transition-colors group-hover:bg-accent group-hover:text-white">
+              <Monitor size={20} strokeWidth={2} />
+            </span>
+            <div>
+              <h3 className="font-semibold text-ink transition-colors group-hover:text-accent">{short(lab.name)}</h3>
+              <p className="text-xs text-muted">{mine.length} workstations total</p>
+            </div>
+          </div>
+          <span className="rounded-full bg-accent-soft px-2.5 py-1 text-xs font-semibold text-accent">{free} free</span>
         </div>
-        <span className="rounded-full bg-accent-soft px-2.5 py-1 text-xs font-semibold text-accent">{free} free</span>
+
+        <div className="mt-4 grid grid-cols-4 gap-2 rounded-xl bg-chalk/80 p-2.5 text-center">
+          <div className="rounded-lg bg-panel/70 py-1.5 shadow-sm">
+            <p className="text-[10px] font-medium uppercase tracking-wider text-muted">Free</p>
+            <p className="text-base font-bold text-free">{free}</p>
+          </div>
+          <div className="rounded-lg bg-panel/70 py-1.5 shadow-sm">
+            <p className="text-[10px] font-medium uppercase tracking-wider text-muted">In Use</p>
+            <p className="text-base font-bold text-accent">{inUse}</p>
+          </div>
+          <div className="rounded-lg bg-panel/70 py-1.5 shadow-sm">
+            <p className="text-[10px] font-medium uppercase tracking-wider text-muted">Reserved</p>
+            <p className="text-base font-bold text-amber-500">{reserved}</p>
+          </div>
+          <div className="rounded-lg bg-panel/70 py-1.5 shadow-sm">
+            <p className="text-[10px] font-medium uppercase tracking-wider text-muted">Broken</p>
+            <p className="text-base font-bold text-rose-500">{broken}</p>
+          </div>
+        </div>
+
+        <div className="mt-4">
+          <div className="mb-1.5 flex justify-between text-xs text-muted">
+            <span>Availability</span>
+            <span className="font-semibold text-ink">{pct}% available</span>
+          </div>
+          <div className="h-2 overflow-hidden rounded-full bg-accent-soft" aria-label={`${pct}% free`}>
+            <div className="h-full rounded-full bg-accent transition-all duration-500" style={{ width: `${pct}%` }} />
+          </div>
+        </div>
       </div>
-      <div className="mt-4 grid gap-1" style={{ gridTemplateColumns: `repeat(${lab.cols}, minmax(0, 1fr))` }} aria-hidden>
-        {mine.map((p) => <span key={p.id} className="led !h-2.5 !w-full !rounded-sm" title={`${p.label}: ${STATUS_LABEL[p.shown]}`}
-          style={{ color: STATUS_COLOR[p.shown], gridRow: p.row + 1, gridColumn: p.col + 1 }} />)}
+
+      <div className="mt-5 flex items-center justify-between border-t border-line/60 pt-3 text-xs font-medium text-accent">
+        <span>View lab in 3D visual</span>
+        <ArrowRight size={14} className="transition-transform group-hover:translate-x-1" />
       </div>
-      <div className="mt-4 h-1.5 overflow-hidden rounded-full bg-accent-soft" aria-label={`${pct}% free`}>
-        <div className="h-full rounded-full bg-accent" style={{ width: `${pct}%` }} />
-      </div>
-      <p className="mt-2 flex flex-wrap gap-x-3 text-xs text-muted">
-        {STATUSES.filter((s) => s !== 'free').map((s) => (
-          <span key={s} className="flex items-center gap-1"><Led status={s} className="!h-2 !w-2" />{mine.filter((p) => p.shown === s).length} {STATUS_LABEL[s].toLowerCase()}</span>
-        ))}
-      </p>
     </Link>
   );
 }
@@ -182,7 +214,7 @@ export default function Dashboard() {
       </div>
 
       <h2 className="mb-3 flex items-center gap-2 font-semibold text-ink">
-        <span className="relative flex h-2 w-2"><span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-free opacity-60" /><span className="relative h-2 w-2 rounded-full bg-free" /></span>
+        <Monitor className="text-accent" size={18} />
         Labs right now
       </h2>
       <div className="mb-6 grid gap-4 md:grid-cols-3">

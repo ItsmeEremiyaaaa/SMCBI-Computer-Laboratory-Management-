@@ -53,33 +53,35 @@ export default function Labs3D() {
 
       {(error || labs.error) && <div className="mb-4"><Alert>{error || labs.error}</Alert></div>}
 
-      <div className="grid gap-4 lg:grid-cols-[1fr_20rem]">
-        <div className="relative h-[62vh] min-h-[380px] overflow-hidden rounded-lg border border-line bg-[#dfe5ee]">
-          {lab && (mode === '3d'
-            ? <SceneBoundary onError={() => setMode('2d')} fallback={<SeatGrid lab={lab} pcs={pcs} selectedId={selectedId} onSelect={select} />}>
-                <Suspense fallback={<p className="p-6 text-sm text-muted">Loading 3D view…</p>}>
-                  <LabScene lab={lab} pcs={pcs} selectedId={selectedId} onSelect={select} />
-                </Suspense>
-              </SceneBoundary>
-            : <SeatGrid lab={lab} pcs={pcs} selectedId={selectedId} onSelect={select} />)}
-          <ul className="pointer-events-none absolute bottom-3 left-3 flex flex-wrap gap-x-4 gap-y-1 rounded-md bg-panel/90 px-3 py-2 text-sm shadow-sm backdrop-blur">
-            {STATUSES.map((s) => (
-              <li key={s} className="flex items-center gap-1.5"><Led status={s} />{STATUS_LABEL[s]} <b className="font-semibold">{counts[s]}</b></li>
-            ))}
-          </ul>
-        </div>
+      <div className="relative flex-1 h-[calc(100vh-10.5rem)] min-h-[560px] w-full overflow-hidden rounded-2xl border border-line bg-[#dfe5ee] shadow-sm">
+        {lab && (mode === '3d'
+          ? <SceneBoundary onError={() => setMode('2d')} fallback={<SeatGrid lab={lab} pcs={pcs} selectedId={selectedId} onSelect={select} />}>
+              <Suspense fallback={<p className="p-6 text-sm text-muted">Loading 3D view…</p>}>
+                <LabScene lab={lab} pcs={pcs} selectedId={selectedId} onSelect={select} />
+              </Suspense>
+            </SceneBoundary>
+          : <div className="h-full w-full overflow-auto p-4"><SeatGrid lab={lab} pcs={pcs} selectedId={selectedId} onSelect={select} /></div>)}
 
-        <aside className="rounded-lg border border-line bg-panel">
-          {selected && lab ? (
+        {/* Status bar pills in bottom-left */}
+        <ul className="pointer-events-none absolute bottom-4 left-4 z-10 flex flex-wrap gap-x-4 gap-y-1.5 rounded-xl border border-line/60 bg-panel/90 px-3.5 py-2 text-xs shadow-md backdrop-blur">
+          {STATUSES.map((s) => (
+            <li key={s} className="flex items-center gap-1.5 font-medium"><Led status={s} />{STATUS_LABEL[s]} <b className="font-semibold text-ink">{counts[s]}</b></li>
+          ))}
+        </ul>
+
+        {/* Interaction hints in bottom-right (hidden on small screens if selected panel is active) */}
+        {!selected && (
+          <div className="pointer-events-none absolute bottom-4 right-4 z-10 hidden sm:flex items-center gap-2 rounded-xl border border-line/60 bg-panel/90 px-3.5 py-2 text-xs text-muted shadow-md backdrop-blur">
+            <span>🖱️ Drag to rotate · Scroll to zoom · Click PC to inspect</span>
+          </div>
+        )}
+
+        {/* Floating PC inspection drawer in top-right when a workstation is selected */}
+        {selected && lab && (
+          <aside className="absolute right-4 top-4 z-30 w-80 max-w-[calc(100%-2rem)] max-h-[calc(100%-2rem)] overflow-y-auto rounded-2xl border border-line bg-panel/95 shadow-2xl backdrop-blur transition-all">
             <PcPanel pc={selected} lab={lab} canEdit={profile?.role !== 'teacher'} onClose={() => setSelectedId(null)} />
-          ) : (
-            <div className="p-4 text-sm text-muted">
-              <p className="font-medium text-ink">{lab?.name}</p>
-              <p className="mt-1">{pcs.length} PCs. Select one to {profile?.role === 'teacher' ? 'see who is using it or reserve it' : 'update its status'}.</p>
-              <p className="mt-4">Drag to rotate, scroll or pinch to zoom.</p>
-            </div>
-          )}
-        </aside>
+          </aside>
+        )}
       </div>
     </>
   );

@@ -94,7 +94,7 @@ export default function Layout() {
             )}
           </div>
         </div>
-        <main className="mx-auto w-full max-w-7xl flex-1 px-4 py-5 md:px-6"><Outlet /></main>
+        <main className={pathname.startsWith('/labs') ? 'w-full flex-1 px-3 py-3 md:px-5 flex flex-col' : 'mx-auto w-full max-w-7xl flex-1 px-4 py-5 md:px-6'}><Outlet /></main>
       </div>
     </div>
   );
