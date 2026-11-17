@@ -9,7 +9,7 @@ import type { SceneProps } from './SeatGrid';
 import { LAYOUTS } from '../lib/layouts';
 import { STATUS_COLOR } from './ui';
 
-// Cached frame geometries for all 12 columns, 4 rows of the character atlas
+// Cached frame geometries for all 12 columns, 6 rows of the character atlas
 const spriteGeoCache = new Map<string, THREE.PlaneGeometry>();
 function getSpriteGeometry(col: number, row: number, width: number, height: number, flipped = false) {
   const key = `${col}_${row}_${width}_${height}_${flipped}`;
@@ -18,8 +18,8 @@ function getSpriteGeometry(col: number, row: number, width: number, height: numb
     geo = new THREE.PlaneGeometry(width, height);
     const u0 = flipped ? (col + 1) / 12 : col / 12;
     const u1 = flipped ? col / 12 : (col + 1) / 12;
-    const v0 = (3 - row) / 4;
-    const v1 = (4 - row) / 4;
+    const v0 = (5 - row) / 6;
+    const v1 = (6 - row) / 6;
     const uvs = new Float32Array([
       u0, v1,
       u1, v1,
@@ -35,12 +35,11 @@ function getSpriteGeometry(col: number, row: number, width: number, height: numb
 // Student actively seated at their assigned workstation
 function SeatedStudent({
   pcId,
-  pos,
   rot,
   material,
 }: {
   pcId: string;
-  pos: [number, number, number];
+  pos?: [number, number, number];
   rot: number;
   material: THREE.Material;
 }) {
@@ -51,45 +50,32 @@ function SeatedStudent({
   }, [pcId]);
 
   const gender = hash % 2 === 0 ? 'male' : 'female';
-  // Row 0 is Male 12 angles; Row 1 is Female 12 angles
+  // Row 0 is Male Desk Interaction; Row 1 is Female Desk Interaction
   const row = gender === 'male' ? 0 : 1;
 
-  const meshRef = useRef<THREE.Mesh>(null);
-  const lastAngleRef = useRef<number>(-1);
-
-  // Proportions matching Blender low-poly isometric character
+  // Seated proportions matching Blender desk interaction model
   const spriteW = 0.82;
-  const spriteH = 1.42;
+  const spriteH = 1.32;
 
-  // Initial geometry defaults to 180° back view (col 6)
-  const initialGeo = useMemo(() => getSpriteGeometry(6, row, spriteW, spriteH, false), [row]);
-
-  useFrame(({ camera }) => {
-    if (!meshRef.current) return;
-    // Calculate world position of the seated student (offset 0.52m in chair direction)
-    const sx = pos[0] + 0.52 * Math.sin(rot);
-    const sz = pos[2] + 0.52 * Math.cos(rot);
-    const dx = camera.position.x - sx;
-    const dz = camera.position.z - sz;
-    const cos = Math.cos(rot);
-    const sin = Math.sin(rot);
-    const localDx = dx * cos - dz * sin;
-    const localDz = dx * sin + dz * cos;
-
-    // Relative angle in character local space where -Z is forward facing PC
-    const rad = Math.atan2(-localDx, -localDz);
-    const deg = ((rad * 180 / Math.PI) + 360) % 360;
-    const angleIndex = Math.round(deg / 30) % 12;
-
-    if (angleIndex !== lastAngleRef.current) {
-      lastAngleRef.current = angleIndex;
-      meshRef.current.geometry = getSpriteGeometry(angleIndex, row, spriteW, spriteH, false);
+  // Fixed angle focusing solely on monitor PC based on workstation orientation
+  const col = useMemo(() => {
+    if (rot < -0.1) {
+      // Left island: monitor is East / right -> face right into monitor
+      return (hash >> 2) % 3 === 0 ? 9 : 8;
+    } else if (rot > 0.1) {
+      // Right island: monitor is West / left -> face left into monitor
+      return (hash >> 2) % 3 === 0 ? 3 : 4;
+    } else {
+      // End seats & Netlab: monitor is North / forward -> back view facing into monitor
+      return (hash >> 2) % 4 === 0 ? 5 : (hash >> 2) % 4 === 1 ? 7 : 6;
     }
-  });
+  }, [rot, hash]);
+
+  const geo = useMemo(() => getSpriteGeometry(col, row, spriteW, spriteH, false), [col, row]);
 
   return (
     <Billboard lockX={true} lockZ={true} position={[0, 0, 0.52]}>
-      <mesh ref={meshRef} position={[0, spriteH / 2, 0]} geometry={initialGeo} material={material} />
+      <mesh position={[0, spriteH / 2, 0]} geometry={geo} material={material} />
     </Billboard>
   );
 }
@@ -854,14 +840,14 @@ function SceneContent({
           <Billboard lockX={true} lockZ={true} position={[-1.1, 0, front + 1.45]}>
             <mesh
               position={[0, 1.68 / 2, 0]}
-              geometry={getSpriteGeometry(0, 2, 0.95, 1.68, false)}
+              geometry={getSpriteGeometry(0, 4, 0.95, 1.68, false)}
               material={atlasMaterial}
             />
           </Billboard>
           <Billboard lockX={true} lockZ={true} position={[1.1, 0, front + 1.45]}>
             <mesh
               position={[0, 1.62 / 2, 0]}
-              geometry={getSpriteGeometry(1, 2, 0.90, 1.62, false)}
+              geometry={getSpriteGeometry(0, 5, 0.90, 1.62, false)}
               material={atlasMaterial}
             />
           </Billboard>

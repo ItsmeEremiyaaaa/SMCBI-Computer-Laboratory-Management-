@@ -1,84 +1,80 @@
 const sharp = require('sharp');
 const fs = require('fs');
 
-const imgPath = 'C:/Users/maria/.gemini/antigravity/brain/81edcee1-b032-4295-8f6c-fdf7e281df89/.user_uploaded/media_1794902447167_ecdd8b8f.jpg';
+const deskImgPath   = 'C:/Users/maria/.gemini/antigravity/brain/81edcee1-b032-4295-8f6c-fdf7e281df89/.user_uploaded/media_1794904531983_51f5ffe7.jpg';
+const walkImgPath   = 'C:/Users/maria/.gemini/antigravity/brain/81edcee1-b032-4295-8f6c-fdf7e281df89/.user_uploaded/media_1794904620417_fed58bd3.jpg';
+const teacherPath   = 'C:/Users/maria/.gemini/antigravity/brain/81edcee1-b032-4295-8f6c-fdf7e281df89/.user_uploaded/media_1794904884678_6643c63e.jpg';
 
-async function buildBlenderAtlas() {
-  const { data, info } = await sharp(imgPath).raw().toBuffer({ resolveWithObject: true });
-  const w = info.width, h = info.height;
+function isBackgroundPixel(r, g, b) {
+  const maxC = Math.max(r, g, b);
+  const minC = Math.min(r, g, b);
+  const diff = maxC - minC;
 
-  function isBackgroundPixel(r, g, b) {
-    const maxC = Math.max(r, g, b);
-    const minC = Math.min(r, g, b);
-    const diff = maxC - minC;
+  // Ink outline and dark hair is very dark (< 26)
+  if (maxC < 26) return false;
 
-    // Ink outline and dark hair is very dark (< 26)
-    if (maxC < 26) return false;
+  // Floor gray and shadows: neutral gray with minC >= 41 and maxC <= 78
+  if (minC >= 41 && maxC <= 78 && diff <= 12) return true;
 
-    // Floor gray and shadows: neutral gray with minC >= 41 and maxC <= 78
-    if (minC >= 41 && maxC <= 78 && diff <= 12) return true;
-
-    // Blender viewport axis lines (colored lines in grid)
-    if ((r > 65 && g < 60 && b < 60) || (g > 65 && r < 60 && b < 60) || (r > 70 && g > 60 && b < 50)) {
-      return true;
-    }
-
-    return false;
+  // Blender viewport axis lines (colored lines in grid)
+  if ((r > 65 && g < 60 && b < 60) || (g > 65 && r < 60 && b < 60) || (r > 70 && g > 60 && b < 50)) {
+    return true;
   }
 
-  function extractCharSprite(cx, yTop, targetW, targetH) {
-    const x0 = Math.round(cx - targetW / 2);
-    const tw = targetW;
-    const th = targetH;
-    const rgba = Buffer.alloc(tw * th * 4);
+  return false;
+}
 
-    for (let y = 0; y < th; y++) {
-      const sy = yTop + y;
-      for (let x = 0; x < tw; x++) {
-        const sx = x0 + x;
-        const dIdx = (y * tw + x) * 4;
-        if (sy < 0 || sy >= h || sx < 0 || sx >= w) {
-          rgba[dIdx + 3] = 0;
-          continue;
-        }
-        const sIdx = (sy * w + sx) * 3;
-        const r = data[sIdx], g = data[sIdx+1], b = data[sIdx+2];
+function extractSprite(buf, w, h, cx, yTop, targetW, targetH) {
+  const x0 = Math.round(cx - targetW / 2);
+  const tw = targetW;
+  const th = targetH;
+  const rgba = Buffer.alloc(tw * th * 4);
 
-        rgba[dIdx] = r;
-        rgba[dIdx + 1] = g;
-        rgba[dIdx + 2] = b;
+  for (let y = 0; y < th; y++) {
+    const sy = yTop + y;
+    for (let x = 0; x < tw; x++) {
+      const sx = x0 + x;
+      const dIdx = (y * tw + x) * 4;
+      if (sy < 0 || sy >= h || sx < 0 || sx >= w) {
+        rgba[dIdx + 3] = 0;
+        continue;
+      }
+      const sIdx = (sy * w + sx) * 3;
+      const r = buf[sIdx], g = buf[sIdx+1], b = buf[sIdx+2];
 
-        if (isBackgroundPixel(r, g, b)) {
-          rgba[dIdx + 3] = 0;
-        } else {
-          rgba[dIdx + 3] = 255;
-        }
+      rgba[dIdx] = r;
+      rgba[dIdx + 1] = g;
+      rgba[dIdx + 2] = b;
+
+      if (isBackgroundPixel(r, g, b)) {
+        rgba[dIdx + 3] = 0;
+      } else {
+        rgba[dIdx + 3] = 255;
       }
     }
-    return rgba;
   }
+  return rgba;
+}
 
-  // Column centers for the 12 angles (0° to 330° in 30° increments)
-  const maleCenters = [95, 178, 255, 332, 410, 486, 563, 639, 716, 794, 875, 952];
-  const femCenters  = [94, 176, 253, 331, 409, 487, 564, 637, 715, 794, 871, 950];
+async function buildAll() {
+  const desk = await sharp(deskImgPath).raw().toBuffer({ resolveWithObject: true });
+  const walk = await sharp(walkImgPath).raw().toBuffer({ resolveWithObject: true });
+  const teacher = await sharp(teacherPath).raw().toBuffer({ resolveWithObject: true });
 
-  // Atlas: 12 columns x 4 rows
-  // Cell: 64 wide x 112 tall
-  // Row 0: Male 12 angles (0° to 330°)
-  // Row 1: Female 12 angles (0° to 330°)
-  // Row 2: Teachers (col 0: male teacher, col 1: female teacher)
-  // Row 3: Spare
+  const deskCenters = [92, 170, 249, 328, 407, 485, 563, 641, 720, 797, 874, 952];
+  const stdCenters  = [95, 175, 253, 331, 409, 487, 564, 638, 716, 794, 872, 950];
+
   const cellW = 64;
   const cellH = 112;
   const cols = 12;
-  const rows = 4;
+  const rows = 6;
   const atlasW = cols * cellW;
   const atlasH = rows * cellH;
-  const atlasBuf = Buffer.alloc(atlasW * atlasH * 4); // all transparent zeros
+  const atlasBuf = Buffer.alloc(atlasW * atlasH * 4);
 
   function blit(spriteBuf, sw, sh, col, row) {
     const destX0 = col * cellW + Math.floor((cellW - sw) / 2);
-    const destY0 = row * cellH + (cellH - sh - 2); // anchor to bottom
+    const destY0 = row * cellH + (cellH - sh - 2);
     for (let y = 0; y < sh; y++) {
       for (let x = 0; x < sw; x++) {
         const dx = destX0 + x;
@@ -95,50 +91,71 @@ async function buildBlenderAtlas() {
     }
   }
 
-  // Row 0: Male 12 angles (y=97 to 261 -> h=164)
-  console.log('Extracting Male 12 angles...');
+  // Row 0: Male Desk Interaction (sitting with hands typing, no chair)
+  console.log('Extracting Row 0: Male Desk Interaction...');
   for (let k = 0; k < 12; k++) {
-    const rawSprite = extractCharSprite(maleCenters[k], 97, 56, 164);
-    const resized = await sharp(rawSprite, { raw: { width: 56, height: 164, channels: 4 } })
+    const raw = extractSprite(desk.data, desk.info.width, desk.info.height, deskCenters[k], 330, 56, 96);
+    const rz = await sharp(raw, { raw: { width: 56, height: 96, channels: 4 } })
+      .resize({ height: 102, fit: 'inside' })
+      .raw().toBuffer({ resolveWithObject: true });
+    blit(rz.data, rz.info.width, rz.info.height, k, 0);
+  }
+
+  // Row 1: Female Desk Interaction (sitting with hands typing, no chair)
+  console.log('Extracting Row 1: Female Desk Interaction...');
+  for (let k = 0; k < 12; k++) {
+    const raw = extractSprite(desk.data, desk.info.width, desk.info.height, deskCenters[k], 452, 56, 90);
+    const rz = await sharp(raw, { raw: { width: 56, height: 90, channels: 4 } })
+      .resize({ height: 100, fit: 'inside' })
+      .raw().toBuffer({ resolveWithObject: true });
+    blit(rz.data, rz.info.width, rz.info.height, k, 1);
+  }
+
+  // Row 2: Male Walk Cycle (12 directional walking angles)
+  console.log('Extracting Row 2: Male Walk Cycle...');
+  for (let k = 0; k < 12; k++) {
+    const raw = extractSprite(walk.data, walk.info.width, walk.info.height, stdCenters[k], 97, 56, 166);
+    const rz = await sharp(raw, { raw: { width: 56, height: 166, channels: 4 } })
       .resize({ height: 106, fit: 'inside' })
-      .raw()
-      .toBuffer({ resolveWithObject: true });
-    blit(resized.data, resized.info.width, resized.info.height, k, 0);
+      .raw().toBuffer({ resolveWithObject: true });
+    blit(rz.data, rz.info.width, rz.info.height, k, 2);
   }
 
-  // Row 1: Female 12 angles (y=344 to 522 -> h=178)
-  console.log('Extracting Female 12 angles...');
+  // Row 3: Female Walk Cycle (12 directional walking angles)
+  console.log('Extracting Row 3: Female Walk Cycle...');
   for (let k = 0; k < 12; k++) {
-    const rawSprite = extractCharSprite(femCenters[k], 344, 56, 178);
-    const resized = await sharp(rawSprite, { raw: { width: 56, height: 178, channels: 4 } })
+    const raw = extractSprite(walk.data, walk.info.width, walk.info.height, stdCenters[k], 340, 56, 178);
+    const rz = await sharp(raw, { raw: { width: 56, height: 178, channels: 4 } })
       .resize({ height: 104, fit: 'inside' })
-      .raw()
-      .toBuffer({ resolveWithObject: true });
-    blit(resized.data, resized.info.width, resized.info.height, k, 1);
+      .raw().toBuffer({ resolveWithObject: true });
+    blit(rz.data, rz.info.width, rz.info.height, k, 3);
   }
 
-  // Row 2: Teachers at the whiteboard
-  console.log('Extracting Row 2: Teachers...');
-  if (fs.existsSync('public/sprites/teacher_male_clean.png')) {
-    const tm = await sharp('public/sprites/teacher_male_clean.png')
+  // Row 4: Male Teacher (12 angles with brown vest, tie, slacks, glasses)
+  console.log('Extracting Row 4: Male Teacher...');
+  for (let k = 0; k < 12; k++) {
+    const raw = extractSprite(teacher.data, teacher.info.width, teacher.info.height, stdCenters[k], 98, 56, 166);
+    const rz = await sharp(raw, { raw: { width: 56, height: 166, channels: 4 } })
       .resize({ height: 108, fit: 'inside' })
-      .raw()
-      .toBuffer({ resolveWithObject: true });
-    blit(tm.data, tm.info.width, tm.info.height, 0, 2);
+      .raw().toBuffer({ resolveWithObject: true });
+    blit(rz.data, rz.info.width, rz.info.height, k, 4);
   }
-  if (fs.existsSync('public/sprites/teacher_female_clean.png')) {
-    const tf = await sharp('public/sprites/teacher_female_clean.png')
+
+  // Row 5: Female Teacher (12 angles with navy blazer, blouse, skirt, bun, glasses)
+  console.log('Extracting Row 5: Female Teacher...');
+  for (let k = 0; k < 12; k++) {
+    const raw = extractSprite(teacher.data, teacher.info.width, teacher.info.height, stdCenters[k], 342, 56, 178);
+    const rz = await sharp(raw, { raw: { width: 56, height: 178, channels: 4 } })
       .resize({ height: 104, fit: 'inside' })
-      .raw()
-      .toBuffer({ resolveWithObject: true });
-    blit(tf.data, tf.info.width, tf.info.height, 1, 2);
+      .raw().toBuffer({ resolveWithObject: true });
+    blit(rz.data, rz.info.width, rz.info.height, k, 5);
   }
 
   await sharp(atlasBuf, { raw: { width: atlasW, height: atlasH, channels: 4 } })
     .png()
     .toFile('public/sprites/uniform_atlas.png');
 
-  console.log(`uniform_atlas.png built successfully! Size: ${atlasW} x ${atlasH} (12 cols x 4 rows)`);
+  console.log(`uniform_atlas.png built successfully! Size: ${atlasW} x ${atlasH} (12 cols x 6 rows)`);
 }
 
-buildBlenderAtlas();
+buildAll();
