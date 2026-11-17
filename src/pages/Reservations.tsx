@@ -82,7 +82,7 @@ export default function Reservations() {
         ) : (
           <ul className="divide-y divide-line">
             {rows.map((r) => (
-              <li key={r.id} className="grid gap-3 px-4 py-3 lg:grid-cols-[8.5rem_minmax(12rem,1fr)_8rem_6rem_auto] lg:items-center">
+              <li key={r.id} className="grid gap-3 px-4 py-3 xl:grid-cols-[8.5rem_minmax(12rem,1fr)_8rem_6rem_auto] xl:items-center">
                 <div className="text-sm">
                   <p className="font-medium">{fmtDate(r.date)}</p>
                   <p className="text-muted">{fmtTime(r.start_time)} to {fmtTime(r.end_time)}</p>
@@ -96,7 +96,7 @@ export default function Reservations() {
                 </div>
                 <p className="text-sm">{labName(r.lab_id)}<span className="block text-muted">{pcLabel(r.pc_id)}</span></p>
                 <div><ResBadge status={r.status} /></div>
-                <div className="flex flex-wrap gap-2 lg:justify-end">
+                <div className="flex flex-wrap gap-2 xl:justify-end">
                   {isAdmin && r.status === 'pending' && <>
                     <Button size="sm" onClick={() => setReview({ r, to: 'approved' })}>Approve</Button>
                     <Button size="sm" variant="ghost" onClick={() => setReview({ r, to: 'rejected' })}>Reject</Button>

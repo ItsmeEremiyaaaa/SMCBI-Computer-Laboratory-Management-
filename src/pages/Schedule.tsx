@@ -54,7 +54,7 @@ export default function Schedule() {
             const dayRows = rows.filter((r) => r.day_of_week === d.dow);
             return (
               <Panel key={d.dow} title={d.name} icon={CalendarClock}
-                actions={d.dow === todayDow && <span className="rounded-full bg-gold-soft px-2.5 py-0.5 text-xs font-medium text-[#7a5d0d]">Today</span>}>
+                actions={d.dow === todayDow && <span className="rounded-full bg-gold-soft px-2.5 py-0.5 text-xs font-medium text-accent">Today</span>}>
                 <div className="grid gap-px overflow-hidden rounded-b-lg bg-line md:grid-cols-3">
                   {labs.data?.map((l) => {
                     const cell = dayRows.filter((r) => r.lab_id === l.id).sort((a, b) => a.start_time.localeCompare(b.start_time));

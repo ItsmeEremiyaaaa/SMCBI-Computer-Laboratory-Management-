@@ -18,7 +18,7 @@ export function Button({ variant = 'primary', size = 'md', className, ...p }: Bt
     <button
       {...p}
       className={cx(
-        'inline-flex items-center justify-center gap-1.5 rounded-md font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer',
+        'inline-flex items-center justify-center gap-1.5 rounded-lg font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer',
         size === 'sm' ? 'h-8 px-2.5 text-sm' : 'h-10 px-4 text-sm',
         variant === 'primary' && 'bg-accent text-white shadow-sm hover:bg-rail',
         variant === 'ghost' && 'border border-line bg-panel hover:bg-chalk',
@@ -65,9 +65,8 @@ export function PageHeader({ title, sub, actions }: { title: string; sub?: React
   return (
     <header className="mb-6 flex flex-wrap items-end justify-between gap-3">
       <div>
-        <h1 className="font-serif text-3xl font-semibold tracking-tight text-rail">{title}</h1>
-        <span className="mt-2 block h-0.5 w-12 rounded bg-gold" aria-hidden />
-        {sub && <p className="mt-2 text-sm text-muted">{sub}</p>}
+        <h1 className="text-2xl font-bold tracking-tight text-ink">{title}</h1>
+        {sub && <p className="mt-1 text-sm text-muted">{sub}</p>}
       </div>
       {actions && <div className="flex flex-wrap gap-2">{actions}</div>}
     </header>
@@ -77,11 +76,11 @@ export function PageHeader({ title, sub, actions }: { title: string; sub?: React
 export function Panel({ title, icon: Icon, actions, children, className }:
   { title?: string; icon?: LucideIcon; actions?: ReactNode; children: ReactNode; className?: string }) {
   return (
-    <section className={cx('rounded-lg border border-line bg-panel shadow-[0_1px_2px_rgb(11_34_72/0.04)]', className)}>
+    <section className={cx('card', className)}>
       {title && (
-        <div className="flex items-center justify-between gap-2 border-b border-line px-4 py-3">
+        <div className="flex items-center justify-between gap-2 px-5 pb-2 pt-4">
           <h2 className="flex items-center gap-2 font-semibold text-rail">
-            {Icon && <span className="grid h-7 w-7 place-items-center rounded-md bg-gold-soft text-[#8a6a10]"><Icon size={15} strokeWidth={2} /></span>}
+            {Icon && <span className="grid h-7 w-7 place-items-center rounded-md bg-gold-soft text-accent"><Icon size={15} strokeWidth={2} /></span>}
             {title}
           </h2>{actions}
         </div>
@@ -127,14 +126,10 @@ export const fmtTime = (t: string) => {
   return `${((h + 11) % 12) + 1}:${String(m).padStart(2, '0')} ${h < 12 ? 'AM' : 'PM'}`;
 };
 
-// Typographic crest (no school logo file): gold ring, navy field, serif monogram.
+// The college seal (public/smcbi-seal.webp), shown on a white disc so it reads on blue too.
 export function Crest({ size = 40 }: { size?: number }) {
   return (
-    <svg width={size} height={size} viewBox="0 0 48 48" aria-hidden className="shrink-0">
-      <circle cx="24" cy="24" r="23" fill="#c9a227" />
-      <circle cx="24" cy="24" r="20" fill="#0b2248" />
-      <circle cx="24" cy="24" r="17.5" fill="none" stroke="#c9a227" strokeWidth="0.75" strokeDasharray="1.5 2" />
-      <text x="24" y="29" textAnchor="middle" fontFamily="'Source Serif 4', Georgia, serif" fontWeight="700" fontSize="13" fill="#f7efd4">SMC</text>
-    </svg>
+    <img src="/smcbi-seal.webp" width={size} height={size} alt="St. Mary's College of Bansalan seal"
+      className="shrink-0 rounded-full bg-white p-0.5 shadow-sm" />
   );
 }

@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { NavLink, Outlet, useLocation } from 'react-router-dom';
 import { Bell, Box, CalendarClock, CalendarDays, ClipboardList, LayoutGrid, LogOut, Menu, Users, X } from 'lucide-react';
 import { Crest } from './ui';
+import IntroSplash from './IntroSplash';
 import { useAuth } from '../auth';
 import { api, type Stats } from '../lib/api';
 import type { Role } from '../lib/types';
@@ -18,10 +19,10 @@ const NAV: { to: string; label: string; icon: typeof Box; roles: Role[] }[] = [
 function Brand() {
   return (
     <div className="flex items-center gap-3 px-1">
-      <Crest size={40} />
+      <span data-intro-target className="inline-flex rounded-full"><Crest size={40} /></span>
       <div className="leading-tight">
-        <p className="font-serif text-[17px] font-semibold text-white">ComLab Monitor</p>
-        <p className="text-[11px] tracking-wide text-gold">St. Mary's College of Bansalan</p>
+        <p className="text-[17px] font-bold tracking-tight text-white">ComLab Monitor</p>
+        <p className="text-[11px] text-blue-200">St. Mary's College of Bansalan</p>
       </div>
     </div>
   );
@@ -44,12 +45,13 @@ export default function Layout() {
   const count = (stats?.pending ?? 0) + (profile.role === 'admin' ? stats?.pendingTeachers ?? 0 : 0);
 
   const nav = (
-    <nav className="mt-6 grid gap-0.5 border-t border-white/10 pt-5">
+    <nav className="mt-8 grid gap-1">
+      <p className="mb-1 px-3 text-[11px] font-medium text-blue-200/80">Menu</p>
       {NAV.filter((n) => n.roles.includes(profile.role)).map(({ to, label, icon: Icon }) => (
         <NavLink key={to} to={to} end={to === '/'}
-          className={({ isActive }) => `flex items-center gap-3 rounded-md px-3 py-2 text-sm transition-colors ${
+          className={({ isActive }) => `flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium transition-colors ${
             isActive || (to.startsWith('/people') && pathname.startsWith('/people'))
-              ? 'bg-rail-2 text-white shadow-[inset_3px_0_0_var(--color-gold)]' : 'text-slate-300 hover:bg-rail-2/60 hover:text-white'}`}>
+              ? 'bg-white text-rail shadow-sm' : 'text-blue-100 hover:bg-white/10 hover:text-white'}`}>
           <Icon size={18} strokeWidth={1.75} />{label}
         </NavLink>
       ))}
@@ -57,8 +59,9 @@ export default function Layout() {
   );
 
   return (
-    <div className="flex min-h-full">
-      <aside className="sticky top-0 hidden h-screen w-60 shrink-0 flex-col navy-weave p-4 md:flex">
+    <div className="flex min-h-full gap-3 p-0 md:p-3">
+      <IntroSplash />
+      <aside className="sticky top-3 hidden h-[calc(100vh-1.5rem)] w-64 shrink-0 flex-col rounded-2xl navy-weave p-4 shadow-lg md:flex">
         <Brand />{nav}
         <UserBox />
       </aside>
@@ -75,7 +78,7 @@ export default function Layout() {
       )}
 
       <div className="flex min-w-0 flex-1 flex-col">
-        <div className="sticky top-0 z-30 flex h-14 items-center gap-3 border-b border-line bg-chalk/90 px-4 backdrop-blur md:px-8">
+        <div className="sticky top-0 z-30 flex h-14 items-center gap-3 bg-chalk/85 px-4 backdrop-blur md:top-3 md:rounded-2xl md:px-6">
           <button className="md:hidden" onClick={() => setOpen(true)} aria-label="Open menu"><Menu /></button>
           {api.demo && (
             <span className="rounded bg-amber-100 px-2 py-0.5 text-xs font-medium text-amber-900">Demo mode, sample data</span>
@@ -83,7 +86,7 @@ export default function Layout() {
           <div className="ml-auto flex items-center gap-2">
             {profile.role !== 'teacher' && (
               <NavLink to={profile.role === 'admin' && !stats?.pending && stats?.pendingTeachers ? '/people/teachers' : '/reservations?status=pending'}
-                className="relative rounded-md p-2 text-muted hover:bg-panel hover:text-ink"
+                className="relative grid h-10 w-10 place-items-center rounded-full bg-white text-muted shadow-sm hover:text-ink"
                 aria-label={`${count} items need attention`}>
                 <Bell size={20} />
                 {count > 0 && <span className="absolute -right-0.5 -top-0.5 grid h-5 min-w-5 place-items-center rounded-full bg-broken px-1 text-[11px] font-semibold text-white">{count}</span>}
@@ -91,7 +94,7 @@ export default function Layout() {
             )}
           </div>
         </div>
-        <main className="mx-auto w-full max-w-7xl flex-1 px-4 py-6 md:px-8"><Outlet /></main>
+        <main className="mx-auto w-full max-w-7xl flex-1 px-4 py-5 md:px-6"><Outlet /></main>
       </div>
     </div>
   );
@@ -101,15 +104,15 @@ function UserBox() {
   const { profile } = useAuth();
   if (!profile) return null;
   return (
-    <div className="mt-auto flex items-center gap-3 rounded-md border border-rail-2 p-3">
-      <span className="grid h-9 w-9 shrink-0 place-items-center rounded-full bg-gold text-sm font-semibold text-rail">
+    <div className="mt-auto flex items-center gap-3 rounded-xl bg-white/10 p-3">
+      <span className="grid h-9 w-9 shrink-0 place-items-center rounded-full bg-white text-sm font-semibold text-rail">
         {profile.full_name.split(' ').map((w) => w[0]).slice(0, 2).join('')}
       </span>
       <div className="min-w-0 flex-1">
         <p className="truncate text-sm font-medium text-white">{profile.full_name}</p>
-        <p className="text-xs capitalize text-slate-400">{profile.role}</p>
+        <p className="text-xs capitalize text-blue-200">{profile.role}</p>
       </div>
-      <button onClick={() => api.signOut()} aria-label="Sign out" className="rounded p-1.5 text-slate-400 hover:bg-rail-2 hover:text-white"><LogOut size={18} /></button>
+      <button onClick={() => api.signOut()} aria-label="Sign out" className="rounded-lg p-1.5 text-blue-200 hover:bg-white/15 hover:text-white"><LogOut size={18} /></button>
     </div>
   );
 }

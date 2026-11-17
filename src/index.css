@@ -1,23 +1,23 @@
 @import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Sans+Condensed:wght@500;600&family=Source+Serif+4:opsz,wght@8..60,600;8..60,700&display=swap');
 @import 'tailwindcss';
 
-/* SMCBI theme: Marian navy + gold on clean white, like the school's seals and Vision/Mission frames. */
+/* SMCBI theme: the royal blue and white of the college seal. "gold" tokens are now the seal's lighter blue highlight. */
 @theme {
   --font-sans: 'IBM Plex Sans', system-ui, sans-serif;
   --font-cond: 'IBM Plex Sans Condensed', 'IBM Plex Sans', sans-serif;
   --font-serif: 'Source Serif 4', Georgia, serif;
 
-  --color-ink: #14213d;
+  --color-ink: #172b4d;
   --color-muted: #5a6680;
-  --color-chalk: #f3f5f9;
+  --color-chalk: #eaf0f8;
   --color-panel: #ffffff;
-  --color-line: #dce2ec;
-  --color-rail: #0b2248;
-  --color-rail-2: #16336a;
-  --color-accent: #173f86;
-  --color-accent-soft: #e5ecf8;
-  --color-gold: #c9a227;
-  --color-gold-soft: #f7efd4;
+  --color-line: #e3e9f2;
+  --color-rail: #1b4686;
+  --color-rail-2: #2a5aa3;
+  --color-accent: #1f4f99;
+  --color-accent-soft: #e8f0fb;
+  --color-gold: #6fa3ea;
+  --color-gold-soft: #e8f0fb;
 
   --color-free: #22c55e;
   --color-inuse: #3b82f6;
@@ -51,6 +51,9 @@ body {
 .navy-weave {
   background-color: var(--color-rail);
   background-image:
-    linear-gradient(160deg, rgb(255 255 255 / .05), transparent 45%),
-    repeating-linear-gradient(135deg, rgb(255 255 255 / .025) 0 2px, transparent 2px 14px);
+    radial-gradient(120% 60% at 0% 0%, rgb(255 255 255 / .14), transparent 60%),
+    linear-gradient(180deg, #2457a4, #183e7a);
 }
+
+/* Soft card used across the dashboard (rounded, airy shadow, no heavy border). */
+.card { background: #fff; border-radius: 1rem; box-shadow: 0 1px 2px rgb(23 43 77 / .05), 0 8px 24px -12px rgb(27 70 134 / .18); }
