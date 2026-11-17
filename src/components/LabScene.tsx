@@ -685,22 +685,22 @@ function ReadySignal({ onReady }: { onReady?: () => void }) {
   return null;
 }
 
-// Tuned default cameras per lab: ComLab 1 matches Image 2, NetLab matches NetLab screenshot
+// Tuned default cameras per lab: perfectly framed with generous breathing margins
 const LAB_CAMERAS: Record<string, { pos: [number, number, number]; target: [number, number, number]; fov: number }> = {
   lab1: {
-    pos: [0, 8.8, 8.5],
-    target: [0, 0.8, -1.2],
-    fov: 42,
+    pos: [0, 10.4, 10.8],
+    target: [0, 0.7, -1.1],
+    fov: 46,
   },
   lab2: {
-    pos: [0, 10.8, 11.5],
-    target: [0, 0.8, -1.5],
-    fov: 42,
+    pos: [0, 12.8, 14.2],
+    target: [0, 0.7, -1.4],
+    fov: 46,
   },
   netlab: {
-    pos: [0, 8.6, 8.5],
-    target: [0, 0.8, -1.0],
-    fov: 42,
+    pos: [0, 9.8, 10.6],
+    target: [0, 0.7, -0.9],
+    fov: 46,
   },
 };
 
@@ -709,9 +709,9 @@ export default function LabScene({ lab, pcs, selectedId, onSelect, onReady }: Sc
   const w = style === 'island' ? islandCount(lab) * ISLAND_GAP + 2.4 : lab.cols * DX + 3;
   const d = style === 'island' ? (sideRows(lab) + (lab.rows > sideRows(lab) ? 1 : 0)) * ISLAND_ROW + 7.5 : lab.rows * DZ + 4.5;
   const cam = LAB_CAMERAS[lab.id] ?? {
-    pos: [0, 9.0, 9.0],
-    target: [0, 0.8, -1.0],
-    fov: 42,
+    pos: [0, 10.4, 10.8],
+    target: [0, 0.7, -1.1],
+    fov: 46,
   };
 
   return (
