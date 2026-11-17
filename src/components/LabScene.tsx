@@ -1,6 +1,7 @@
-import { useState } from 'react';
-import { Canvas } from '@react-three/fiber';
-import { Bounds, ContactShadows, Html, OrbitControls, RoundedBox } from '@react-three/drei';
+import { useEffect, useRef, useState } from 'react';
+import { Canvas, useFrame, useThree } from '@react-three/fiber';
+import { Bounds, ContactShadows, Html, OrbitControls, RoundedBox, useBounds } from '@react-three/drei';
+import { Box3, MathUtils, type Group, type MeshStandardMaterial } from 'three';
 import type { LivePc } from '../hooks/useLabLive';
 import type { Lab } from '../lib/types';
 import type { SceneProps } from './SeatGrid';
@@ -83,11 +84,23 @@ function Monobloc({ position }: { position: [number, number, number] }) {
 function Workstation({ pc, pos, rot = 0, style, selected, onSelect }:
   { pc: LivePc; pos: [number, number, number]; rot?: number; style: Style; selected: boolean; onSelect: () => void }) {
   const [hover, setHover] = useState(false);
+  const monitor = useRef<Group>(null);
+  const screen = useRef<MeshStandardMaterial>(null);
+  // Selected monitor lifts, grows and tilts toward the seat; its screen pulses. Hover lifts it slightly.
+  useFrame(({ clock }, dt) => {
+    const m = monitor.current;
+    if (!m) return;
+    const k = 1 - Math.exp(-dt * 10);
+    m.position.y = MathUtils.lerp(m.position.y, DESK_H + 0.4 + (selected ? 0.16 : hover ? 0.05 : 0), k);
+    m.rotation.x = MathUtils.lerp(m.rotation.x, selected ? 0.22 : 0, k);
+    m.scale.setScalar(MathUtils.lerp(m.scale.x, selected ? 1.15 : 1, k));
+    if (screen.current) screen.current.emissiveIntensity = glow + (selected ? 0.5 + 0.5 * Math.sin(clock.elapsedTime * 4) : 0);
+  });
   const color = STATUS_COLOR[pc.shown];
   const glow = pc.shown === 'broken' ? 0.7 : pc.shown === 'free' ? 0.85 : 1.5;
   const black = <meshStandardMaterial color="#15181d" roughness={0.45} />;
   return (
-    <group position={pos} rotation-y={rot}
+    <group position={pos} rotation-y={rot} name={`pc:${pc.id}`}
       onClick={(e) => { e.stopPropagation(); onSelect(); }}
       onPointerOver={(e) => { e.stopPropagation(); setHover(true); document.body.style.cursor = 'pointer'; }}
       onPointerOut={() => { setHover(false); document.body.style.cursor = ''; }}>
@@ -122,11 +135,13 @@ function Workstation({ pc, pos, rot = 0, style, selected, onSelect }:
       {/* monitor: black bezel, screen shows status */}
       <mesh position={[0, DESK_H + 0.025, -0.18]}><boxGeometry args={[0.22, 0.02, 0.16]} />{black}</mesh>
       <mesh position={[0, DESK_H + 0.13, -0.21]}><boxGeometry args={[0.05, 0.2, 0.03]} />{black}</mesh>
-      <RoundedBox args={[0.62, 0.4, 0.035]} radius={0.01} position={[0, DESK_H + 0.4, -0.2]} castShadow>{black}</RoundedBox>
-      <mesh position={[0, DESK_H + 0.41, -0.181]}>
-        <planeGeometry args={[0.57, 0.33]} />
-        <meshStandardMaterial color={color} emissive={color} emissiveIntensity={glow} toneMapped={false} />
-      </mesh>
+      <group ref={monitor} position={[0, DESK_H + 0.4, -0.2]}>
+        <RoundedBox args={[0.62, 0.4, 0.035]} radius={0.01} castShadow>{black}</RoundedBox>
+        <mesh position={[0, 0.01, 0.019]}>
+          <planeGeometry args={[0.57, 0.33]} />
+          <meshStandardMaterial ref={screen} color={color} emissive={color} emissiveIntensity={glow} toneMapped={false} />
+        </mesh>
+      </group>
       {/* keyboard + mouse */}
       <mesh position={[0, DESK_H + 0.025, 0.1]}><boxGeometry args={[0.44, 0.018, 0.14]} />{black}</mesh>
       <mesh position={[0.32, DESK_H + 0.025, 0.12]}><boxGeometry args={[0.06, 0.02, 0.1]} />{black}</mesh>
@@ -138,7 +153,7 @@ function Workstation({ pc, pos, rot = 0, style, selected, onSelect }:
         </mesh>
       )}
       {(selected || hover) && (
-        <Html position={[0, DESK_H + 0.78, -0.2]} center distanceFactor={8} style={{ pointerEvents: 'none' }}>
+        <Html position={[0, DESK_H + (selected ? 1.05 : 0.78), -0.2]} center distanceFactor={8} style={{ pointerEvents: 'none' }}>
           <div className="whitespace-nowrap rounded bg-rail px-2 py-1 text-xs font-medium text-white shadow">
             {pc.label} · {STATUS_LABEL[pc.shown]}
           </div>
@@ -214,6 +229,20 @@ function Room({ w, d, style }: { w: number; d: number; style: Style }) {
   );
 }
 
+// Fly the camera to the selected workstation; back out to the whole room when cleared.
+function FocusCamera({ selectedId }: { selectedId: string | null }) {
+  const bounds = useBounds();
+  const scene = useThree((s) => s.scene);
+  const first = useRef(true);
+  useEffect(() => {
+    if (first.current) { first.current = false; return; } // initial framing is done by <Bounds fit>
+    const pc = selectedId ? scene.getObjectByName(`pc:${selectedId}`) : null;
+    if (pc) bounds.refresh(new Box3().setFromObject(pc).expandByScalar(1.6)).fit();
+    else bounds.refresh().fit();
+  }, [selectedId, bounds, scene]);
+  return null;
+}
+
 export default function LabScene({ lab, pcs, selectedId, onSelect }: SceneProps) {
   const style = styleOf(lab);
   const w = style === 'island' ? islandCount(lab) * ISLAND_GAP + 2.4 : lab.cols * DX + 3;
@@ -225,8 +254,9 @@ export default function LabScene({ lab, pcs, selectedId, onSelect }: SceneProps)
       <directionalLight position={[5, 10, 6]} intensity={1.1} castShadow shadow-mapSize={[2048, 2048]}
         shadow-camera-left={-12} shadow-camera-right={12} shadow-camera-top={12} shadow-camera-bottom={-12} />
       {/* Bounds frames the room for whatever aspect the canvas has (phone or desktop). */}
-      <Bounds fit margin={0.8}>
+      <Bounds fit margin={0.8} maxDuration={0.9}>
         <Room w={w} d={d} style={style} />
+        <FocusCamera selectedId={selectedId} />
       </Bounds>
       {style === 'island' && <Spines lab={lab} pcs={pcs} />}
       {pcs.map((pc) => {
