@@ -18,6 +18,7 @@ import PcPanel from '../components/PcPanel';
 import SeatGrid from '../components/SeatGrid';
 import SceneBoundary from '../components/SceneBoundary';
 import { Alert, Button, Led, Modal, STATUS_LABEL, STATUSES } from '../components/ui';
+import type { SimMode } from '../components/LabCharacters3D';
 
 const LabScene = lazy(() => import('../components/LabScene'));
 
@@ -138,7 +139,7 @@ export default function Labs3D() {
 
   // Realtime Laboratory Schedule & Classroom Monitoring
   const schedules = useLoad(() => api.listSchedules());
-  const [testOverride, setTestOverride] = useState<'in_session' | 'available' | null>(null);
+  const [userSimOverride, setUserSimOverride] = useState<SimMode | null>(null);
 
   const today = manilaNow();
   const dow = isoWeekday(today.date);
@@ -167,7 +168,8 @@ export default function Labs3D() {
   )?.current ?? null;
 
   const isLiveInSession = Boolean(activeClassSchedule || activeBooking);
-  const isClassInSession = testOverride === null ? isLiveInSession : testOverride === 'in_session';
+  const effectiveSimMode: SimMode = userSimOverride ?? (isLiveInSession ? 'walk_in' : 'empty');
+  const isClassInSession = effectiveSimMode === 'walk_in' || effectiveSimMode === 'in_session';
 
   const activeClassDetails = activeClassSchedule
     ? {
@@ -188,11 +190,11 @@ export default function Labs3D() {
     if (isClassInSession) {
       return pcs.map((p) => (p.shown === 'broken' ? p : { ...p, shown: 'in_use' as const }));
     }
-    if (testOverride === 'available') {
+    if (effectiveSimMode === 'empty' || effectiveSimMode === 'walk_out') {
       return pcs.map((p) => (p.shown === 'broken' ? p : { ...p, shown: 'free' as const }));
     }
     return pcs;
-  }, [pcs, isClassInSession, testOverride]);
+  }, [pcs, isClassInSession, effectiveSimMode]);
 
   const selected = displayedPcs.find((p) => p.id === selectedId);
   const counts = Object.fromEntries(STATUSES.map((s) => [s, displayedPcs.filter((p) => p.shown === s).length]));
@@ -274,19 +276,69 @@ export default function Labs3D() {
 
         <div className="hidden h-3.5 w-px bg-line sm:block" />
 
-        {/* Realtime / Test Toggle */}
-        <div className="flex items-center gap-1.5">
+        {/* Quality of Life Animated Simulation Controls */}
+        <div className="flex flex-wrap items-center gap-1">
           <button
-            onClick={() => setTestOverride((prev) => (prev ? null : isClassInSession ? 'available' : 'in_session'))}
-            className={`rounded-lg px-2 py-0.5 text-[11px] font-medium transition-all ${
-              testOverride !== null
-                ? 'bg-accent text-white shadow-xs'
+            onClick={() => setUserSimOverride('walk_in')}
+            className={`flex items-center gap-1 rounded-lg px-2 py-0.5 text-[11px] font-medium transition-all ${
+              effectiveSimMode === 'walk_in'
+                ? 'bg-accent text-white shadow-xs font-semibold'
                 : 'text-muted hover:bg-chalk hover:text-ink'
             }`}
-            title="Preview laboratory state between active class session and available lab"
+            title="Animate 3D students walking from the door along aisles to sit at their workstations"
           >
-            {testOverride !== null ? 'Reset to Live' : 'Test Class'}
+            <span>🚶</span>
+            <span>Walk In & Sit</span>
           </button>
+
+          <button
+            onClick={() => setUserSimOverride('in_session')}
+            className={`flex items-center gap-1 rounded-lg px-2 py-0.5 text-[11px] font-medium transition-all ${
+              effectiveSimMode === 'in_session'
+                ? 'bg-accent text-white shadow-xs font-semibold'
+                : 'text-muted hover:bg-chalk hover:text-ink'
+            }`}
+            title="Class actively seated working at PCs with instructor at whiteboard"
+          >
+            <span>💻</span>
+            <span>In Session</span>
+          </button>
+
+          <button
+            onClick={() => setUserSimOverride('walk_out')}
+            className={`flex items-center gap-1 rounded-lg px-2 py-0.5 text-[11px] font-medium transition-all ${
+              effectiveSimMode === 'walk_out'
+                ? 'bg-accent text-white shadow-xs font-semibold'
+                : 'text-muted hover:bg-chalk hover:text-ink'
+            }`}
+            title="Class dismissed: students stand up and walk out through the exit door"
+          >
+            <span>🚪</span>
+            <span>Dismiss & Exit</span>
+          </button>
+
+          <button
+            onClick={() => setUserSimOverride('empty')}
+            className={`flex items-center gap-1 rounded-lg px-2 py-0.5 text-[11px] font-medium transition-all ${
+              effectiveSimMode === 'empty'
+                ? 'bg-accent text-white shadow-xs font-semibold'
+                : 'text-muted hover:bg-chalk hover:text-ink'
+            }`}
+            title="Empty laboratory with workstations available"
+          >
+            <span>🟢</span>
+            <span>Empty</span>
+          </button>
+
+          {userSimOverride !== null && (
+            <button
+              onClick={() => setUserSimOverride(null)}
+              className="ml-0.5 rounded-lg border border-line bg-chalk/80 px-2 py-0.5 text-[11px] font-medium text-accent hover:bg-chalk hover:text-ink"
+              title="Reset to real Philippine Manila timetable"
+            >
+              Reset to Live
+            </button>
+          )}
         </div>
       </div>
 
@@ -299,20 +351,21 @@ export default function Labs3D() {
       {/* 3D Scene / 2D SeatGrid filling 100% of the screen with smooth fade-in reveal */}
       <div className={`h-full w-full transition-opacity duration-500 ease-out ${sceneReady ? 'opacity-100' : 'opacity-0'}`}>
         {lab && (mode === '3d'
-          ? <SceneBoundary onError={() => setMode('2d')} fallback={<SeatGrid lab={lab} pcs={displayedPcs} selectedId={selectedId} onSelect={select} onReady={() => setSceneReady(true)} isOccupied={isClassInSession} classInfo={activeClassSchedule} />}>
+          ? <SceneBoundary onError={() => setMode('2d')} fallback={<SeatGrid lab={lab} pcs={displayedPcs} selectedId={selectedId} onSelect={select} onReady={() => setSceneReady(true)} isOccupied={isClassInSession} classInfo={activeClassSchedule} simMode={effectiveSimMode} />}>
               <Suspense fallback={<LabLoadingOverlay labName={lab.name} ready={false} />}>
                 <LabScene
-                  key={lab.id}
+                  key={`${lab.id}-${effectiveSimMode}`}
                   lab={lab}
                   pcs={displayedPcs}
                   selectedId={selectedId}
                   onSelect={select}
                   onReady={() => setSceneReady(true)}
                   isOccupied={isClassInSession}
+                  simMode={effectiveSimMode}
                 />
               </Suspense>
             </SceneBoundary>
-          : <div className="h-full w-full overflow-auto p-6 pt-28 pb-24"><SeatGrid lab={lab} pcs={displayedPcs} selectedId={selectedId} onSelect={select} onReady={() => setSceneReady(true)} isOccupied={isClassInSession} classInfo={activeClassSchedule} /></div>)}
+          : <div className="h-full w-full overflow-auto p-6 pt-28 pb-24"><SeatGrid lab={lab} pcs={displayedPcs} selectedId={selectedId} onSelect={select} onReady={() => setSceneReady(true)} isOccupied={isClassInSession} classInfo={activeClassSchedule} simMode={effectiveSimMode} /></div>)}
       </div>
 
       {/* Status bar pills in bottom-left (above floating navigation) */}
