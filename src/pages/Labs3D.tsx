@@ -326,7 +326,7 @@ export default function Labs3D() {
                 ? 'bg-accent text-white shadow-xs font-semibold'
                 : 'text-muted hover:bg-chalk hover:text-ink'
             }`}
-            title="Simulate students entering 1 by 1 and 2 by 2 and sitting at workstations"
+            title="Simulate students entering strictly 1 by 1 in single file and sitting at workstations"
           >
             <span>🚶</span>
             <span>Simulate Walk In</span>
@@ -352,7 +352,7 @@ export default function Labs3D() {
                 ? 'bg-accent text-white shadow-xs font-semibold'
                 : 'text-muted hover:bg-chalk hover:text-ink'
             }`}
-            title="Simulate class dismissal: students leave 1 by 1 and 2 by 2"
+            title="Simulate class dismissal: students leave strictly 1 by 1 in single file"
           >
             <span>🚪</span>
             <span>Simulate Dismissal</span>

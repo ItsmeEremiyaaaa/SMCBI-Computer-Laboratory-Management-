@@ -201,6 +201,14 @@ export function Teacher3D({ gender }: { gender: 'male' | 'female' }) {
   );
 }
 
+// Helper to smoothly interpolate angles avoiding 360-degree wrap-around spins
+function lerpAngle(a: number, b: number, t: number) {
+  let diff = (b - a) % (Math.PI * 2);
+  if (diff < -Math.PI) diff += Math.PI * 2;
+  if (diff > Math.PI) diff -= Math.PI * 2;
+  return a + diff * t;
+}
+
 // Procedural 3D Low-Poly Animated Student Character
 function StudentAgent3D({
   agent,
@@ -331,7 +339,7 @@ function StudentAgent3D({
         if (Math.hypot(dx, dz) > 0.01) {
           const targetHeading = Math.atan2(dx, dz);
           // Smooth rotation when turning corners
-          root.rotation.y = MathUtils.lerp(root.rotation.y, targetHeading, 0.2);
+          root.rotation.y = lerpAngle(root.rotation.y, targetHeading, 0.2);
         }
 
         // Natural, gentle low-poly walking cycle (simple & calm, not running)
@@ -361,7 +369,7 @@ function StudentAgent3D({
       root.position.set(agent.chairPos[0], 0, agent.chairPos[2]);
 
       // Rotate smoothly to face the monitor
-      root.rotation.y = MathUtils.lerp(root.rotation.y, agent.targetRotY, sitProgress);
+      root.rotation.y = lerpAngle(root.rotation.y, agent.targetRotY, sitProgress);
 
       // Smoothly lower hips from standing (0) to chair height (-0.34)
       bodyRoot.position.y = MathUtils.lerp(0, -0.34, sitProgress);
@@ -415,7 +423,7 @@ function StudentAgent3D({
 
         const firstRev = revPts[1] ?? revPts[0];
         const exitAngle = Math.atan2(firstRev.x - revPts[0].x, firstRev.z - revPts[0].z);
-        root.rotation.y = MathUtils.lerp(agent.targetRotY, exitAngle, standProgress);
+        root.rotation.y = lerpAngle(agent.targetRotY, exitAngle, standProgress);
 
         bodyRoot.position.y = MathUtils.lerp(-0.34, 0, standProgress);
         leftHip.rotation.x = MathUtils.lerp(-Math.PI / 2, 0, standProgress);
@@ -465,7 +473,7 @@ function StudentAgent3D({
       const dz = p1.z - p0.z;
       if (Math.hypot(dx, dz) > 0.01) {
         const targetHeading = Math.atan2(dx, dz);
-        root.rotation.y = MathUtils.lerp(root.rotation.y, targetHeading, 0.2);
+        root.rotation.y = lerpAngle(root.rotation.y, targetHeading, 0.2);
       }
 
       const walkPhase = walkT * 4.4;
@@ -674,7 +682,8 @@ export default function LabCharacters3D({
   const workingPcs = useMemo(() => pcs.filter((p) => p.shown !== 'broken'), [pcs]);
 
   const agents = useMemo<StudentAgentData[]>(() => {
-    return workingPcs.map((pc, idx) => {
+    // 1. First pass: compute collision-free waypoint paths and walk distances for all students
+    const rawList = workingPcs.map((pc) => {
       let h = 0;
       for (let i = 0; i < pc.id.length; i++) h = (h * 31 + pc.id.charCodeAt(i)) >>> 0;
       const isMale = h % 2 === 0;
@@ -690,45 +699,61 @@ export default function LabCharacters3D({
       const toMonitorZ = pcPos[2] - chairZ;
       const targetRotY = Math.atan2(toMonitorX, toMonitorZ);
 
-      // Determine dedicated collision-free aisle corridor for this student
-      let aisleX = chairX;
+      // Waypoints that STRICTLY avoid all computers and desks
+      const waypoints: Waypoint[] = [];
+      waypoints.push({ ...doorPoint });
+      waypoints.push({ x: doorPoint.x, z: frontHallZ });
+
       if (style === 'island') {
         const nIslands = islandCount(lab);
         const iIsland = Math.floor(pc.col / 4);
         const cx = islandX(iIsland, nIslands);
+        const isEndSeat = pc.row === LAYOUTS[lab.id]?.island?.endRow;
 
-        if (pc.row !== LAYOUTS[lab.id]?.island?.endRow) {
-          if (pc.col % 4 === 0) {
-            // Left column of this island: walks down the corridor to the left of the seats
-            aisleX = cx - 1.80;
-          } else {
-            // Right column of this island: walks down the corridor to the right of the seats
-            aisleX = cx + 1.80;
-          }
+        // Clear aisle corridors: left side of island uses (cx - 1.80), right side uses (cx + 1.80)
+        let aisleX = cx - 1.80;
+        if (pc.col % 4 === 0) {
+          aisleX = cx - 1.80; // Left side of island: use left aisle
+        } else if (pc.col % 4 === 2) {
+          aisleX = cx + 1.80; // Right side of island: use right aisle
         } else {
-          // End seat across the back end of the spine
-          aisleX = chairX;
+          aisleX = chairX < cx ? cx - 1.80 : cx + 1.80;
+        }
+
+        waypoints.push({ x: aisleX, z: frontHallZ });
+
+        if (!isEndSeat) {
+          // Regular side seat: walk down open aisle corridor, then step sideways directly into chair
+          waypoints.push({ x: aisleX, z: chairZ });
+          waypoints.push({ x: chairX, z: chairZ });
+        } else {
+          // End seat across the back end of the spine (Row 3 in ComLab 1):
+          // MUST walk past the entire island in the open aisle, then along the rear walkway behind chairs, and step forward into chair
+          const backHallZ = chairZ + 0.70; // safe rear walkway behind chairs
+          waypoints.push({ x: aisleX, z: backHallZ });
+          waypoints.push({ x: chairX, z: backHallZ });
+          waypoints.push({ x: chairX, z: chairZ });
         }
       } else {
         // Table lab (NetLab): 3 table blocks
-        // Walk down open corridors between table blocks
-        if (pc.col <= 2) {
-          aisleX = -2.10;
-        } else if (pc.col <= 6) {
-          aisleX = pc.col <= 4 ? -2.10 : 2.10;
+        let corridorX = -2.30;
+        if (pc.col <= 1) {
+          corridorX = -6.80; // Left wall aisle
+        } else if (pc.col <= 4) {
+          corridorX = -2.30; // Left-center aisle
+        } else if (pc.col <= 9) {
+          corridorX = 2.30; // Right-center aisle
         } else {
-          aisleX = 2.10;
+          corridorX = 6.80; // Right wall aisle
         }
-      }
 
-      // Waypoints: Door -> Front hallway -> Turn into dedicated aisle corridor -> Walk down open aisle -> Step into chair
-      const waypoints: Waypoint[] = [
-        { ...doorPoint },
-        { x: doorPoint.x, z: frontHallZ },
-        { x: aisleX, z: frontHallZ },
-        { x: aisleX, z: chairZ },
-        { x: chairX, z: chairZ },
-      ];
+        // Rear walkway behind the chairs of this row
+        const rowWalkwayZ = chairZ + 0.50;
+        waypoints.push({ x: corridorX, z: frontHallZ });
+        waypoints.push({ x: corridorX, z: rowWalkwayZ });
+        waypoints.push({ x: chairX, z: rowWalkwayZ });
+        waypoints.push({ x: chairX, z: chairZ });
+      }
 
       // Remove redundant waypoints if adjacent are identical
       const cleaned: Waypoint[] = [waypoints[0]];
@@ -746,41 +771,60 @@ export default function LabCharacters3D({
         totalWalkDist += Math.hypot(cleaned[i + 1].x - cleaned[i].x, cleaned[i + 1].z - cleaned[i].z);
       }
 
-      // Staggered entry: arrive naturally 1 by 1 or 2 by 2 through the door (no huge crowd)
-      const pairIdx = Math.floor(idx / 2);
-      const isSecondInPair = idx % 2 === 1;
-      const enterDelay = 0.3 + pairIdx * 1.7 + (isSecondInPair ? 0.38 : 0);
-
-      const revIdx = workingPcs.length - 1 - idx;
-      const exitPairIdx = Math.floor(revIdx / 2);
-      const isSecondExit = revIdx % 2 === 1;
-      const exitDelay = 0.3 + exitPairIdx * 1.5 + (isSecondExit ? 0.35 : 0);
-      const walkSpeed = 1.05 + ((h % 5) - 2) * 0.04; // Calm, steady indoor pace (1.01 to 1.09 m/s)
-
       return {
         id: pc.id,
         pcId: pc.id,
         isMale,
         hash: h,
-        chairPos: [chairX, 0, chairZ],
+        chairPos: [chairX, 0, chairZ] as [number, number, number],
         pcPos,
         targetRotY,
         waypoints: cleaned,
         totalWalkDist,
+        walkSpeed: 1.0, // Calm, steady indoor pace (1.0 m/s)
+      };
+    });
+
+    // 2. Compute 1-by-1 ranking:
+    // For arrival (walk_in): Farthest seat enters door first so pathway is always open ahead of every student!
+    const inOrder = [...rawList].sort((a, b) => b.totalWalkDist - a.totalWalkDist || a.id.localeCompare(b.id));
+    const inRankMap = new Map<string, number>();
+    inOrder.forEach((item, idx) => inRankMap.set(item.id, idx));
+
+    // For dismissal (walk_out): Closest seat stands up and exits door first so exit corridor is clear!
+    const outOrder = [...rawList].sort((a, b) => a.totalWalkDist - b.totalWalkDist || a.id.localeCompare(b.id));
+    const outRankMap = new Map<string, number>();
+    outOrder.forEach((item, idx) => outRankMap.set(item.id, idx));
+
+    return rawList.map((item) => {
+      const rankIn = inRankMap.get(item.id) ?? 0;
+      const rankOut = outRankMap.get(item.id) ?? 0;
+
+      // Strictly 1-by-1 spacing: 1.6s between consecutive students entering or exiting the door
+      const enterDelay = 0.4 + rankIn * 1.6;
+      const exitDelay = 0.4 + rankOut * 1.6;
+
+      return {
+        ...item,
         enterDelay,
         exitDelay,
-        walkSpeed,
       };
     });
   }, [workingPcs, lab, style, doorPoint.x, doorPoint.z, frontHallZ]);
 
   // Max simulation time calculation
-  const maxEnterTime = useMemo(() => {
+  const maxSimTime = useMemo(() => {
+    if (simMode === 'walk_out') {
+      return Math.max(
+        ...agents.map((a) => a.exitDelay + a.totalWalkDist / a.walkSpeed + 1.2),
+        4
+      );
+    }
     return Math.max(
-      ...agents.map((a) => a.enterDelay + a.totalWalkDist / a.walkSpeed + 1.0),
+      ...agents.map((a) => a.enterDelay + a.totalWalkDist / a.walkSpeed + 1.2),
       4
     );
-  }, [agents]);
+  }, [agents, simMode]);
 
   useFrame(({ clock }) => {
     if (simMode === 'in_session' || simMode === 'empty') return;
@@ -791,7 +835,7 @@ export default function LabCharacters3D({
     const curElapsed = clock.elapsedTime - startTimeRef.current;
     setElapsed(curElapsed);
 
-    if (curElapsed >= maxEnterTime + 0.5 && onSimulationComplete) {
+    if (curElapsed >= maxSimTime + 0.5 && onSimulationComplete) {
       onSimulationComplete();
     }
   });
