@@ -3,7 +3,7 @@ import { ChevronLeft, ChevronRight, Plus } from 'lucide-react';
 import { useAuth } from '../auth';
 import { useLoad } from '../hooks/useLoad';
 import { api, type EventInput } from '../lib/api';
-import { manilaNow } from '../lib/seat';
+import { classesOn, manilaNow } from '../lib/seat';
 import { EVENT_TYPES, type EventType, type LabEvent } from '../lib/types';
 import { Alert, Button, Field, fmtDate, fmtTime, Input, Modal, PageHeader, Panel, Select, Textarea } from '../components/ui';
 
@@ -25,6 +25,7 @@ export default function Calendar() {
   const events = useLoad(() => api.listEvents());
   const res = useLoad(() => api.listReservations({ status: 'approved' }));
   const labs = useLoad(() => api.listLabs());
+  const classes = useLoad(() => api.listSchedules());
 
   const first = new Date(Date.UTC(ym.y, ym.m, 1)).getUTCDay();
   const days = new Date(Date.UTC(ym.y, ym.m + 1, 0)).getUTCDate();
@@ -55,7 +56,8 @@ export default function Calendar() {
           {cells.map((d, i) => {
             const date = d >= 1 && d <= days ? iso(ym.y, ym.m, d) : null;
             const ev = date ? (events.data ?? []).filter((e) => e.event_date === date) : [];
-            const rs = date ? (res.data ?? []).filter((r) => r.date === date) : [];
+            const rs = date ? [...(res.data ?? []).filter((r) => r.date === date), ...classesOn(date, classes.data ?? [])]
+              .sort((a, b) => a.start_time.localeCompare(b.start_time)) : [];
             return (
               <div key={i} className={`min-h-24 border-b border-r border-line p-1.5 sm:min-h-28 ${i % 7 === 6 ? 'border-r-0' : ''} ${date ? '' : 'bg-chalk/60'}`}>
                 {date && <>

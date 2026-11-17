@@ -1,5 +1,5 @@
 import { useEffect, useRef, type ButtonHTMLAttributes, type InputHTMLAttributes, type ReactNode, type SelectHTMLAttributes, type TextareaHTMLAttributes } from 'react';
-import { X } from 'lucide-react';
+import { X, type LucideIcon } from 'lucide-react';
 import type { ResStatus, ShownStatus } from '../lib/types';
 
 export const STATUS_COLOR: Record<ShownStatus, string> = {
@@ -20,7 +20,7 @@ export function Button({ variant = 'primary', size = 'md', className, ...p }: Bt
       className={cx(
         'inline-flex items-center justify-center gap-1.5 rounded-md font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer',
         size === 'sm' ? 'h-8 px-2.5 text-sm' : 'h-10 px-4 text-sm',
-        variant === 'primary' && 'bg-accent text-white hover:bg-[#174d9e]',
+        variant === 'primary' && 'bg-accent text-white shadow-sm hover:bg-rail',
         variant === 'ghost' && 'border border-line bg-panel hover:bg-chalk',
         variant === 'danger' && 'bg-broken text-white hover:bg-[#d83434]',
         variant === 'quiet' && 'text-muted hover:text-ink hover:bg-chalk',
@@ -65,20 +65,25 @@ export function PageHeader({ title, sub, actions }: { title: string; sub?: React
   return (
     <header className="mb-6 flex flex-wrap items-end justify-between gap-3">
       <div>
-        <h1 className="text-2xl font-semibold tracking-tight">{title}</h1>
-        {sub && <p className="mt-1 text-sm text-muted">{sub}</p>}
+        <h1 className="font-serif text-3xl font-semibold tracking-tight text-rail">{title}</h1>
+        <span className="mt-2 block h-0.5 w-12 rounded bg-gold" aria-hidden />
+        {sub && <p className="mt-2 text-sm text-muted">{sub}</p>}
       </div>
       {actions && <div className="flex flex-wrap gap-2">{actions}</div>}
     </header>
   );
 }
 
-export function Panel({ title, actions, children, className }: { title?: string; actions?: ReactNode; children: ReactNode; className?: string }) {
+export function Panel({ title, icon: Icon, actions, children, className }:
+  { title?: string; icon?: LucideIcon; actions?: ReactNode; children: ReactNode; className?: string }) {
   return (
-    <section className={cx('rounded-lg border border-line bg-panel', className)}>
+    <section className={cx('rounded-lg border border-line bg-panel shadow-[0_1px_2px_rgb(11_34_72/0.04)]', className)}>
       {title && (
         <div className="flex items-center justify-between gap-2 border-b border-line px-4 py-3">
-          <h2 className="font-semibold">{title}</h2>{actions}
+          <h2 className="flex items-center gap-2 font-semibold text-rail">
+            {Icon && <span className="grid h-7 w-7 place-items-center rounded-md bg-gold-soft text-[#8a6a10]"><Icon size={15} strokeWidth={2} /></span>}
+            {title}
+          </h2>{actions}
         </div>
       )}
       {children}
@@ -121,3 +126,15 @@ export const fmtTime = (t: string) => {
   const [h, m] = t.split(':').map(Number);
   return `${((h + 11) % 12) + 1}:${String(m).padStart(2, '0')} ${h < 12 ? 'AM' : 'PM'}`;
 };
+
+// Typographic crest (no school logo file): gold ring, navy field, serif monogram.
+export function Crest({ size = 40 }: { size?: number }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 48 48" aria-hidden className="shrink-0">
+      <circle cx="24" cy="24" r="23" fill="#c9a227" />
+      <circle cx="24" cy="24" r="20" fill="#0b2248" />
+      <circle cx="24" cy="24" r="17.5" fill="none" stroke="#c9a227" strokeWidth="0.75" strokeDasharray="1.5 2" />
+      <text x="24" y="29" textAnchor="middle" fontFamily="'Source Serif 4', Georgia, serif" fontWeight="700" fontSize="13" fill="#f7efd4">SMC</text>
+    </svg>
+  );
+}

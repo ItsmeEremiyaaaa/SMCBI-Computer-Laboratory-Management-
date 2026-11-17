@@ -23,7 +23,7 @@ export default function Signup() {
 
   return (
     <AuthShell>
-      <h1 className="text-2xl font-semibold tracking-tight">Create a teacher account</h1>
+      <h1 className="font-serif text-3xl font-semibold tracking-tight text-rail">Create a teacher account</h1>
       <p className="mt-1 text-sm text-muted">An admin approves new accounts before you can book labs.</p>
       {done ? (
         <p className="mt-6 rounded-md border border-line bg-panel p-4 text-sm">Account created. Check your email to confirm it, then sign in.</p>

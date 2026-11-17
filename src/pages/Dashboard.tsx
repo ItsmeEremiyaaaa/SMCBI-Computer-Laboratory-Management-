@@ -5,9 +5,9 @@ import { useAuth } from '../auth';
 import { useLabLive, type LivePc } from '../hooks/useLabLive';
 import { useLoad } from '../hooks/useLoad';
 import { api } from '../lib/api';
-import { manilaNow } from '../lib/seat';
+import { classesOn, manilaNow } from '../lib/seat';
 import type { Lab } from '../lib/types';
-import { Button, Empty, fmtDate, fmtTime, Led, PageHeader, Panel, ResBadge, STATUS_COLOR, STATUS_LABEL, STATUSES } from '../components/ui';
+import { Button, Empty, fmtDate, fmtTime, Led, Panel, ResBadge, STATUS_COLOR, STATUS_LABEL, STATUSES } from '../components/ui';
 
 function LabTile({ lab, pcs }: { lab: Lab; pcs: LivePc[] }) {
   const mine = pcs.filter((p) => p.lab_id === lab.id).sort((a, b) => a.row - b.row || a.col - b.col);
@@ -40,12 +40,14 @@ export default function Dashboard() {
   const { pcs } = useLabLive(null);
   const stats = useLoad(() => (isTeacher ? Promise.resolve(null) : api.stats()), [isTeacher]);
   const res = useLoad(() => api.listReservations({ mine: isTeacher }), [isTeacher]);
+  const classes = useLoad(() => api.listSchedules());
   const events = useLoad(() => api.listEvents());
   useEffect(() => api.subscribeReservations(() => { res.reload(); stats.reload(); }), [res.reload, stats.reload]);
 
   const labName = (id: string) => labs.data?.find((l) => l.id === id)?.name.replace('Computer Laboratory', 'Lab') ?? id;
   const all = res.data ?? [];
-  const todays = all.filter((r) => r.date === today && r.status === 'approved').sort((a, b) => a.start_time.localeCompare(b.start_time));
+  const todays = [...all.filter((r) => r.date === today && r.status === 'approved'), ...classesOn(today, classes.data ?? [])]
+    .sort((a, b) => a.start_time.localeCompare(b.start_time));
   const pending = all.filter((r) => r.status === 'pending').sort((a, b) => (a.date + a.start_time).localeCompare(b.date + b.start_time));
   const upcoming = all.filter((r) => r.date >= today && r.status === 'approved').sort((a, b) => (a.date + a.start_time).localeCompare(b.date + b.start_time));
   const nextEvents = (events.data ?? []).filter((e) => e.event_date >= today).sort((a, b) => a.event_date.localeCompare(b.event_date)).slice(0, 4);
@@ -53,8 +55,22 @@ export default function Dashboard() {
 
   return (
     <>
-      <PageHeader title="Overview" sub={`${greeting}, ${profile?.full_name.split(' ')[0]}. ${fmtDate(today)}.`}
-        actions={<Link to="/reservations?new=1"><Button><Plus size={16} />Request a lab</Button></Link>} />
+      <section className="navy-weave relative mb-6 overflow-hidden rounded-xl px-6 py-6 text-white shadow-sm md:px-8">
+        <div className="absolute inset-x-0 top-0 h-1 bg-gold" aria-hidden />
+        <div className="flex flex-wrap items-end justify-between gap-4">
+          <div>
+            <p className="text-sm text-gold">{fmtDate(today)}, Computer Laboratory Office</p>
+            <h1 className="sr-only">Overview</h1>
+            <p className="mt-1 font-serif text-3xl font-semibold">{greeting}, {profile?.full_name.split(' ')[0]}</p>
+            <p className="mt-1 text-sm text-slate-300">
+              {todays.length ? `${todays.length} class${todays.length > 1 ? 'es and bookings' : ' or booking'} in the labs today.` : 'No classes or bookings in the labs today.'}
+            </p>
+          </div>
+          <Link to="/reservations?new=1"
+            className="inline-flex h-10 items-center gap-1.5 rounded-md bg-gold px-4 text-sm font-semibold text-rail shadow-sm transition-colors hover:bg-[#d8b23a]">
+            <Plus size={16} />Request a lab</Link>
+        </div>
+      </section>
 
       {stats.data && (
         <dl className="mb-6 grid grid-cols-2 gap-px overflow-hidden rounded-lg border border-line bg-line sm:grid-cols-3 lg:grid-cols-5">

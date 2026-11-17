@@ -18,7 +18,7 @@ export default function Login() {
 
   return (
     <AuthShell>
-      <h1 className="text-2xl font-semibold tracking-tight">Sign in</h1>
+      <h1 className="font-serif text-3xl font-semibold tracking-tight text-rail">Sign in</h1>
       <p className="mt-1 text-sm text-muted">Use your school account.</p>
       <form onSubmit={submit} className="mt-6 grid gap-4">
         {error && <Alert>{error}</Alert>}

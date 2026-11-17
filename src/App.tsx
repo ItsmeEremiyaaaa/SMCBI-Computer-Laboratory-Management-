@@ -9,6 +9,7 @@ import Dashboard from './pages/Dashboard';
 import Reservations from './pages/Reservations';
 import People from './pages/People';
 import Calendar from './pages/Calendar';
+import Schedule from './pages/Schedule';
 import type { Role } from './lib/types';
 
 // three.js is big; only load it when someone opens the Labs page.
@@ -42,6 +43,7 @@ export default function App() {
         <Route path="labs/:labId?" element={<Suspense fallback={<Loading />}><Labs3D /></Suspense>} />
         <Route path="reservations" element={<Reservations />} />
         <Route path="calendar" element={<Calendar />} />
+        <Route path="schedule" element={<Schedule />} />
         <Route path="people/:tab" element={<Only roles={['admin']}><People /></Only>} />
         <Route path="*" element={<Navigate to="/" replace />} />
       </Route>

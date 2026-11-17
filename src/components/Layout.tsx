@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { NavLink, Outlet, useLocation } from 'react-router-dom';
-import { Bell, Box, CalendarDays, ClipboardList, LayoutGrid, LogOut, Menu, Users, X } from 'lucide-react';
+import { Bell, Box, CalendarClock, CalendarDays, ClipboardList, LayoutGrid, LogOut, Menu, Users, X } from 'lucide-react';
+import { Crest } from './ui';
 import { useAuth } from '../auth';
 import { api, type Stats } from '../lib/api';
 import type { Role } from '../lib/types';
@@ -9,18 +10,19 @@ const NAV: { to: string; label: string; icon: typeof Box; roles: Role[] }[] = [
   { to: '/', label: 'Overview', icon: LayoutGrid, roles: ['admin', 'staff', 'teacher'] },
   { to: '/labs', label: 'Labs', icon: Box, roles: ['admin', 'staff', 'teacher'] },
   { to: '/reservations', label: 'Reservations', icon: ClipboardList, roles: ['admin', 'staff', 'teacher'] },
+  { to: '/schedule', label: 'Class schedule', icon: CalendarClock, roles: ['admin', 'staff', 'teacher'] },
   { to: '/calendar', label: 'Calendar', icon: CalendarDays, roles: ['admin', 'staff', 'teacher'] },
   { to: '/people/teachers', label: 'People', icon: Users, roles: ['admin'] },
 ];
 
 function Brand() {
   return (
-    <div className="flex items-center gap-2.5 px-2">
-      <span className="grid grid-cols-3 gap-[3px]" aria-hidden>
-        {['#22c55e', '#22c55e', '#3b82f6', '#f59e0b', '#22c55e', '#22c55e'].map((c, i) =>
-          <span key={i} className="h-1.5 w-2 rounded-[1px]" style={{ background: c }} />)}
-      </span>
-      <span className="font-cond text-lg font-semibold tracking-tight text-white">ComLab Monitor</span>
+    <div className="flex items-center gap-3 px-1">
+      <Crest size={40} />
+      <div className="leading-tight">
+        <p className="font-serif text-[17px] font-semibold text-white">ComLab Monitor</p>
+        <p className="text-[11px] tracking-wide text-gold">St. Mary's College of Bansalan</p>
+      </div>
     </div>
   );
 }
@@ -42,12 +44,12 @@ export default function Layout() {
   const count = (stats?.pending ?? 0) + (profile.role === 'admin' ? stats?.pendingTeachers ?? 0 : 0);
 
   const nav = (
-    <nav className="mt-6 grid gap-0.5">
+    <nav className="mt-6 grid gap-0.5 border-t border-white/10 pt-5">
       {NAV.filter((n) => n.roles.includes(profile.role)).map(({ to, label, icon: Icon }) => (
         <NavLink key={to} to={to} end={to === '/'}
           className={({ isActive }) => `flex items-center gap-3 rounded-md px-3 py-2 text-sm transition-colors ${
             isActive || (to.startsWith('/people') && pathname.startsWith('/people'))
-              ? 'bg-rail-2 text-white' : 'text-slate-300 hover:bg-rail-2/60 hover:text-white'}`}>
+              ? 'bg-rail-2 text-white shadow-[inset_3px_0_0_var(--color-gold)]' : 'text-slate-300 hover:bg-rail-2/60 hover:text-white'}`}>
           <Icon size={18} strokeWidth={1.75} />{label}
         </NavLink>
       ))}
@@ -56,7 +58,7 @@ export default function Layout() {
 
   return (
     <div className="flex min-h-full">
-      <aside className="sticky top-0 hidden h-screen w-60 shrink-0 flex-col bg-rail p-4 md:flex">
+      <aside className="sticky top-0 hidden h-screen w-60 shrink-0 flex-col navy-weave p-4 md:flex">
         <Brand />{nav}
         <UserBox />
       </aside>
@@ -64,7 +66,7 @@ export default function Layout() {
       {open && (
         <div className="fixed inset-0 z-40 md:hidden">
           <div className="absolute inset-0 bg-rail/60" onClick={() => setOpen(false)} />
-          <aside className="absolute inset-y-0 left-0 flex w-64 flex-col bg-rail p-4">
+          <aside className="absolute inset-y-0 left-0 flex w-64 flex-col navy-weave p-4">
             <div className="flex items-center justify-between"><Brand />
               <button onClick={() => setOpen(false)} aria-label="Close menu" className="text-slate-300"><X /></button></div>
             {nav}<UserBox />
@@ -100,7 +102,7 @@ function UserBox() {
   if (!profile) return null;
   return (
     <div className="mt-auto flex items-center gap-3 rounded-md border border-rail-2 p-3">
-      <span className="grid h-9 w-9 shrink-0 place-items-center rounded-full bg-accent text-sm font-semibold text-white">
+      <span className="grid h-9 w-9 shrink-0 place-items-center rounded-full bg-gold text-sm font-semibold text-rail">
         {profile.full_name.split(' ').map((w) => w[0]).slice(0, 2).join('')}
       </span>
       <div className="min-w-0 flex-1">
