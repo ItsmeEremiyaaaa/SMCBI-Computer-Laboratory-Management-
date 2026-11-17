@@ -9,17 +9,17 @@ import type { SceneProps } from './SeatGrid';
 import { LAYOUTS } from '../lib/layouts';
 import { STATUS_COLOR } from './ui';
 
-// Cached frame geometries for all 11 columns, 7 rows of the character atlas
+// Cached frame geometries for all 12 columns, 6 rows of the character atlas
 const spriteGeoCache = new Map<string, THREE.PlaneGeometry>();
 function getSpriteGeometry(col: number, row: number, width: number, height: number, flipped = false) {
   const key = `${col}_${row}_${width}_${height}_${flipped}`;
   let geo = spriteGeoCache.get(key);
   if (!geo) {
     geo = new THREE.PlaneGeometry(width, height);
-    const u0 = flipped ? (col + 1) / 11 : col / 11;
-    const u1 = flipped ? col / 11 : (col + 1) / 11;
-    const v0 = (6 - row) / 7;
-    const v1 = (7 - row) / 7;
+    const u0 = flipped ? (col + 1) / 12 : col / 12;
+    const u1 = flipped ? col / 12 : (col + 1) / 12;
+    const v0 = (5 - row) / 6;
+    const v1 = (6 - row) / 6;
     const uvs = new Float32Array([
       u0, v1,
       u1, v1,
@@ -41,16 +41,16 @@ function SeatedStudent({ pcId, material }: { pcId: string; material: THREE.Mater
   }, [pcId]);
 
   const gender = hash % 2 === 0 ? 'male' : 'female';
-  // Alternate between laptop typing/interaction rows (rows 4 & 5) and sitting attentive rows (rows 2 & 3)
-  const useLaptop = hash % 3 !== 0;
-  const row = useLaptop ? (gender === 'male' ? 4 : 5) : (gender === 'male' ? 2 : 3);
-  const col = hash % 11;
+  // Row 0 is Male Sit & Interact; Row 1 is Female Sit & Interact
+  const row = gender === 'male' ? 0 : 1;
+  const col = hash % 12;
+  const flipped = (hash >> 3) % 2 === 1;
 
-  const geo = useMemo(() => getSpriteGeometry(col, row, 1.05, 1.45, false), [col, row]);
+  const geo = useMemo(() => getSpriteGeometry(col, row, 0.95, 1.35, flipped), [col, row, flipped]);
 
   return (
     <Billboard lockX={true} lockZ={true} position={[0, 0, 0.52]}>
-      <mesh position={[0, 1.45 / 2, 0]} geometry={geo} material={material} />
+      <mesh position={[0, 1.35 / 2, 0]} geometry={geo} material={material} />
     </Billboard>
   );
 }
@@ -815,14 +815,14 @@ function SceneContent({
           <Billboard lockX={true} lockZ={true} position={[-1.1, 0, front + 1.45]}>
             <mesh
               position={[0, 1.68 / 2, 0]}
-              geometry={getSpriteGeometry(0, 6, 1.05, 1.68, false)}
+              geometry={getSpriteGeometry(0, 5, 0.95, 1.68, false)}
               material={atlasMaterial}
             />
           </Billboard>
           <Billboard lockX={true} lockZ={true} position={[1.1, 0, front + 1.45]}>
             <mesh
               position={[0, 1.62 / 2, 0]}
-              geometry={getSpriteGeometry(1, 6, 0.98, 1.62, false)}
+              geometry={getSpriteGeometry(1, 5, 0.90, 1.62, false)}
               material={atlasMaterial}
             />
           </Billboard>
