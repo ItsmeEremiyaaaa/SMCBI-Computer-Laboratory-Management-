@@ -1,6 +1,6 @@
 import { lazy, Suspense, useEffect, useRef, useState } from 'react';
 import { NavLink, useParams } from 'react-router-dom';
-import { Box, Grid3x3 } from 'lucide-react';
+import { Box, Compass, Grid3x3, MousePointerClick, Move3d, RotateCcw, ZoomIn } from 'lucide-react';
 import { useAuth } from '../auth';
 import { useLabLive } from '../hooks/useLabLive';
 import { useLoad } from '../hooks/useLoad';
@@ -8,7 +8,7 @@ import { api } from '../lib/api';
 import PcPanel from '../components/PcPanel';
 import SeatGrid from '../components/SeatGrid';
 import SceneBoundary from '../components/SceneBoundary';
-import { Alert, Led, STATUS_LABEL, STATUSES } from '../components/ui';
+import { Alert, Button, Led, Modal, STATUS_LABEL, STATUSES } from '../components/ui';
 
 const LabScene = lazy(() => import('../components/LabScene'));
 
@@ -120,6 +120,23 @@ export default function Labs3D() {
   const selected = pcs.find((p) => p.id === selectedId);
   const counts = Object.fromEntries(STATUSES.map((s) => [s, pcs.filter((p) => p.shown === s).length]));
   const select = (id: string) => setSelectedId(id || null);
+  const [showGuideModal, setShowGuideModal] = useState(false);
+
+  // Awareness modal: automatically display on first visit (persists in localStorage)
+  useEffect(() => {
+    try {
+      if (!localStorage.getItem('comlab-3d-guide-seen')) {
+        setShowGuideModal(true);
+      }
+    } catch { /* private mode */ }
+  }, []);
+
+  const dismissGuide = () => {
+    try {
+      localStorage.setItem('comlab-3d-guide-seen', '1');
+    } catch { /* private mode */ }
+    setShowGuideModal(false);
+  };
 
   // Trigger loading screen on lab or view mode change
   useEffect(() => {
@@ -179,11 +196,17 @@ export default function Labs3D() {
         ))}
       </ul>
 
-      {/* Interaction hints in bottom-right */}
+      {/* 3D Navigation Guide Trigger Button in bottom-right */}
       {!selected && (
-        <div className="pointer-events-none absolute bottom-20 right-4 z-20 hidden sm:flex items-center gap-2 rounded-xl border border-line/60 bg-panel/90 px-3.5 py-2 text-xs text-muted shadow-md backdrop-blur">
-          <span>🖱️ Drag to rotate · Scroll to zoom · Click PC to inspect</span>
-        </div>
+        <button
+          onClick={() => setShowGuideModal(true)}
+          className="absolute bottom-20 right-4 z-20 flex items-center gap-2 rounded-xl border border-line/70 bg-panel/95 px-3.5 py-2 text-xs font-medium text-ink shadow-md backdrop-blur transition-all hover:bg-chalk hover:border-line hover:shadow-lg active:scale-95"
+          aria-label="3D Controls Guide"
+        >
+          <Compass size={15} className="text-accent" />
+          <span>3D Controls Guide</span>
+          <span className="grid h-4 w-4 place-items-center rounded-full bg-accent-soft text-[10px] font-bold text-accent">?</span>
+        </button>
       )}
 
       {/* Floating PC inspection drawer in top-right when a workstation is selected */}
@@ -192,6 +215,80 @@ export default function Labs3D() {
           <PcPanel pc={selected} lab={lab} canEdit={profile?.role !== 'teacher'} onClose={() => setSelectedId(null)} />
         </aside>
       )}
+
+      {/* 3D Navigation & Controls Awareness Modal */}
+      <Modal
+        open={showGuideModal}
+        title="3D Laboratory Controls & Navigation"
+        onClose={dismissGuide}
+      >
+        <div className="space-y-4">
+          <p className="text-sm text-muted">
+            Explore the SMCBI Computer Laboratory in real-time 3D. Here are the controls to interact with the environment:
+          </p>
+
+          <div className="grid gap-3 sm:grid-cols-2">
+            {/* Rotate */}
+            <div className="flex items-start gap-3 rounded-xl border border-line/60 bg-chalk/60 p-3.5">
+              <span className="grid h-9 w-9 shrink-0 place-items-center rounded-lg bg-blue-100 text-blue-700">
+                <Move3d size={18} />
+              </span>
+              <div>
+                <p className="text-sm font-semibold text-ink">Rotate & Orbit</p>
+                <p className="mt-0.5 text-xs text-muted leading-relaxed">
+                  Click and drag with your mouse (or swipe on touch screens) to rotate and view from any angle.
+                </p>
+              </div>
+            </div>
+
+            {/* Zoom */}
+            <div className="flex items-start gap-3 rounded-xl border border-line/60 bg-chalk/60 p-3.5">
+              <span className="grid h-9 w-9 shrink-0 place-items-center rounded-lg bg-emerald-100 text-emerald-700">
+                <ZoomIn size={18} />
+              </span>
+              <div>
+                <p className="text-sm font-semibold text-ink">Zoom In & Out</p>
+                <p className="mt-0.5 text-xs text-muted leading-relaxed">
+                  Scroll your mouse wheel (or pinch to zoom on touchpads/mobile) to inspect workstations closer.
+                </p>
+              </div>
+            </div>
+
+            {/* Click PC */}
+            <div className="flex items-start gap-3 rounded-xl border border-line/60 bg-chalk/60 p-3.5">
+              <span className="grid h-9 w-9 shrink-0 place-items-center rounded-lg bg-amber-100 text-amber-700">
+                <MousePointerClick size={18} />
+              </span>
+              <div>
+                <p className="text-sm font-semibold text-ink">Inspect Workstation</p>
+                <p className="mt-0.5 text-xs text-muted leading-relaxed">
+                  Click any PC monitor to view live status, occupant, or report/update broken hardware.
+                </p>
+              </div>
+            </div>
+
+            {/* Reset / Floor Pan */}
+            <div className="flex items-start gap-3 rounded-xl border border-line/60 bg-chalk/60 p-3.5">
+              <span className="grid h-9 w-9 shrink-0 place-items-center rounded-lg bg-purple-100 text-purple-700">
+                <RotateCcw size={18} />
+              </span>
+              <div>
+                <p className="text-sm font-semibold text-ink">Floor Click & Pan</p>
+                <p className="mt-0.5 text-xs text-muted leading-relaxed">
+                  Click anywhere on the open floor to clear the selected workstation. Right-click drag to pan the camera.
+                </p>
+              </div>
+            </div>
+          </div>
+
+          <div className="mt-6 flex flex-wrap items-center justify-between gap-3 border-t border-line pt-4">
+            <span className="text-xs text-muted">You can reopen this anytime using the 3D Controls button.</span>
+            <Button variant="primary" onClick={dismissGuide}>
+              Got it, let's explore
+            </Button>
+          </div>
+        </div>
+      </Modal>
     </div>
   );
 }
