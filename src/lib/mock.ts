@@ -19,6 +19,11 @@ export function createMock(storage: Store | null = browserStorage()): Api {
   let state: MockState;
   try { state = JSON.parse(storage?.getItem(KEY) ?? 'null') ?? seed(); } catch { state = seed(); }
   state.schedules ??= seedSchedules(); // demo data saved before weekly classes existed
+  state.labs.forEach((l) => {
+    if (l.id === 'lab1') l.name = 'Computer Laboratory 1';
+    if (l.id === 'lab2') l.name = 'Computer Laboratory 2';
+    if (l.id === 'netlab') l.name = 'Networking Laboratory';
+  });
   let sessionId: string | null = null;
   try { sessionId = storage?.getItem(SESSION_KEY) ?? null; } catch { /* private mode */ }
 

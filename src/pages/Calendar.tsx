@@ -32,7 +32,14 @@ export default function Calendar() {
   const cells = Array.from({ length: Math.ceil((first + days) / 7) * 7 }, (_, i) => i - first + 1);
   const monthName = new Date(Date.UTC(ym.y, ym.m, 1)).toLocaleDateString('en-PH', { month: 'long', year: 'numeric', timeZone: 'UTC' });
   const shift = (n: number) => setYm(({ y, m }) => ({ y: m + n < 0 ? y - 1 : m + n > 11 ? y + 1 : y, m: (m + n + 12) % 12 }));
-  const labShort = (id: string) => labs.data?.find((l) => l.id === id)?.name.replace('Computer Laboratory', 'Lab') ?? '';
+  const labShort = (id: string) => {
+    const l = labs.data?.find((x) => x.id === id);
+    if (!l) return id;
+    if (l.id === 'lab1' || l.name.includes('1')) return 'Computer Laboratory 1';
+    if (l.id === 'lab2' || l.name.includes('2')) return 'Computer Laboratory 2';
+    if (l.id === 'netlab' || l.name.toLowerCase().includes('net')) return 'Networking Laboratory';
+    return l.name;
+  };
   const canEdit = (e: LabEvent) => e.owner_id === profile?.id || profile?.role === 'admin';
 
   return (

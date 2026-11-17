@@ -78,8 +78,8 @@ describe('classesOn', () => {
   it('treats Sunday as day 7', () => {
     expect(classesOn('2026-11-22', [{ ...cls, day_of_week: 7 }])).toHaveLength(1);
   });
-  it('makes the lab show as reserved during class', () => {
+  it('makes the lab show as in_use during class', () => {
     const p = { ...pc('free'), lab_id: 'lab2' };
-    expect(shownStatus(p, classesOn('2026-11-18', [cls]), { date: '2026-11-18', time: '10:00' })).toBe('reserved');
+    expect(shownStatus(p, classesOn('2026-11-18', [cls]), { date: '2026-11-18', time: '10:00' })).toBe('in_use');
   });
 });

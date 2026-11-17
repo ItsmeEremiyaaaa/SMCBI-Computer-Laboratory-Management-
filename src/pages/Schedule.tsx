@@ -9,7 +9,13 @@ import { validateSchedule } from '../lib/validate';
 import { Alert, Button, Empty, Field, fmtDate, fmtTime, Input, Modal, PageHeader, Panel, Select } from '../components/ui';
 
 const DAYS = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
-const short = (lab?: Lab) => lab?.name.replace('Computer Laboratory', 'Lab') ?? '';
+const labDisplayName = (lab?: Lab) => {
+  if (!lab) return '';
+  if (lab.id === 'lab1' || lab.name.includes('1')) return 'Computer Laboratory 1';
+  if (lab.id === 'lab2' || lab.name.includes('2')) return 'Computer Laboratory 2';
+  if (lab.id === 'netlab' || lab.name.toLowerCase().includes('netlab') || lab.name.toLowerCase().includes('networking')) return 'Networking Laboratory';
+  return lab.name;
+};
 
 export default function Schedule() {
   const { profile } = useAuth();
@@ -43,7 +49,7 @@ export default function Schedule() {
     <>
       <PageHeader title="Class schedule"
         sub={<>Regular weekly lab classes for AY 2026–2027, second semester{first && <> ({fmtDate(first)} to {fmtDate(last)})</>}.
-          Labs show as Reserved during these hours and can’t be booked over them.</>}
+          Labs show as In use during these hours and can’t be booked over them.</>}
         actions={isAdmin && labs.data && <Button onClick={() => setEdit(blank())}><Plus size={16} />Add class</Button>} />
 
       {(error || list.error) && <div className="mb-4"><Alert>{error || list.error}</Alert></div>}
@@ -60,14 +66,14 @@ export default function Schedule() {
                     const cell = dayRows.filter((r) => r.lab_id === l.id).sort((a, b) => a.start_time.localeCompare(b.start_time));
                     return (
                       <div key={l.id} className="bg-panel p-3">
-                        <p className="mb-2 text-xs font-semibold tracking-wide text-muted">{short(l)}</p>
+                        <p className="mb-2 text-xs font-bold tracking-wide text-ink">{labDisplayName(l)}</p>
                         {cell.length === 0 ? <p className="py-2 text-sm text-muted/70">No classes, open for booking</p> : (
                           <ul className="grid gap-2">
                             {cell.map((r) => (
-                              <li key={r.id} className={`group relative rounded-md border-l-4 px-3 py-2 text-sm ${live(r) ? 'border-reserved bg-amber-50' : 'border-accent bg-accent-soft/60'}`}>
+                              <li key={r.id} className={`group relative rounded-md border-l-4 px-3 py-2 text-sm ${live(r) ? 'border-blue-600 bg-blue-50/90' : 'border-accent bg-accent-soft/60'}`}>
                                 <p className="font-cond font-semibold text-rail">
                                   {fmtTime(r.start_time)} to {fmtTime(r.end_time)}
-                                  {live(r) && <span className="ml-2 text-xs font-medium text-amber-700">In session</span>}
+                                  {live(r) && <span className="ml-2 inline-flex items-center gap-1 rounded-full bg-blue-100 px-2 py-0.5 text-xs font-semibold text-blue-700">● In session (In use)</span>}
                                 </p>
                                 <p className="font-medium">{r.section}</p>
                                 <p className="text-muted">{r.subject}</p>

@@ -30,6 +30,13 @@ const hasWebGL = (() => {
   try { const c = document.createElement('canvas'); return !!(c.getContext('webgl2') || c.getContext('webgl')); } catch { return false; }
 })();
 
+function labDisplayName(name?: string, id?: string) {
+  if (id === 'lab1' || name?.includes('1')) return 'Computer Laboratory 1';
+  if (id === 'lab2' || name?.includes('2')) return 'Computer Laboratory 2';
+  if (id === 'netlab' || name?.toLowerCase().includes('netlab') || name?.toLowerCase().includes('networking')) return 'Networking Laboratory';
+  return name ?? '';
+}
+
 // Centered SMCBI Loading Animation with smooth circular reveal transition matching the web intro
 function LabLoadingOverlay({ labName, ready }: { labName?: string; ready: boolean }) {
   const [visible, setVisible] = useState(true);
@@ -101,7 +108,7 @@ function LabLoadingOverlay({ labName, ready }: { labName?: string; ready: boolea
         <div className="mt-6 text-center">
           <p className="text-xs font-semibold uppercase tracking-widest text-blue-200">St. Mary's College of Bansalan</p>
           <h2 className="mt-1 font-cond text-2xl font-bold tracking-tight text-white">
-            {labName ? labName.replace('Computer Laboratory', 'ComLab') : 'Loading Laboratory'}
+            {labName ? labDisplayName(labName) : 'Loading Laboratory'}
           </h2>
           <p className="mt-2 flex items-center justify-center gap-2 text-xs text-blue-200/80">
             <span>Rendering 3D Environment</span>
@@ -131,8 +138,6 @@ export default function Labs3D() {
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [mode, setMode] = useState<'3d' | '2d'>(hasWebGL ? '3d' : '2d');
   const [sceneReady, setSceneReady] = useState(false);
-  const selected = pcs.find((p) => p.id === selectedId);
-  const counts = Object.fromEntries(STATUSES.map((s) => [s, pcs.filter((p) => p.shown === s).length]));
   const select = (id: string) => setSelectedId(id || null);
   const [showGuideModal, setShowGuideModal] = useState(false);
 
@@ -180,6 +185,20 @@ export default function Labs3D() {
   const effectiveMode = qolMode === 'auto' ? autoMode : qolMode;
   const currentScheduleContext = activeClass || upcomingClass || dismissedClass || labSchedules[0] || null;
 
+  // When class is in session, the comlab workstations are actively In Use!
+  const displayedPcs = useMemo(() => {
+    if (effectiveMode === 'in_session') {
+      return pcs.map((p) => (p.shown === 'broken' ? p : { ...p, shown: 'in_use' as const }));
+    }
+    if (effectiveMode === 'empty') {
+      return pcs.map((p) => (p.shown === 'broken' ? p : { ...p, shown: 'free' as const }));
+    }
+    return pcs;
+  }, [pcs, effectiveMode]);
+
+  const selected = displayedPcs.find((p) => p.id === selectedId);
+  const counts = Object.fromEntries(STATUSES.map((s) => [s, displayedPcs.filter((p) => p.shown === s).length]));
+
   // Awareness modal: automatically display on first visit (persists in localStorage)
   useEffect(() => {
     try {
@@ -215,7 +234,7 @@ export default function Labs3D() {
           {labs.data?.map((l) => (
             <NavLink key={l.id} to={`/labs/${l.id}`} onClick={() => setSelectedId(null)}
               className={() => `rounded-lg px-3 py-1.5 text-xs font-semibold transition-all ${l.id === lab?.id ? 'bg-accent text-white shadow-sm' : 'text-muted hover:text-ink'}`}>
-              {l.name.replace('Computer Laboratory', 'Lab')}
+              {labDisplayName(l.name, l.id)}
             </NavLink>
           ))}
         </nav>
@@ -356,12 +375,12 @@ export default function Labs3D() {
       {/* 3D Scene / 2D SeatGrid filling 100% of the screen with smooth fade-in reveal */}
       <div className={`h-full w-full transition-opacity duration-500 ease-out ${sceneReady ? 'opacity-100' : 'opacity-0'}`}>
         {lab && (mode === '3d'
-          ? <SceneBoundary onError={() => setMode('2d')} fallback={<SeatGrid lab={lab} pcs={pcs} selectedId={selectedId} onSelect={select} onReady={() => setSceneReady(true)} simulationMode={effectiveMode} classInfo={currentScheduleContext} />}>
+          ? <SceneBoundary onError={() => setMode('2d')} fallback={<SeatGrid lab={lab} pcs={displayedPcs} selectedId={selectedId} onSelect={select} onReady={() => setSceneReady(true)} simulationMode={effectiveMode} classInfo={currentScheduleContext} />}>
               <Suspense fallback={<LabLoadingOverlay labName={lab.name} ready={false} />}>
                 <LabScene
                   key={lab.id}
                   lab={lab}
-                  pcs={pcs}
+                  pcs={displayedPcs}
                   selectedId={selectedId}
                   onSelect={select}
                   onReady={() => setSceneReady(true)}
@@ -370,7 +389,7 @@ export default function Labs3D() {
                 />
               </Suspense>
             </SceneBoundary>
-          : <div className="h-full w-full overflow-auto p-6 pt-28 pb-24"><SeatGrid lab={lab} pcs={pcs} selectedId={selectedId} onSelect={select} onReady={() => setSceneReady(true)} simulationMode={effectiveMode} classInfo={currentScheduleContext} /></div>)}
+          : <div className="h-full w-full overflow-auto p-6 pt-28 pb-24"><SeatGrid lab={lab} pcs={displayedPcs} selectedId={selectedId} onSelect={select} onReady={() => setSceneReady(true)} simulationMode={effectiveMode} classInfo={currentScheduleContext} /></div>)}
       </div>
 
       {/* Status bar pills in bottom-left (above floating navigation) */}

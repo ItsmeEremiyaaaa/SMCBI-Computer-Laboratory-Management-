@@ -28,7 +28,13 @@ export function activeReservation(pc: Pc, approved: Reservation[], now: Now): Re
 
 export function shownStatus(pc: Pc, approved: Reservation[], now: Now): ShownStatus {
   if (pc.status === 'broken') return 'broken';
-  return activeReservation(pc, approved, now) ? 'reserved' : pc.status;
+  const active = activeReservation(pc, approved, now);
+  if (!active) return pc.status;
+  // A class in session means the comlab is actively in use, not just reserved
+  if (active.purpose === 'Regular class' || active.id.startsWith('class-')) {
+    return 'in_use';
+  }
+  return 'reserved';
 }
 
 // ISO weekday of a YYYY-MM-DD date: 1 = Monday … 7 = Sunday.

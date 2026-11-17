@@ -28,7 +28,7 @@ export function seed(): MockState {
   const labs: Lab[] = [
     { id: 'lab1', name: 'Computer Laboratory 1', rows: LAYOUTS.lab1.rows, cols: LAYOUTS.lab1.cols },
     { id: 'lab2', name: 'Computer Laboratory 2', rows: LAYOUTS.lab2.rows, cols: LAYOUTS.lab2.cols },
-    { id: 'netlab', name: 'Computer Laboratory Netlab', rows: LAYOUTS.netlab.rows, cols: LAYOUTS.netlab.cols },
+    { id: 'netlab', name: 'Networking Laboratory', rows: LAYOUTS.netlab.rows, cols: LAYOUTS.netlab.cols },
   ];
   const pcs: Pc[] = labs.flatMap((lab) => seatsFor(lab.id).map((s) => ({
     ...s, lab_id: lab.id, status: 'free' as const, note: null, updated_at: new Date().toISOString(),

@@ -27,7 +27,14 @@ export default function Reservations() {
   const list = useLoad(() => api.listReservations({ mine: isTeacher }), [isTeacher]);
   useEffect(() => api.subscribeReservations(list.reload), [list.reload]);
 
-  const labName = (id: string) => labs.data?.find((l) => l.id === id)?.name.replace('Computer Laboratory', 'Lab') ?? id;
+  const labName = (id: string) => {
+    const l = labs.data?.find((x) => x.id === id);
+    if (!l) return id;
+    if (l.id === 'lab1' || l.name.includes('1')) return 'Computer Laboratory 1';
+    if (l.id === 'lab2' || l.name.includes('2')) return 'Computer Laboratory 2';
+    if (l.id === 'netlab' || l.name.toLowerCase().includes('net')) return 'Networking Laboratory';
+    return l.name;
+  };
   const pcLabel = (id: string | null) => (id ? pcs.data?.find((p) => p.id === id)?.label ?? id : 'Whole lab');
   const rows = (list.data ?? []).filter((r) => (!status || r.status === status) && (!labId || r.lab_id === labId) && (!date || r.date === date));
   const now = manilaNow();

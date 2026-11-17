@@ -19,7 +19,7 @@ export default function AuthShell({ children }: { children: ReactNode }) {
           </div>
         </div>
         <div className="grid gap-7">
-          {['Computer Laboratory 1', 'Computer Laboratory 2', 'Netlab'].map((name, li) => (
+          {['Computer Laboratory 1', 'Computer Laboratory 2', 'Networking Laboratory'].map((name, li) => (
             <div key={name}>
               <p className="mb-2 text-sm text-slate-300">{name}</p>
               <div className="grid w-fit grid-cols-6 gap-2">

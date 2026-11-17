@@ -9,7 +9,12 @@ import { classesOn, isoWeekday, manilaNow } from '../lib/seat';
 import type { Lab, Reservation } from '../lib/types';
 import { Button, Empty, fmtDate, fmtTime, Led, Panel, ResBadge, STATUS_COLOR, STATUS_LABEL, STATUSES } from '../components/ui';
 
-const short = (name: string) => name.replace('Computer Laboratory', 'Lab');
+const labDisplayName = (name: string) => {
+  if (name.includes('1')) return 'Computer Laboratory 1';
+  if (name.includes('2')) return 'Computer Laboratory 2';
+  if (name.toLowerCase().includes('net')) return 'Networking Laboratory';
+  return name;
+};
 const addDays = (date: string, n: number) => {
   const d = new Date(`${date}T00:00:00Z`);
   d.setUTCDate(d.getUTCDate() + n);
@@ -18,7 +23,7 @@ const addDays = (date: string, n: number) => {
 const hours = (r: Reservation) => {
   const m = (t: string) => Number(t.slice(0, 2)) * 60 + Number(t.slice(3, 5));
   return (m(r.end_time) - m(r.start_time)) / 60;
-};
+}; 
 
 function StatCard({ icon: Icon, label, value, note, to }: { icon: LucideIcon; label: string; value: ReactNode; note: string; to?: string }) {
   const body = (
@@ -52,7 +57,7 @@ function LabTile({ lab, pcs }: { lab: Lab; pcs: LivePc[] }) {
               <Monitor size={20} strokeWidth={2} />
             </span>
             <div>
-              <h3 className="font-semibold text-ink transition-colors group-hover:text-accent">{short(lab.name)}</h3>
+              <h3 className="font-semibold text-ink transition-colors group-hover:text-accent">{labDisplayName(lab.name)}</h3>
               <p className="text-xs text-muted">{mine.length} workstations total</p>
             </div>
           </div>
@@ -145,7 +150,7 @@ function WeekUsage({ labs, booked }: { labs: Lab[]; booked: Record<string, numbe
         return (
           <li key={l.id}>
             <div className="mb-1.5 flex justify-between text-sm">
-              <span className="font-medium">{short(l.name)}</span>
+              <span className="font-medium">{labDisplayName(l.name)}</span>
               <span className="text-muted"><b className="font-semibold text-ink">{h}</b> hrs</span>
             </div>
             <div className="h-2.5 overflow-hidden rounded-full bg-accent-soft">
@@ -172,7 +177,7 @@ export default function Dashboard() {
   const events = useLoad(() => api.listEvents());
   useEffect(() => api.subscribeReservations(() => { res.reload(); stats.reload(); allApproved.reload(); }), [res.reload, stats.reload, allApproved.reload]);
 
-  const labName = (id: string) => short(labs.data?.find((l) => l.id === id)?.name ?? id);
+  const labName = (id: string) => labDisplayName(labs.data?.find((l) => l.id === id)?.name ?? id);
   const pcLabel = (id: string | null) => (id ? pcs.find((p) => p.id === id)?.label : 'whole lab');
   const all = res.data ?? [];
   const todays = [...(allApproved.data ?? []).filter((r) => r.date === today), ...classesOn(today, classes.data ?? [])]
