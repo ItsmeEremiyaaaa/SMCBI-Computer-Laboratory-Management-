@@ -1,11 +1,15 @@
+import { useEffect } from 'react';
 import type { LivePc } from '../hooks/useLabLive';
 import type { Lab } from '../lib/types';
 import { Led, STATUS_LABEL } from './ui';
 
-export interface SceneProps { lab: Lab; pcs: LivePc[]; selectedId: string | null; onSelect: (id: string) => void }
+export interface SceneProps { lab: Lab; pcs: LivePc[]; selectedId: string | null; onSelect: (id: string) => void; onReady?: () => void }
 
 // 2D floor plan: used when WebGL is unavailable or the viewer prefers it.
-export default function SeatGrid({ lab, pcs, selectedId, onSelect }: SceneProps) {
+export default function SeatGrid({ lab, pcs, selectedId, onSelect, onReady }: SceneProps) {
+  useEffect(() => {
+    onReady?.();
+  }, [onReady]);
   return (
     <div className="grid h-full place-items-center overflow-auto p-4">
       <div className="w-full max-w-2xl">

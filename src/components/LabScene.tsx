@@ -810,12 +810,30 @@ function FocusCamera({ selectedId }: { selectedId: string | null }) {
   return null;
 }
 
-export default function LabScene({ lab, pcs, selectedId, onSelect }: SceneProps) {
+function ReadySignal({ onReady }: { onReady?: () => void }) {
+  const signaled = useRef(false);
+  useFrame(() => {
+    if (!signaled.current) {
+      signaled.current = true;
+      onReady?.();
+    }
+  });
+  return null;
+}
+
+export default function LabScene({ lab, pcs, selectedId, onSelect, onReady }: SceneProps) {
   const style = styleOf(lab);
   const w = style === 'island' ? islandCount(lab) * ISLAND_GAP + 2.4 : lab.cols * DX + 3;
   const d = style === 'island' ? (sideRows(lab) + (lab.rows > sideRows(lab) ? 1 : 0)) * ISLAND_ROW + 7.5 : lab.rows * DZ + 4.5;
   return (
-    <Canvas shadows dpr={[1, 2]} camera={{ position: [0, w * 0.4, d / 2 + w * 0.6], fov: 45 }} onPointerMissed={() => onSelect('')}>
+    <Canvas
+      shadows
+      dpr={[1, 2]}
+      camera={{ position: [0, w * 0.4, d / 2 + w * 0.6], fov: 45 }}
+      onPointerMissed={() => onSelect('')}
+      onCreated={() => onReady?.()}
+    >
+      <ReadySignal onReady={onReady} />
       <color attach="background" args={['#dfe5ee']} />
       <hemisphereLight args={['#ffffff', '#c4ccd6', 1]} />
       <directionalLight position={[5, 10, 6]} intensity={1.1} castShadow shadow-mapSize={[2048, 2048]}
