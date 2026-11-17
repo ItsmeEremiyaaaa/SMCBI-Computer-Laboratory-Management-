@@ -33,6 +33,8 @@ export default function Layout() {
   const [open, setOpen] = useState(false);
   const [stats, setStats] = useState<Stats | null>(null);
   const { pathname } = useLocation();
+  const isLabs = pathname.startsWith('/labs');
+
   useEffect(() => setOpen(false), [pathname]);
   useEffect(() => {
     if (profile?.role === 'teacher') return;
@@ -44,6 +46,76 @@ export default function Layout() {
   if (!profile) return null;
   const count = (stats?.pending ?? 0) + (profile.role === 'admin' ? stats?.pendingTeachers ?? 0 : 0);
 
+  // Floating bottom navigation (active only on Labs view)
+  const floatingNav = isLabs && (
+    <nav
+      className="fixed bottom-4 left-1/2 -translate-x-1/2 z-40 flex items-center gap-1 rounded-2xl border border-white/20 navy-weave p-1.5 shadow-2xl backdrop-blur-md animate-in fade-in slide-in-from-bottom-4 duration-200"
+      aria-label="Floating navigation"
+    >
+      {NAV.filter((n) => n.roles.includes(profile.role)).map(({ to, label, icon: Icon }) => (
+        <NavLink
+          key={to}
+          to={to}
+          end={to === '/'}
+          className={({ isActive }) =>
+            `flex items-center gap-2 rounded-xl px-3.5 py-2 text-xs font-semibold transition-all ${
+              isActive || (to.startsWith('/people') && pathname.startsWith('/people'))
+                ? 'bg-white text-rail shadow-md'
+                : 'text-blue-100 hover:bg-white/15 hover:text-white'
+            }`
+          }
+        >
+          <Icon size={16} strokeWidth={2} />
+          <span className="hidden sm:inline">{label}</span>
+        </NavLink>
+      ))}
+    </nav>
+  );
+
+  // When on Labs view: 100% full-window 3D visual with floating navigation below
+  if (isLabs) {
+    return (
+      <div className="relative h-screen w-screen overflow-hidden bg-[#dfe5ee]">
+        <IntroSplash />
+        {/* Floating top-right user and notification controls */}
+        <div className="pointer-events-none absolute right-4 top-4 z-30 flex items-center gap-2">
+          {api.demo && (
+            <span className="pointer-events-auto rounded-xl border border-amber-200 bg-amber-100/90 px-2.5 py-1 text-xs font-medium text-amber-900 shadow-sm backdrop-blur">
+              Demo mode
+            </span>
+          )}
+          {profile.role !== 'teacher' && (
+            <NavLink
+              to={profile.role === 'admin' && !stats?.pending && stats?.pendingTeachers ? '/people/teachers' : '/reservations?status=pending'}
+              className="pointer-events-auto relative grid h-9 w-9 place-items-center rounded-xl border border-line/60 bg-panel/90 text-muted shadow-md backdrop-blur hover:text-ink"
+              aria-label={`${count} items need attention`}
+            >
+              <Bell size={18} />
+              {count > 0 && <span className="absolute -right-1 -top-1 grid h-4 min-w-4 place-items-center rounded-full bg-broken px-1 text-[10px] font-semibold text-white">{count}</span>}
+            </NavLink>
+          )}
+          <div className="pointer-events-auto flex items-center gap-2 rounded-xl border border-line/60 bg-panel/90 p-1.5 shadow-md backdrop-blur">
+            <span className="grid h-7 w-7 place-items-center rounded-lg bg-rail text-xs font-semibold text-white">
+              {profile.full_name.split(' ').map((w) => w[0]).slice(0, 2).join('')}
+            </span>
+            <button onClick={() => api.signOut()} aria-label="Sign out" className="rounded-md p-1 text-muted hover:bg-chalk hover:text-ink">
+              <LogOut size={16} />
+            </button>
+          </div>
+        </div>
+
+        {/* Full-window content */}
+        <main className="h-full w-full">
+          <Outlet />
+        </main>
+
+        {/* Floating bottom navigation */}
+        {floatingNav}
+      </div>
+    );
+  }
+
+  // Standard layout with left sidebar menu for all other navigation pages
   const nav = (
     <nav className="mt-8 grid gap-1">
       <p className="mb-1 px-3 text-[11px] font-medium text-blue-200/80">Menu</p>
@@ -94,7 +166,7 @@ export default function Layout() {
             )}
           </div>
         </div>
-        <main className={pathname.startsWith('/labs') ? 'w-full flex-1 px-3 py-3 md:px-5 flex flex-col' : 'mx-auto w-full max-w-7xl flex-1 px-4 py-5 md:px-6'}><Outlet /></main>
+        <main className="mx-auto w-full max-w-7xl flex-1 px-4 py-5 md:px-6"><Outlet /></main>
       </div>
     </div>
   );

@@ -549,19 +549,6 @@ function FrontWallDecor({
         <meshStandardMaterial color="#1e3a8a" roughness={0.3} />
       </mesh>
 
-      {/* Dimensional Lab Header Plaque */}
-      <group position={[0, 2.45, front + 0.07]}>
-        <mesh>
-          <boxGeometry args={[3.4, 0.24, 0.02]} />
-          <meshStandardMaterial color="#1e3a8a" roughness={0.3} />
-        </mesh>
-        <Html position={[0, 0, 0.025]} center distanceFactor={7} style={{ pointerEvents: 'none' }}>
-          <div className="whitespace-nowrap px-3 py-0.5 text-center text-[10px] font-bold tracking-widest text-blue-100 select-none">
-            ST. MARY'S COLLEGE OF BANSALAN · {lab.name.toUpperCase()}
-          </div>
-        </Html>
-      </group>
-
       {/* Magnetic Whiteboard with frame, glossy surface, pen tray & eraser */}
       <group position={[0, 1.48, front + 0.06]}>
         <mesh castShadow>
@@ -601,13 +588,6 @@ function FrontWallDecor({
           <planeGeometry args={[1.38, 0.83]} />
           <meshStandardMaterial color="#0b1329" emissive="#1d4ed8" emissiveIntensity={0.35} />
         </mesh>
-        <Html position={[0, 0, 0.028]} center distanceFactor={7} style={{ pointerEvents: 'none' }}>
-          <div className="flex flex-col items-center justify-center p-2 text-center text-white select-none">
-            <span className="text-[9px] font-bold uppercase tracking-widest text-blue-300">SMCBI · Computer Labs</span>
-            <span className="text-[11px] font-semibold text-slate-100">{lab.name.replace('Computer Laboratory', 'ComLab')}</span>
-            <span className="mt-1 text-[8px] text-emerald-400">● Live Connected</span>
-          </div>
-        </Html>
       </group>
 
       {/* Catholic Crucifix */}
@@ -627,8 +607,8 @@ function FrontWallDecor({
         <mesh position={[0, 0, 0.02]}><circleGeometry args={[0.015, 16]} /><meshStandardMaterial color="#dc2626" /></mesh>
       </group>
 
-      {/* Teacher's Station: Centered right beside the whiteboard */}
-      <group position={[style === 'table' ? 0 : -2.8, 0, front + 1.4]}>
+      {/* Teacher's Station: Centered in front of the whiteboard */}
+      <group position={[0, 0, front + 1.4]}>
         <mesh position={[0, DESK_H, 0]} castShadow>
           <boxGeometry args={[1.5, 0.04, 0.7]} />
           <meshStandardMaterial color="#ffffff" roughness={0.35} />
