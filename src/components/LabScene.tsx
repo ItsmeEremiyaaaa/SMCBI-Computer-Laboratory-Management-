@@ -360,35 +360,43 @@ function GlassWindowWall({
   );
 }
 
-// Suspended Modern Studio Troffer Lighting
-function CeilingLights({ w, d, islandN }: { w: number; d: number; islandN: number }) {
-  const count = Math.max(2, islandN);
+// Front Wall Glass Window (between connecting doors and the whiteboard)
+function FrontWallWindow({
+  position,
+  w = 1.8,
+  h = 1.4,
+}: {
+  position: [number, number, number];
+  w?: number;
+  h?: number;
+}) {
   return (
-    <group position={[0, 3.15, 0]}>
-      {Array.from({ length: count }, (_, i) => {
-        const x = islandX(i, count);
-        return (
-          <group key={i} position={[x, 0, 0]}>
-            {/* Slim troffer casing */}
-            <mesh castShadow>
-              <boxGeometry args={[0.22, 0.08, d * 0.72]} />
-              <meshStandardMaterial color="#1e293b" roughness={0.4} />
-            </mesh>
-            {/* Emissive soft-white light diffuser panel */}
-            <mesh position={[0, -0.041, 0]}>
-              <planeGeometry args={[0.18, d * 0.72 - 0.1]} />
-              <meshStandardMaterial color="#ffffff" emissive="#fffdf7" emissiveIntensity={1.3} toneMapped={false} />
-            </mesh>
-            {/* Suspension cables */}
-            {[-d * 0.28, 0, d * 0.28].map((z, j) => (
-              <mesh key={j} position={[0, 0.25, z]}>
-                <cylinderGeometry args={[0.005, 0.005, 0.5, 8]} />
-                <meshStandardMaterial color="#94a3b8" metalness={0.8} />
-              </mesh>
-            ))}
-          </group>
-        );
-      })}
+    <group position={position}>
+      {/* Outer aluminum frame */}
+      <mesh castShadow>
+        <boxGeometry args={[w, h, 0.06]} />
+        <meshStandardMaterial color="#2d3748" roughness={0.4} />
+      </mesh>
+      {/* Transparent architectural glass pane */}
+      <mesh position={[0, 0, 0.01]}>
+        <boxGeometry args={[w - 0.1, h - 0.1, 0.02]} />
+        <meshStandardMaterial color="#9ec9eb" transparent opacity={0.35} roughness={0.08} metalness={0.25} />
+      </mesh>
+      {/* Horizontal transom bar */}
+      <mesh position={[0, 0, 0.02]}>
+        <boxGeometry args={[w - 0.08, 0.035, 0.04]} />
+        <meshStandardMaterial color="#2d3748" roughness={0.4} />
+      </mesh>
+      {/* Vertical center mullion */}
+      <mesh position={[0, 0, 0.02]}>
+        <boxGeometry args={[0.035, h - 0.08, 0.04]} />
+        <meshStandardMaterial color="#2d3748" roughness={0.4} />
+      </mesh>
+      {/* Interior window sill ledge */}
+      <mesh position={[0, -h / 2 - 0.02, 0.04]}>
+        <boxGeometry args={[w + 0.08, 0.04, 0.1]} />
+        <meshStandardMaterial color="#1e293b" roughness={0.4} />
+      </mesh>
     </group>
   );
 }
@@ -619,8 +627,8 @@ function FrontWallDecor({
         <mesh position={[0, 0, 0.02]}><circleGeometry args={[0.015, 16]} /><meshStandardMaterial color="#dc2626" /></mesh>
       </group>
 
-      {/* Teacher's Station: Modern desk, laptop/monitor, and chair */}
-      <group position={[style === 'table' ? 0 : -w / 2 + 2.5, 0, front + 1.4]}>
+      {/* Teacher's Station: Centered right beside the whiteboard */}
+      <group position={[style === 'table' ? 0 : -2.8, 0, front + 1.4]}>
         <mesh position={[0, DESK_H, 0]} castShadow>
           <boxGeometry args={[1.5, 0.04, 0.7]} />
           <meshStandardMaterial color="#ffffff" roughness={0.35} />
@@ -656,20 +664,14 @@ function FrontWallDecor({
 function Room({ lab, w, d, style }: { lab: Lab; w: number; d: number; style: Style }) {
   const wall = <meshStandardMaterial color="#f1efe8" roughness={0.9} />;
   const front = -d / 2;
+  const back = d / 2;
 
-  // Door positions for each wall
-  // lab1 (ComLab 1):
-  // - Right wall: Door for going out (Main Hallway EXIT)
-  // - Left wall: Door for path in ComLab 2 (TO COMLAB 2)
-  // lab2 (ComLab 2):
-  // - Left side front wall: Door for NetLab path (TO NETLAB)
-  // - Right wall: Door for path in ComLab 1 (TO COMLAB 1)
-  // - Right wall (further back): Door for going out (EXIT)
-  // netlab:
-  // - Right wall: Door for path in ComLab 2 (TO COMLAB 2)
-  // - Left wall: Door for going out (EXIT)
-  const leftDoorZs = lab.id === 'lab1' ? [front + 2.4] : lab.id === 'netlab' ? [front + 2.4] : [];
-  const rightDoorZs = lab.id === 'lab1' ? [front + 2.4] : lab.id === 'lab2' ? [front + 2.4, front + 6.2] : [front + 2.4];
+  // Door positions for side walls:
+  // lab1: NO exit door on right wall (full windows corner). Door to ComLab 2 is on front wall.
+  // lab2: Exit door on right wall. Door to NetLab & door to ComLab 1 are on front wall.
+  // netlab: Exit door on left wall.
+  const leftDoorZs = lab.id === 'netlab' ? [front + 2.4] : [];
+  const rightDoorZs = lab.id === 'lab2' ? [front + 5.5] : [];
 
   return (
     <group>
@@ -686,6 +688,34 @@ function Room({ lab, w, d, style }: { lab: Lab; w: number; d: number; style: Sty
         {wall}
       </mesh>
 
+      {/* Back Wall (Closing the room when looking from front to back) */}
+      <mesh position={[0, 1.6, back]} receiveShadow>
+        <boxGeometry args={[w, 3.2, 0.1]} />
+        {wall}
+      </mesh>
+      {/* Back Wall skirting baseboard */}
+      <mesh position={[0, 0.06, back - 0.06]}>
+        <boxGeometry args={[w, 0.12, 0.03]} />
+        <meshStandardMaterial color="#1e293b" />
+      </mesh>
+      {/* Back Wall top accent stripe */}
+      <mesh position={[0, 3.05, back - 0.06]}>
+        <boxGeometry args={[w, 0.25, 0.03]} />
+        <meshStandardMaterial color="#1e3a8a" roughness={0.3} />
+      </mesh>
+      {/* Back Wall Laboratory Guidelines Notice Board */}
+      <group position={[0, 1.8, back - 0.06]}>
+        <mesh><boxGeometry args={[2.8, 1.2, 0.03]} /><meshStandardMaterial color="#334155" /></mesh>
+        <mesh position={[0, 0, -0.018]}><planeGeometry args={[2.7, 1.1]} /><meshStandardMaterial color="#f8fafc" /></mesh>
+        <Html position={[0, 0, -0.025]} center distanceFactor={7} style={{ pointerEvents: 'none' }}>
+          <div className="flex flex-col items-center justify-center p-3 text-center text-slate-800 select-none">
+            <span className="text-[11px] font-bold uppercase tracking-wider text-blue-900">Laboratory Guidelines & Regulations</span>
+            <span className="text-[9px] text-slate-500">St. Mary's College of Bansalan · College of Computer Studies</span>
+            <span className="mt-1 text-[8px] text-slate-400">Keep workstations clean · No food or drinks · Report broken hardware</span>
+          </div>
+        </Html>
+      </group>
+
       {/* Front Wall Decor (Whiteboard, Display, Clock, Crucifix, Banner, Teacher Station) */}
       <FrontWallDecor lab={lab} w={w} front={front} style={style} />
 
@@ -693,31 +723,30 @@ function Room({ lab, w, d, style }: { lab: Lab; w: number; d: number; style: Sty
       <GlassWindowWall side={-1} w={w} d={d} front={front} doorZList={leftDoorZs} />
       <GlassWindowWall side={1} w={w} d={d} front={front} doorZList={rightDoorZs} />
 
-      {/* Doors: Specifically placed based on lab layout requirements */}
+      {/* ComLab 1: Door to ComLab 2 - Window - Whiteboard (No exit door, full windows corner) */}
       {lab.id === 'lab1' && (
         <>
-          {/* Door for going out (Main Hallway Exit) on right wall */}
+          {/* Door to ComLab 2 on the front wall */}
           <Doorway
-            position={[w / 2, 0, front + 2.4]}
-            rotationY={-Math.PI / 2}
-            signText="EXIT"
-            signType="exit"
-            subText="Main Hallway"
-          />
-          {/* Door for path in ComLab 2 on left wall */}
-          <Doorway
-            position={[-w / 2, 0, front + 2.4]}
-            rotationY={Math.PI / 2}
+            position={[-w / 2 + 1.4, 0, front + 0.06]}
+            rotationY={0}
             signText="TO COMLAB 2"
             signType="path"
             subText="Path"
           />
+          {/* Glass window beside the door, before the whiteboard */}
+          <FrontWallWindow
+            position={[-w / 2 + 3.6, 1.6, front + 0.06]}
+            w={2.0}
+            h={1.4}
+          />
         </>
       )}
 
+      {/* ComLab 2: Door to NetLab (front left), Whiteboard, Window, Door to ComLab 1 (front right), Exit Door */}
       {lab.id === 'lab2' && (
         <>
-          {/* USER SPECIFICATION: "and door for netlab path (in comlab 2) left side front wall" */}
+          {/* Door for NetLab path (left side front wall) */}
           <Doorway
             position={[-w / 2 + 1.25, 0, front + 0.06]}
             rotationY={0}
@@ -725,17 +754,23 @@ function Room({ lab, w, d, style }: { lab: Lab; w: number; d: number; style: Sty
             signType="path"
             subText="NetLab Path"
           />
-          {/* Door for path in ComLab 1 on right wall */}
+          {/* Glass window beside door to ComLab 1, before the whiteboard */}
+          <FrontWallWindow
+            position={[w / 2 - 3.4, 1.6, front + 0.06]}
+            w={1.8}
+            h={1.4}
+          />
+          {/* Door for ComLab 1 path on the front wall */}
           <Doorway
-            position={[w / 2, 0, front + 2.4]}
-            rotationY={-Math.PI / 2}
+            position={[w / 2 - 1.35, 0, front + 0.06]}
+            rotationY={0}
             signText="TO COMLAB 1"
             signType="path"
             subText="Path"
           />
-          {/* Door for going out (Exit) on right wall */}
+          {/* Exit door on right wall */}
           <Doorway
-            position={[w / 2, 0, front + 6.2]}
+            position={[w / 2, 0, front + 5.5]}
             rotationY={-Math.PI / 2}
             signText="EXIT"
             signType="exit"
@@ -744,12 +779,13 @@ function Room({ lab, w, d, style }: { lab: Lab; w: number; d: number; style: Sty
         </>
       )}
 
+      {/* NetLab: Door to ComLab 2 & Exit door */}
       {lab.id === 'netlab' && (
         <>
-          {/* Door for path to ComLab 2 on right wall */}
+          {/* Door for path to ComLab 2 on front wall */}
           <Doorway
-            position={[w / 2, 0, front + 2.4]}
-            rotationY={-Math.PI / 2}
+            position={[w / 2 - 1.35, 0, front + 0.06]}
+            rotationY={0}
             signText="TO COMLAB 2"
             signType="path"
             subText="Path"
@@ -764,9 +800,6 @@ function Room({ lab, w, d, style }: { lab: Lab; w: number; d: number; style: Sty
           />
         </>
       )}
-
-      {/* Modern Suspended Studio Ceiling Lights */}
-      <CeilingLights w={w} d={d} islandN={islandCount(lab)} />
 
       {/* High-Tech Server Rack Cabinet in front corner */}
       <ServerRack position={[w / 2 - 0.7, 0, front + 0.6]} />
