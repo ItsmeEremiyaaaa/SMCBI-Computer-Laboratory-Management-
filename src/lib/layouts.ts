@@ -21,11 +21,11 @@ export const LAYOUTS: Record<string, Grid> = {
     rows: 8, cols: 11, island: {},
     seats: [...block(range(0, 7), [0, 2, 8, 10]), ...block(range(1, 6), [4, 6])],
   },
-  // Netlab: groups of 3. Right column runs the full room (4 rows at the front, 4 behind);
-  // left (4 rows) and centre (2 rows) sit beside the back half.
+  // Netlab: tables of 3. Left and right groups are 4 rows each; the centre group is
+  // 2 rows level with the middle of the room. Teacher's table at the front centre.
   netlab: {
-    rows: 9, cols: 11,
-    seats: [...block([...range(0, 3), ...range(5, 8)], [8, 9, 10]), ...block(range(5, 8), [0, 1, 2]), ...block([5, 6], [4, 5, 6])],
+    rows: 4, cols: 11,
+    seats: [...block(range(0, 3), [0, 1, 2, 8, 9, 10]), ...block([1, 2], [4, 5, 6])],
   },
 };
 

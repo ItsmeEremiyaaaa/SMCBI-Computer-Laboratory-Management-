@@ -4,7 +4,7 @@ describe('lab layouts (from the real rooms)', () => {
   it('has the right number of PCs per lab', () => {
     expect(seatsFor('lab1')).toHaveLength(40);
     expect(seatsFor('lab2')).toHaveLength(44);
-    expect(seatsFor('netlab')).toHaveLength(42);
+    expect(seatsFor('netlab')).toHaveLength(30);
   });
 
   it('never puts two PCs in the same spot and stays inside the grid', () => {
@@ -41,9 +41,12 @@ describe('lab layouts (from the real rooms)', () => {
     expect(LAYOUTS.lab2.island).toBeTruthy();
   });
 
-  it('netlab right column has 8 rows of 3', () => {
-    const right = seatsFor('netlab').filter((s) => s.col >= 8);
-    expect(new Set(right.map((s) => s.row)).size).toBe(8);
-    expect(right).toHaveLength(24);
+  it('netlab: left 4 rows of 3, centre 2 rows of 3 in the middle, right 4 rows of 3', () => {
+    const s = seatsFor('netlab');
+    const group = (a: number, b: number) => s.filter((x) => x.col >= a && x.col <= b);
+    expect(group(0, 2)).toHaveLength(12);
+    expect(group(4, 6)).toHaveLength(6);
+    expect(new Set(group(4, 6).map((x) => x.row))).toEqual(new Set([1, 2]));
+    expect(group(8, 10)).toHaveLength(12);
   });
 });

@@ -6,7 +6,7 @@ import type { Pc, Profile, Role } from './types';
 import { isSchoolEmail, schedulesOverlap, validateReservation, validateSchedule, validateStudent } from './validate';
 
 type Store = Pick<Storage, 'getItem' | 'setItem'>;
-const KEY = 'comlab-mock-v2'; // v2: real lab layouts
+const KEY = 'comlab-mock-v3'; // v3: Netlab from the sketch (30 PCs)
 const SESSION_KEY = 'comlab-mock-session';
 
 function browserStorage(): Store | null {

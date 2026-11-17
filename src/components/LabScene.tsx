@@ -218,7 +218,7 @@ function Room({ w, d, style }: { w: number; d: number; style: Style }) {
       </group>
 
       {/* teacher's table + chair at the front */}
-      <group position={[-w / 2 + 2.2, 0, front + 1.3]}>
+      <group position={[style === 'table' ? 0 : -w / 2 + 2.2, 0, front + 1.3]}>
         <mesh position={[0, DESK_H, 0]} castShadow><boxGeometry args={[1.5, 0.04, 0.7]} />
           <meshStandardMaterial color={style === 'table' ? '#2b2f36' : '#f7f7f5'} /></mesh>
         <mesh position={[0, DESK_H / 2, -0.3]}><boxGeometry args={[1.45, DESK_H, 0.03]} /><meshStandardMaterial color="#e9e3d6" /></mesh>
