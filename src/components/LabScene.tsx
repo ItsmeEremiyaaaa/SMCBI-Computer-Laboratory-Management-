@@ -7,6 +7,7 @@ import type { Lab } from '../lib/types';
 import type { SceneProps } from './SeatGrid';
 import { LAYOUTS } from '../lib/layouts';
 import { STATUS_COLOR } from './ui';
+import LabCharacters from './LabCharacters';
 
 // Modeled on the SMCBI labs: Lab 1/2 have long white benches with white partitions;
 // Netlab has separate dark-top tables on metal legs. Both use white monobloc chairs.
@@ -704,7 +705,15 @@ const LAB_CAMERAS: Record<string, { pos: [number, number, number]; target: [numb
   },
 };
 
-export default function LabScene({ lab, pcs, selectedId, onSelect, onReady }: SceneProps) {
+export default function LabScene({
+  lab,
+  pcs,
+  selectedId,
+  onSelect,
+  onReady,
+  simulationMode = 'empty',
+  classInfo = null,
+}: SceneProps) {
   const style = styleOf(lab);
   const w = style === 'island' ? islandCount(lab) * ISLAND_GAP + 2.4 : lab.cols * DX + 3;
   const d = style === 'island' ? (sideRows(lab) + (lab.rows > sideRows(lab) ? 1 : 0)) * ISLAND_ROW + 7.5 : lab.rows * DZ + 4.5;
@@ -734,6 +743,15 @@ export default function LabScene({ lab, pcs, selectedId, onSelect, onReady }: Sc
         return <Workstation key={pc.id} pc={pc} style={style} pos={pos} rot={rot}
           selected={pc.id === selectedId} onSelect={() => onSelect(pc.id)} />;
       })}
+      {/* Living Laboratory Simulation: Dynamic students & instructors tied to schedule */}
+      <LabCharacters
+        lab={lab}
+        pcs={pcs}
+        w={w}
+        d={d}
+        mode={simulationMode}
+        classInfo={classInfo}
+      />
       <ContactShadows position={[0, 0.003, 0]} scale={Math.max(w, d)} opacity={0.2} blur={2.5} far={2} />
       <OrbitControls makeDefault target={cam.target} maxPolarAngle={1.35} minDistance={3} maxDistance={40} enableDamping />
     </Canvas>
