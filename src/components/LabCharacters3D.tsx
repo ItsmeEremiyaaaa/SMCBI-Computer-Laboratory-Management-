@@ -28,6 +28,7 @@ interface StudentAgentData {
   isMale: boolean;
   hash: number;
   chairPos: [number, number, number];
+  pcPos: [number, number, number];
   targetRotY: number;
   waypoints: Waypoint[];
   totalWalkDist: number;
@@ -235,7 +236,7 @@ function StudentAgent3D({
       root.rotation.y = agent.targetRotY;
 
       // Seated pose: hips dropped to chair height
-      bodyRoot.position.y = -0.36;
+      bodyRoot.position.y = -0.34;
 
       // Thighs horizontal on chair
       leftHip.rotation.x = -Math.PI / 2;
@@ -245,18 +246,18 @@ function StudentAgent3D({
       rightKnee.rotation.x = Math.PI / 2;
 
       // Arms resting on desk / typing at keyboard
-      const typeSpeed = 7 + (hash % 5);
-      const leftTap = Math.sin(clock.elapsedTime * typeSpeed + hash) * 0.04;
-      const rightTap = Math.sin(clock.elapsedTime * (typeSpeed + 1) + hash * 2) * 0.04;
+      const typeSpeed = 5 + (hash % 3);
+      const leftTap = Math.sin(clock.elapsedTime * typeSpeed + hash) * 0.03;
+      const rightTap = Math.sin(clock.elapsedTime * (typeSpeed + 1) + hash * 2) * 0.03;
 
       leftArm.rotation.x = -0.58;
       leftElbow.rotation.x = -0.72 + leftTap;
       rightArm.rotation.x = -0.58;
       rightElbow.rotation.x = -0.72 + rightTap;
 
-      // Head subtly looking at monitor
-      head.rotation.x = 0.15 + Math.sin(clock.elapsedTime * 1.6 + hash) * 0.02;
-      head.rotation.y = Math.sin(clock.elapsedTime * 0.9 + hash) * 0.04;
+      // Head looking forward directly at monitor
+      head.rotation.x = 0.10 + Math.sin(clock.elapsedTime * 1.2 + hash) * 0.02;
+      head.rotation.y = Math.sin(clock.elapsedTime * 0.7 + hash) * 0.03;
       return;
     }
 
@@ -269,10 +270,10 @@ function StudentAgent3D({
       root.visible = true;
 
       const walkDuration = agent.totalWalkDist / agent.walkSpeed;
-      const sitDuration = 0.8;
+      const sitDuration = 0.9;
 
       if (t < walkDuration) {
-        // WALKING PHASE
+        // WALKING PHASE: calm, natural pace along open aisle
         const covered = t * agent.walkSpeed;
         const pts = agent.waypoints;
 
@@ -303,60 +304,60 @@ function StudentAgent3D({
         const dx = p1.x - p0.x;
         const dz = p1.z - p0.z;
         if (Math.hypot(dx, dz) > 0.01) {
-          root.rotation.y = Math.atan2(dx, dz);
+          const targetHeading = Math.atan2(dx, dz);
+          // Smooth rotation when turning corners
+          root.rotation.y = MathUtils.lerp(root.rotation.y, targetHeading, 0.2);
         }
 
-        // Procedural low-poly walk cycle
-        const walkPhase = t * agent.walkSpeed * Math.PI * 3.8;
-        const legSwing = Math.sin(walkPhase) * 0.65;
-        const armSwing = Math.sin(walkPhase) * 0.55;
+        // Natural, gentle low-poly walking cycle (simple & calm, not running)
+        const walkPhase = t * 4.4;
+        const legSwing = Math.sin(walkPhase) * 0.38;
+        const armSwing = Math.sin(walkPhase) * 0.28;
 
-        bodyRoot.position.y = Math.abs(Math.sin(walkPhase * 2)) * 0.04;
+        bodyRoot.position.y = Math.abs(Math.sin(walkPhase * 2)) * 0.02;
 
         leftHip.rotation.x = legSwing;
         rightHip.rotation.x = -legSwing;
-        leftKnee.rotation.x = Math.max(0, -legSwing * 0.5);
-        rightKnee.rotation.x = Math.max(0, legSwing * 0.5);
+        leftKnee.rotation.x = Math.max(0, -legSwing * 0.35);
+        rightKnee.rotation.x = Math.max(0, legSwing * 0.35);
 
         leftArm.rotation.x = -armSwing;
         rightArm.rotation.x = armSwing;
-        leftElbow.rotation.x = -0.25;
-        rightElbow.rotation.x = -0.25;
+        leftElbow.rotation.x = -0.22;
+        rightElbow.rotation.x = -0.22;
 
-        head.rotation.x = 0.04;
+        head.rotation.x = 0.02;
         head.rotation.y = 0;
         return;
       }
 
+      // SITTING DOWN TRANSITION: Arrived at chair, turn to monitor and sit
       const sitProgress = Math.min(1, (t - walkDuration) / sitDuration);
       root.position.set(agent.chairPos[0], 0, agent.chairPos[2]);
 
-      // Rotate to chair facing angle
-      const lastWp = agent.waypoints[agent.waypoints.length - 1];
-      const prevWp = agent.waypoints[agent.waypoints.length - 2] ?? lastWp;
-      const walkAngle = Math.atan2(lastWp.x - prevWp.x, lastWp.z - prevWp.z);
-      root.rotation.y = MathUtils.lerp(walkAngle, agent.targetRotY, sitProgress);
+      // Rotate smoothly to face the monitor
+      root.rotation.y = MathUtils.lerp(root.rotation.y, agent.targetRotY, sitProgress);
 
-      // Smoothly lower hips from standing (0) to chair (-0.36)
-      bodyRoot.position.y = MathUtils.lerp(0, -0.36, sitProgress);
+      // Smoothly lower hips from standing (0) to chair height (-0.34)
+      bodyRoot.position.y = MathUtils.lerp(0, -0.34, sitProgress);
 
       // Thighs bend forward 90 degrees
       const thighAngle = MathUtils.lerp(0, -Math.PI / 2, sitProgress);
       leftHip.rotation.x = thighAngle;
       rightHip.rotation.x = thighAngle;
 
-      // Knees bend 90 degrees so calves stay vertical
+      // Knees bend 90 degrees so calves stay vertical to floor
       const kneeAngle = MathUtils.lerp(0, Math.PI / 2, sitProgress);
       leftKnee.rotation.x = kneeAngle;
       rightKnee.rotation.x = kneeAngle;
 
-      // Arms swing up from sides to keyboard
+      // Arms swing up from sides onto keyboard
       leftArm.rotation.x = MathUtils.lerp(0, -0.58, sitProgress);
       rightArm.rotation.x = MathUtils.lerp(0, -0.58, sitProgress);
-      leftElbow.rotation.x = MathUtils.lerp(-0.25, -0.72, sitProgress);
-      rightElbow.rotation.x = MathUtils.lerp(-0.25, -0.72, sitProgress);
+      leftElbow.rotation.x = MathUtils.lerp(-0.22, -0.72, sitProgress);
+      rightElbow.rotation.x = MathUtils.lerp(-0.22, -0.72, sitProgress);
 
-      head.rotation.x = MathUtils.lerp(0.04, 0.15, sitProgress);
+      head.rotation.x = MathUtils.lerp(0.02, 0.10, sitProgress);
       return;
     }
 
@@ -367,7 +368,7 @@ function StudentAgent3D({
         root.visible = true;
         root.position.set(agent.chairPos[0], 0, agent.chairPos[2]);
         root.rotation.y = agent.targetRotY;
-        bodyRoot.position.y = -0.36;
+        bodyRoot.position.y = -0.34;
         leftHip.rotation.x = -Math.PI / 2;
         rightHip.rotation.x = -Math.PI / 2;
         leftKnee.rotation.x = Math.PI / 2;
@@ -377,7 +378,7 @@ function StudentAgent3D({
         return;
       }
 
-      const standDuration = 0.7;
+      const standDuration = 0.8;
       const revPts = [...agent.waypoints].reverse();
       const walkDuration = agent.totalWalkDist / agent.walkSpeed;
 
@@ -391,7 +392,7 @@ function StudentAgent3D({
         const exitAngle = Math.atan2(firstRev.x - revPts[0].x, firstRev.z - revPts[0].z);
         root.rotation.y = MathUtils.lerp(agent.targetRotY, exitAngle, standProgress);
 
-        bodyRoot.position.y = MathUtils.lerp(-0.36, 0, standProgress);
+        bodyRoot.position.y = MathUtils.lerp(-0.34, 0, standProgress);
         leftHip.rotation.x = MathUtils.lerp(-Math.PI / 2, 0, standProgress);
         rightHip.rotation.x = MathUtils.lerp(-Math.PI / 2, 0, standProgress);
         leftKnee.rotation.x = MathUtils.lerp(Math.PI / 2, 0, standProgress);
@@ -438,23 +439,24 @@ function StudentAgent3D({
       const dx = p1.x - p0.x;
       const dz = p1.z - p0.z;
       if (Math.hypot(dx, dz) > 0.01) {
-        root.rotation.y = Math.atan2(dx, dz);
+        const targetHeading = Math.atan2(dx, dz);
+        root.rotation.y = MathUtils.lerp(root.rotation.y, targetHeading, 0.2);
       }
 
-      const walkPhase = walkT * agent.walkSpeed * Math.PI * 3.8;
-      const legSwing = Math.sin(walkPhase) * 0.65;
-      const armSwing = Math.sin(walkPhase) * 0.55;
+      const walkPhase = walkT * 4.4;
+      const legSwing = Math.sin(walkPhase) * 0.38;
+      const armSwing = Math.sin(walkPhase) * 0.28;
 
-      bodyRoot.position.y = Math.abs(Math.sin(walkPhase * 2)) * 0.04;
+      bodyRoot.position.y = Math.abs(Math.sin(walkPhase * 2)) * 0.02;
       leftHip.rotation.x = legSwing;
       rightHip.rotation.x = -legSwing;
-      leftKnee.rotation.x = Math.max(0, -legSwing * 0.5);
-      rightKnee.rotation.x = Math.max(0, legSwing * 0.5);
+      leftKnee.rotation.x = Math.max(0, -legSwing * 0.35);
+      rightKnee.rotation.x = Math.max(0, legSwing * 0.35);
       leftArm.rotation.x = -armSwing;
       rightArm.rotation.x = armSwing;
-      leftElbow.rotation.x = -0.25;
-      rightElbow.rotation.x = -0.25;
-      head.rotation.x = 0.04;
+      leftElbow.rotation.x = -0.22;
+      rightElbow.rotation.x = -0.22;
+      head.rotation.x = 0.02;
       head.rotation.y = 0;
     }
   });
@@ -638,8 +640,9 @@ export default function LabCharacters3D({
   const exitDoorZ = front + bayLength * 0.5;
 
   // Door is on the left wall
-  const doorPoint: Waypoint = { x: -w / 2 + 0.85, z: exitDoorZ };
-  const frontHallZ = front + 1.8;
+  const doorPoint: Waypoint = { x: -w / 2 + 0.90, z: exitDoorZ };
+  // Front corridor in front of all desk islands
+  const frontHallZ = front + 2.3;
 
   // Precompute waypoint routes and student agent data
   const workingPcs = useMemo(() => pcs.filter((p) => p.shown !== 'broken'), [pcs]);
@@ -655,30 +658,44 @@ export default function LabCharacters3D({
       // Monobloc chair is at [0, 0, 0.62] in local workstation coordinates
       const chairX = pcPos[0] + Math.sin(pcRot) * 0.62;
       const chairZ = pcPos[2] + Math.cos(pcRot) * 0.62;
-      // In workstation space, student sits at [0, 0, 0.62] facing monitor at [0, 0, -0.2]
-      // Rotation Y to face monitor is pcRot
-      const targetRotY = pcRot;
 
-      // Determine aisle waypoint
+      // Mathematically exact angle to look directly at the PC monitor
+      const toMonitorX = pcPos[0] - chairX;
+      const toMonitorZ = pcPos[2] - chairZ;
+      const targetRotY = Math.atan2(toMonitorX, toMonitorZ);
+
+      // Determine dedicated collision-free aisle corridor for this student
       let aisleX = chairX;
       if (style === 'island') {
-        const cx = islandX(Math.floor(pc.col / 4), islandCount(lab));
-        if (pcRot === -Math.PI / 2) {
-          // Left side of island, faces east, seat is on west side
-          aisleX = cx - 1.35;
-        } else if (pcRot === Math.PI / 2) {
-          // Right side of island, faces west, seat is on east side
-          aisleX = cx + 1.35;
+        const nIslands = islandCount(lab);
+        const iIsland = Math.floor(pc.col / 4);
+        const cx = islandX(iIsland, nIslands);
+
+        if (pc.row !== LAYOUTS[lab.id]?.island?.endRow) {
+          if (pc.col % 4 === 0) {
+            // Left column of this island: walks down the corridor to the left of the seats
+            aisleX = cx - 1.80;
+          } else {
+            // Right column of this island: walks down the corridor to the right of the seats
+            aisleX = cx + 1.80;
+          }
         } else {
-          // End seat
+          // End seat across the back end of the spine
           aisleX = chairX;
         }
       } else {
-        // Table lab (NetLab)
-        aisleX = chairX;
+        // Table lab (NetLab): 3 table blocks
+        // Walk down open corridors between table blocks
+        if (pc.col <= 2) {
+          aisleX = -2.10;
+        } else if (pc.col <= 6) {
+          aisleX = pc.col <= 4 ? -2.10 : 2.10;
+        } else {
+          aisleX = 2.10;
+        }
       }
 
-      // Waypoints: Door -> Hallway -> Aisle turn -> Row approach -> Chair
+      // Waypoints: Door -> Front hallway -> Turn into dedicated aisle corridor -> Walk down open aisle -> Step into chair
       const waypoints: Waypoint[] = [
         { ...doorPoint },
         { x: doorPoint.x, z: frontHallZ },
@@ -687,7 +704,7 @@ export default function LabCharacters3D({
         { x: chairX, z: chairZ },
       ];
 
-      // Clean redundant intermediate waypoints
+      // Remove redundant waypoints if adjacent are identical
       const cleaned: Waypoint[] = [waypoints[0]];
       for (let i = 1; i < waypoints.length; i++) {
         const prev = cleaned[cleaned.length - 1];
@@ -703,10 +720,10 @@ export default function LabCharacters3D({
         totalWalkDist += Math.hypot(cleaned[i + 1].x - cleaned[i].x, cleaned[i + 1].z - cleaned[i].z);
       }
 
-      // Staggered entry delay: groups of students enter like a real arriving class
-      const enterDelay = 0.2 + (idx * 0.22) + ((idx * 13) % 5) * 0.08;
-      const exitDelay = 0.2 + ((workingPcs.length - 1 - idx) * 0.18) + ((idx * 17) % 5) * 0.06;
-      const walkSpeed = 1.85 + ((h % 5) - 2) * 0.08; // 1.69 to 2.01 m/s natural pace variation
+      // Staggered entry delay: arrive in small groups of 2-3 like a real class
+      const enterDelay = 0.25 + (idx % 8) * 0.55 + Math.floor(idx / 8) * 1.4;
+      const exitDelay = 0.20 + ((workingPcs.length - 1 - idx) % 8) * 0.45 + Math.floor((workingPcs.length - 1 - idx) / 8) * 1.2;
+      const walkSpeed = 1.05 + ((h % 5) - 2) * 0.04; // Calm, steady indoor pace (1.01 to 1.09 m/s)
 
       return {
         id: pc.id,
@@ -714,6 +731,7 @@ export default function LabCharacters3D({
         isMale,
         hash: h,
         chairPos: [chairX, 0, chairZ],
+        pcPos,
         targetRotY,
         waypoints: cleaned,
         totalWalkDist,
@@ -727,8 +745,8 @@ export default function LabCharacters3D({
   // Max simulation time calculation
   const maxEnterTime = useMemo(() => {
     return Math.max(
-      ...agents.map((a) => a.enterDelay + a.totalWalkDist / a.walkSpeed + 0.8),
-      3
+      ...agents.map((a) => a.enterDelay + a.totalWalkDist / a.walkSpeed + 1.0),
+      4
     );
   }, [agents]);
 
