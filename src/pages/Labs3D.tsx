@@ -166,7 +166,7 @@ export default function Labs3D() {
         {lab && (mode === '3d'
           ? <SceneBoundary onError={() => setMode('2d')} fallback={<SeatGrid lab={lab} pcs={pcs} selectedId={selectedId} onSelect={select} onReady={() => setSceneReady(true)} />}>
               <Suspense fallback={<LabLoadingOverlay labName={lab.name} ready={false} />}>
-                <LabScene lab={lab} pcs={pcs} selectedId={selectedId} onSelect={select} onReady={() => setSceneReady(true)} />
+                <LabScene key={lab.id} lab={lab} pcs={pcs} selectedId={selectedId} onSelect={select} onReady={() => setSceneReady(true)} />
               </Suspense>
             </SceneBoundary>
           : <div className="h-full w-full overflow-auto p-6 pt-20 pb-24"><SeatGrid lab={lab} pcs={pcs} selectedId={selectedId} onSelect={select} onReady={() => setSceneReady(true)} /></div>)}

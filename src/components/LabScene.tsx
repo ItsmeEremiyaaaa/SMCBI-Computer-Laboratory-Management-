@@ -1,7 +1,7 @@
 import { useRef, useState } from 'react';
 import { Canvas, useFrame } from '@react-three/fiber';
-import { Bounds, ContactShadows, OrbitControls, RoundedBox } from '@react-three/drei';
-import { MathUtils, type Group, type MeshStandardMaterial } from 'three';
+import { ContactShadows, OrbitControls, RoundedBox } from '@react-three/drei';
+import { CanvasTexture, MathUtils, type Group, type MeshStandardMaterial } from 'three';
 import type { LivePc } from '../hooks/useLabLive';
 import type { Lab } from '../lib/types';
 import type { SceneProps } from './SeatGrid';
@@ -81,6 +81,92 @@ function Monobloc({ position }: { position: [number, number, number] }) {
   );
 }
 
+let crackTextureCache: CanvasTexture | null = null;
+
+function getCrackTexture(): CanvasTexture {
+  if (crackTextureCache) return crackTextureCache;
+  if (typeof document === 'undefined') return new CanvasTexture({} as HTMLCanvasElement);
+
+  const canvas = document.createElement('canvas');
+  canvas.width = 512;
+  canvas.height = 300;
+  const ctx = canvas.getContext('2d');
+  if (!ctx) return new CanvasTexture(canvas);
+
+  ctx.clearRect(0, 0, 512, 300);
+
+  // Impact center (off-center for natural shattered realism)
+  const cx = 190;
+  const cy = 125;
+
+  // Dark LCD fluid leak / pressure bruise around impact
+  const grad = ctx.createRadialGradient(cx, cy, 3, cx, cy, 80);
+  grad.addColorStop(0, 'rgba(10, 15, 30, 0.95)');
+  grad.addColorStop(0.35, 'rgba(25, 15, 25, 0.8)');
+  grad.addColorStop(0.7, 'rgba(50, 15, 20, 0.35)');
+  grad.addColorStop(1, 'rgba(0, 0, 0, 0)');
+  ctx.fillStyle = grad;
+  ctx.beginPath();
+  ctx.arc(cx, cy, 80, 0, Math.PI * 2);
+  ctx.fill();
+
+  // Helper to draw jagged lightning fracture
+  const drawJagged = (x0: number, y0: number, x1: number, y1: number, segs: number, spread: number, color: string, width: number) => {
+    ctx.strokeStyle = color;
+    ctx.lineWidth = width;
+    ctx.lineCap = 'round';
+    ctx.lineJoin = 'bevel';
+    ctx.beginPath();
+    ctx.moveTo(x0, y0);
+    for (let i = 1; i < segs; i++) {
+      const t = i / segs;
+      const tx = x0 + (x1 - x0) * t;
+      const ty = y0 + (y1 - y0) * t;
+      const px = tx + Math.sin(i * 4.3 + x0 * 0.1) * spread;
+      const py = ty + Math.cos(i * 3.7 + y0 * 0.1) * spread;
+      ctx.lineTo(px, py);
+    }
+    ctx.lineTo(x1, y1);
+    ctx.stroke();
+  };
+
+  // Radial crack paths to the screen edges
+  const rays = [
+    [10, 15], [75, 0], [195, 0], [340, 0], [512, 35],
+    [512, 120], [512, 220], [440, 300], [300, 300],
+    [170, 300], [25, 300], [0, 200], [0, 85], [115, 55], [300, 175]
+  ];
+
+  // Dark fracture drop-shadow for 3D depth
+  rays.forEach(([rx, ry]) => {
+    drawJagged(cx, cy, rx, ry, 7, 12, 'rgba(0, 0, 0, 0.85)', 3.5);
+  });
+
+  // Bright white/cyan sharp shattered glass crack lines
+  rays.forEach(([rx, ry]) => {
+    drawJagged(cx, cy, rx, ry, 7, 10, 'rgba(255, 255, 255, 0.95)', 1.6);
+  });
+
+  // Concentric spiderweb impact rings
+  for (let r = 18; r <= 78; r += 16) {
+    ctx.strokeStyle = 'rgba(255, 255, 255, 0.85)';
+    ctx.lineWidth = 1.2;
+    ctx.beginPath();
+    for (let a = 0; a <= Math.PI * 2 + 0.3; a += Math.PI / 5) {
+      const jx = Math.sin(a * 4) * 4;
+      const jy = Math.cos(a * 3) * 3;
+      const x = cx + Math.cos(a) * (r + jx);
+      const y = cy + Math.sin(a) * (r * 0.65 + jy);
+      if (a === 0) ctx.moveTo(x, y);
+      else ctx.lineTo(x, y);
+    }
+    ctx.stroke();
+  }
+
+  crackTextureCache = new CanvasTexture(canvas);
+  return crackTextureCache;
+}
+
 function Workstation({ pc, pos, rot = 0, style, selected, onSelect }:
   { pc: LivePc; pos: [number, number, number]; rot?: number; style: Style; selected: boolean; onSelect: () => void }) {
   const [hover, setHover] = useState(false);
@@ -141,6 +227,20 @@ function Workstation({ pc, pos, rot = 0, style, selected, onSelect }:
           <planeGeometry args={[0.57, 0.33]} />
           <meshStandardMaterial ref={screen} color={color} emissive={color} emissiveIntensity={glow} toneMapped={false} />
         </mesh>
+        {/* Broken glass crack fracture overlay */}
+        {pc.shown === 'broken' && (
+          <mesh position={[0, 0.01, 0.02]}>
+            <planeGeometry args={[0.57, 0.33]} />
+            <meshStandardMaterial
+              map={getCrackTexture()}
+              transparent
+              opacity={0.96}
+              roughness={0.1}
+              metalness={0.1}
+              depthWrite={false}
+            />
+          </mesh>
+        )}
       </group>
       {/* keyboard + mouse */}
       <mesh position={[0, DESK_H + 0.025, 0.1]}><boxGeometry args={[0.44, 0.018, 0.14]} />{black}</mesh>
@@ -530,20 +630,10 @@ function Room({ lab, w, d, style }: { lab: Lab; w: number; d: number; style: Sty
         {wall}
       </mesh>
 
-      {/* Back Wall */}
-      <mesh position={[0, 1.6, back]} receiveShadow>
-        <boxGeometry args={[w, 3.2, 0.1]} />
-        {wall}
-      </mesh>
-      {/* Back Wall skirting baseboard */}
-      <mesh position={[0, 0.06, back - 0.06]}>
-        <boxGeometry args={[w, 0.12, 0.03]} />
+      {/* Back edge low floor threshold skirting (open dollhouse cutaway with no tall wall blocking the camera view) */}
+      <mesh position={[0, 0.04, back]}>
+        <boxGeometry args={[w, 0.08, 0.05]} />
         <meshStandardMaterial color="#1e293b" />
-      </mesh>
-      {/* Back Wall top accent stripe */}
-      <mesh position={[0, 3.05, back - 0.06]}>
-        <boxGeometry args={[w, 0.25, 0.03]} />
-        <meshStandardMaterial color="#1e3a8a" roughness={0.3} />
       </mesh>
 
       {/* Front Wall Decor (Clean Whiteboard & Centered Teacher Station) */}
@@ -595,21 +685,40 @@ function ReadySignal({ onReady }: { onReady?: () => void }) {
   return null;
 }
 
+// Tuned default cameras per lab: ComLab 1 matches Image 2, NetLab matches NetLab screenshot
+const LAB_CAMERAS: Record<string, { pos: [number, number, number]; target: [number, number, number]; fov: number }> = {
+  lab1: {
+    pos: [0, 8.8, 8.5],
+    target: [0, 0.8, -1.2],
+    fov: 42,
+  },
+  lab2: {
+    pos: [0, 10.8, 11.5],
+    target: [0, 0.8, -1.5],
+    fov: 42,
+  },
+  netlab: {
+    pos: [0, 8.6, 8.5],
+    target: [0, 0.8, -1.0],
+    fov: 42,
+  },
+};
+
 export default function LabScene({ lab, pcs, selectedId, onSelect, onReady }: SceneProps) {
   const style = styleOf(lab);
   const w = style === 'island' ? islandCount(lab) * ISLAND_GAP + 2.4 : lab.cols * DX + 3;
   const d = style === 'island' ? (sideRows(lab) + (lab.rows > sideRows(lab) ? 1 : 0)) * ISLAND_ROW + 7.5 : lab.rows * DZ + 4.5;
-  const front = -d / 2;
-  const back = d / 2;
-  const camY = Math.max(9.2, d * 0.75);
-  const camZ = back + Math.max(6.0, w * 0.48);
-  const targetZ = front * 0.18;
+  const cam = LAB_CAMERAS[lab.id] ?? {
+    pos: [0, 9.0, 9.0],
+    target: [0, 0.8, -1.0],
+    fov: 42,
+  };
 
   return (
     <Canvas
       shadows
       dpr={[1, 2]}
-      camera={{ position: [0, camY, camZ], fov: 42 }}
+      camera={{ position: cam.pos, fov: cam.fov }}
       onPointerMissed={() => onSelect('')}
       onCreated={() => onReady?.()}
     >
@@ -618,10 +727,7 @@ export default function LabScene({ lab, pcs, selectedId, onSelect, onReady }: Sc
       <hemisphereLight args={['#ffffff', '#c4ccd6', 1]} />
       <directionalLight position={[5, 10, 6]} intensity={1.1} castShadow shadow-mapSize={[2048, 2048]}
         shadow-camera-left={-12} shadow-camera-right={12} shadow-camera-top={12} shadow-camera-bottom={-12} />
-      {/* Bounds fit with maxDuration={0} ensures the default camera is instantly framed when render finishes */}
-      <Bounds fit margin={0.82} maxDuration={0}>
-        <Room lab={lab} w={w} d={d} style={style} />
-      </Bounds>
+      <Room lab={lab} w={w} d={d} style={style} />
       {style === 'island' && <Spines lab={lab} pcs={pcs} />}
       {pcs.map((pc) => {
         const { pos, rot } = place(pc, lab, style);
@@ -629,7 +735,7 @@ export default function LabScene({ lab, pcs, selectedId, onSelect, onReady }: Sc
           selected={pc.id === selectedId} onSelect={() => onSelect(pc.id)} />;
       })}
       <ContactShadows position={[0, 0.003, 0]} scale={Math.max(w, d)} opacity={0.2} blur={2.5} far={2} />
-      <OrbitControls makeDefault target={[0, 1.2, targetZ]} maxPolarAngle={1.35} minDistance={3} maxDistance={40} enableDamping />
+      <OrbitControls makeDefault target={cam.target} maxPolarAngle={1.35} minDistance={3} maxDistance={40} enableDamping />
     </Canvas>
   );
 }
