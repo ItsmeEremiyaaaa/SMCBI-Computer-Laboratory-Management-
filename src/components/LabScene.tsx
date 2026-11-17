@@ -9,7 +9,7 @@ import type { SceneProps } from './SeatGrid';
 import { LAYOUTS } from '../lib/layouts';
 import { STATUS_COLOR } from './ui';
 
-// Cached frame geometries for all 12 columns, 6 rows of the character atlas
+// Cached frame geometries for all 12 columns, 4 rows of the character atlas
 const spriteGeoCache = new Map<string, THREE.PlaneGeometry>();
 function getSpriteGeometry(col: number, row: number, width: number, height: number, flipped = false) {
   const key = `${col}_${row}_${width}_${height}_${flipped}`;
@@ -18,8 +18,8 @@ function getSpriteGeometry(col: number, row: number, width: number, height: numb
     geo = new THREE.PlaneGeometry(width, height);
     const u0 = flipped ? (col + 1) / 12 : col / 12;
     const u1 = flipped ? col / 12 : (col + 1) / 12;
-    const v0 = (5 - row) / 6;
-    const v1 = (6 - row) / 6;
+    const v0 = (3 - row) / 4;
+    const v1 = (4 - row) / 4;
     const uvs = new Float32Array([
       u0, v1,
       u1, v1,
@@ -33,7 +33,17 @@ function getSpriteGeometry(col: number, row: number, width: number, height: numb
 }
 
 // Student actively seated at their assigned workstation
-function SeatedStudent({ pcId, material }: { pcId: string; material: THREE.Material }) {
+function SeatedStudent({
+  pcId,
+  pos,
+  rot,
+  material,
+}: {
+  pcId: string;
+  pos: [number, number, number];
+  rot: number;
+  material: THREE.Material;
+}) {
   const hash = useMemo(() => {
     let h = 0;
     for (let i = 0; i < pcId.length; i++) h = (h * 31 + pcId.charCodeAt(i)) >>> 0;
@@ -41,16 +51,45 @@ function SeatedStudent({ pcId, material }: { pcId: string; material: THREE.Mater
   }, [pcId]);
 
   const gender = hash % 2 === 0 ? 'male' : 'female';
-  // Row 0 is Male Sit & Interact; Row 1 is Female Sit & Interact
+  // Row 0 is Male 12 angles; Row 1 is Female 12 angles
   const row = gender === 'male' ? 0 : 1;
-  const col = hash % 12;
-  const flipped = (hash >> 3) % 2 === 1;
 
-  const geo = useMemo(() => getSpriteGeometry(col, row, 0.95, 1.35, flipped), [col, row, flipped]);
+  const meshRef = useRef<THREE.Mesh>(null);
+  const lastAngleRef = useRef<number>(-1);
+
+  // Proportions matching Blender low-poly isometric character
+  const spriteW = 0.82;
+  const spriteH = 1.42;
+
+  // Initial geometry defaults to 180° back view (col 6)
+  const initialGeo = useMemo(() => getSpriteGeometry(6, row, spriteW, spriteH, false), [row]);
+
+  useFrame(({ camera }) => {
+    if (!meshRef.current) return;
+    // Calculate world position of the seated student (offset 0.52m in chair direction)
+    const sx = pos[0] + 0.52 * Math.sin(rot);
+    const sz = pos[2] + 0.52 * Math.cos(rot);
+    const dx = camera.position.x - sx;
+    const dz = camera.position.z - sz;
+    const cos = Math.cos(rot);
+    const sin = Math.sin(rot);
+    const localDx = dx * cos - dz * sin;
+    const localDz = dx * sin + dz * cos;
+
+    // Relative angle in character local space where -Z is forward facing PC
+    const rad = Math.atan2(-localDx, -localDz);
+    const deg = ((rad * 180 / Math.PI) + 360) % 360;
+    const angleIndex = Math.round(deg / 30) % 12;
+
+    if (angleIndex !== lastAngleRef.current) {
+      lastAngleRef.current = angleIndex;
+      meshRef.current.geometry = getSpriteGeometry(angleIndex, row, spriteW, spriteH, false);
+    }
+  });
 
   return (
     <Billboard lockX={true} lockZ={true} position={[0, 0, 0.52]}>
-      <mesh position={[0, 1.35 / 2, 0]} geometry={geo} material={material} />
+      <mesh ref={meshRef} position={[0, spriteH / 2, 0]} geometry={initialGeo} material={material} />
     </Billboard>
   );
 }
@@ -295,7 +334,7 @@ function Workstation({ pc, pos, rot = 0, style, selected, onSelect, isOccupied, 
       <Monobloc position={[0, 0, 0.62]} />
       {/* Realtime Classroom Monitoring: Student actively working at desk when class is in session */}
       {isOccupied && pc.shown !== 'broken' && atlasMaterial && (
-        <SeatedStudent pcId={pc.id} material={atlasMaterial} />
+        <SeatedStudent pcId={pc.id} pos={pos} rot={rot} material={atlasMaterial} />
       )}
       {(selected || hover) && (
         <mesh rotation-x={-Math.PI / 2} position={[0, 0.006, 0.3]}>
@@ -815,14 +854,14 @@ function SceneContent({
           <Billboard lockX={true} lockZ={true} position={[-1.1, 0, front + 1.45]}>
             <mesh
               position={[0, 1.68 / 2, 0]}
-              geometry={getSpriteGeometry(0, 5, 0.95, 1.68, false)}
+              geometry={getSpriteGeometry(0, 2, 0.95, 1.68, false)}
               material={atlasMaterial}
             />
           </Billboard>
           <Billboard lockX={true} lockZ={true} position={[1.1, 0, front + 1.45]}>
             <mesh
               position={[0, 1.62 / 2, 0]}
-              geometry={getSpriteGeometry(1, 5, 0.90, 1.62, false)}
+              geometry={getSpriteGeometry(1, 2, 0.90, 1.62, false)}
               material={atlasMaterial}
             />
           </Billboard>
