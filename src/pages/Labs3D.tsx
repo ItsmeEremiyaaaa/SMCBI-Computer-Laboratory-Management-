@@ -156,7 +156,11 @@ export default function Labs3D() {
   };
   const nowMin = toMin(today.time);
 
+  // Active ongoing class schedule
   const activeClassSchedule = labSchedules.find((s) => toMin(s.start_time) <= nowMin && nowMin < toMin(s.end_time)) ?? null;
+  // Upcoming class starting in the next 10 minutes (students arriving / walking in)
+  const upcomingClassSchedule = labSchedules.find((s) => toMin(s.start_time) - 10 <= nowMin && nowMin < toMin(s.start_time)) ?? null;
+
   const activeBooking = pcs.find(
     (p) =>
       p.current &&
@@ -167,8 +171,24 @@ export default function Labs3D() {
         p.current.pc_id === null)
   )?.current ?? null;
 
-  const isLiveInSession = Boolean(activeClassSchedule || activeBooking);
-  const effectiveSimMode: SimMode = userSimOverride ?? (isLiveInSession ? 'walk_in' : 'empty');
+  // Real-time automatic timetable synchronization:
+  // - Upcoming class (10 mins before): students walking in 1-by-1 and 2-by-2
+  // - In Session: ALL STUDENTS ARE ALREADY SEATED (does NOT loop or restart on navigation!)
+  // - Final 5 mins of class: students dismiss and walk out
+  // - No class: lab empty and available
+  const liveSimMode: SimMode = useMemo(() => {
+    if (upcomingClassSchedule) return 'walk_in';
+    if (activeClassSchedule) {
+      if (toMin(activeClassSchedule.end_time) - 5 <= nowMin && nowMin < toMin(activeClassSchedule.end_time)) {
+        return 'walk_out';
+      }
+      return 'in_session';
+    }
+    if (activeBooking) return 'in_session';
+    return 'empty';
+  }, [upcomingClassSchedule, activeClassSchedule, activeBooking, nowMin]);
+
+  const effectiveSimMode: SimMode = userSimOverride ?? liveSimMode;
   const isClassInSession = effectiveSimMode === 'walk_in' || effectiveSimMode === 'in_session';
 
   const activeClassDetails = activeClassSchedule
@@ -177,6 +197,12 @@ export default function Labs3D() {
         subject: activeClassSchedule.subject,
         instructor: activeClassSchedule.instructor,
       }
+    : upcomingClassSchedule
+    ? {
+        section: upcomingClassSchedule.section,
+        subject: upcomingClassSchedule.subject,
+        instructor: upcomingClassSchedule.instructor,
+      }
     : activeBooking
     ? {
         section: activeBooking.title.split('—')[1]?.trim() || activeBooking.title.split(':')[0]?.trim() || 'Class Session',
@@ -184,6 +210,8 @@ export default function Labs3D() {
         instructor: activeBooking.requester_name,
       }
     : null;
+
+  const teacherName = activeClassDetails?.instructor ?? null;
 
   // When class is in session, the comlab workstations are actively In Use!
   const displayedPcs = useMemo(() => {
@@ -252,7 +280,20 @@ export default function Labs3D() {
       {/* Realtime Laboratory Monitoring Pill */}
       <div className="absolute left-4 top-16 z-20 flex max-w-[calc(100%-2rem)] flex-wrap items-center gap-2.5 rounded-xl border border-line/60 bg-panel/95 px-3 py-1.5 shadow-md backdrop-blur">
         <div className="flex items-center gap-2 text-xs">
-          {isClassInSession ? (
+          {upcomingClassSchedule ? (
+            <>
+              <span className="relative flex h-2.5 w-2.5">
+                <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-amber-400 opacity-75" />
+                <span className="relative inline-flex h-2.5 w-2.5 rounded-full bg-amber-500" />
+              </span>
+              <span className="font-semibold text-ink">
+                Students Arriving: {upcomingClassSchedule.section} · {upcomingClassSchedule.subject} (Starts {upcomingClassSchedule.start_time})
+              </span>
+              {upcomingClassSchedule.instructor && (
+                <span className="hidden text-muted md:inline">({upcomingClassSchedule.instructor})</span>
+              )}
+            </>
+          ) : isClassInSession ? (
             <>
               <span className="relative flex h-2.5 w-2.5">
                 <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-blue-400 opacity-75" />
@@ -281,50 +322,50 @@ export default function Labs3D() {
           <button
             onClick={() => setUserSimOverride('walk_in')}
             className={`flex items-center gap-1 rounded-lg px-2 py-0.5 text-[11px] font-medium transition-all ${
-              effectiveSimMode === 'walk_in'
+              effectiveSimMode === 'walk_in' && userSimOverride !== null
                 ? 'bg-accent text-white shadow-xs font-semibold'
                 : 'text-muted hover:bg-chalk hover:text-ink'
             }`}
-            title="Animate 3D students walking from the door along aisles to sit at their workstations"
+            title="Simulate students entering 1 by 1 and 2 by 2 and sitting at workstations"
           >
             <span>🚶</span>
-            <span>Walk In & Sit</span>
+            <span>Simulate Walk In</span>
           </button>
 
           <button
             onClick={() => setUserSimOverride('in_session')}
             className={`flex items-center gap-1 rounded-lg px-2 py-0.5 text-[11px] font-medium transition-all ${
-              effectiveSimMode === 'in_session'
+              effectiveSimMode === 'in_session' && userSimOverride !== null
                 ? 'bg-accent text-white shadow-xs font-semibold'
                 : 'text-muted hover:bg-chalk hover:text-ink'
             }`}
-            title="Class actively seated working at PCs with instructor at whiteboard"
+            title="Simulate active class with all students seated working"
           >
             <span>💻</span>
-            <span>In Session</span>
+            <span>Simulate In Session</span>
           </button>
 
           <button
             onClick={() => setUserSimOverride('walk_out')}
             className={`flex items-center gap-1 rounded-lg px-2 py-0.5 text-[11px] font-medium transition-all ${
-              effectiveSimMode === 'walk_out'
+              effectiveSimMode === 'walk_out' && userSimOverride !== null
                 ? 'bg-accent text-white shadow-xs font-semibold'
                 : 'text-muted hover:bg-chalk hover:text-ink'
             }`}
-            title="Class dismissed: students stand up and walk out through the exit door"
+            title="Simulate class dismissal: students leave 1 by 1 and 2 by 2"
           >
             <span>🚪</span>
-            <span>Dismiss & Exit</span>
+            <span>Simulate Dismissal</span>
           </button>
 
           <button
             onClick={() => setUserSimOverride('empty')}
             className={`flex items-center gap-1 rounded-lg px-2 py-0.5 text-[11px] font-medium transition-all ${
-              effectiveSimMode === 'empty'
+              effectiveSimMode === 'empty' && userSimOverride !== null
                 ? 'bg-accent text-white shadow-xs font-semibold'
                 : 'text-muted hover:bg-chalk hover:text-ink'
             }`}
-            title="Empty laboratory with workstations available"
+            title="Simulate empty laboratory with workstations available"
           >
             <span>🟢</span>
             <span>Empty</span>
@@ -333,10 +374,10 @@ export default function Labs3D() {
           {userSimOverride !== null && (
             <button
               onClick={() => setUserSimOverride(null)}
-              className="ml-0.5 rounded-lg border border-line bg-chalk/80 px-2 py-0.5 text-[11px] font-medium text-accent hover:bg-chalk hover:text-ink"
-              title="Reset to real Philippine Manila timetable"
+              className="ml-0.5 rounded-lg border border-accent/40 bg-accent-soft px-2 py-0.5 text-[11px] font-semibold text-accent hover:bg-accent hover:text-white transition-all shadow-xs"
+              title="Reset to real Philippine Manila timetable (auto-syncs students and single teacher)"
             >
-              Reset to Live
+              ⏱️ Reset to Realtime
             </button>
           )}
         </div>
@@ -351,10 +392,10 @@ export default function Labs3D() {
       {/* 3D Scene / 2D SeatGrid filling 100% of the screen with smooth fade-in reveal */}
       <div className={`h-full w-full transition-opacity duration-500 ease-out ${sceneReady ? 'opacity-100' : 'opacity-0'}`}>
         {lab && (mode === '3d'
-          ? <SceneBoundary onError={() => setMode('2d')} fallback={<SeatGrid lab={lab} pcs={displayedPcs} selectedId={selectedId} onSelect={select} onReady={() => setSceneReady(true)} isOccupied={isClassInSession} classInfo={activeClassSchedule} simMode={effectiveSimMode} />}>
+          ? <SceneBoundary onError={() => setMode('2d')} fallback={<SeatGrid lab={lab} pcs={displayedPcs} selectedId={selectedId} onSelect={select} onReady={() => setSceneReady(true)} isOccupied={isClassInSession} classInfo={activeClassSchedule} simMode={effectiveSimMode} teacherName={teacherName} />}>
               <Suspense fallback={<LabLoadingOverlay labName={lab.name} ready={false} />}>
                 <LabScene
-                  key={`${lab.id}-${effectiveSimMode}`}
+                  key={userSimOverride ? `${lab.id}-${userSimOverride}` : lab.id}
                   lab={lab}
                   pcs={displayedPcs}
                   selectedId={selectedId}
@@ -362,10 +403,11 @@ export default function Labs3D() {
                   onReady={() => setSceneReady(true)}
                   isOccupied={isClassInSession}
                   simMode={effectiveSimMode}
+                  teacherName={teacherName}
                 />
               </Suspense>
             </SceneBoundary>
-          : <div className="h-full w-full overflow-auto p-6 pt-28 pb-24"><SeatGrid lab={lab} pcs={displayedPcs} selectedId={selectedId} onSelect={select} onReady={() => setSceneReady(true)} isOccupied={isClassInSession} classInfo={activeClassSchedule} simMode={effectiveSimMode} /></div>)}
+          : <div className="h-full w-full overflow-auto p-6 pt-28 pb-24"><SeatGrid lab={lab} pcs={displayedPcs} selectedId={selectedId} onSelect={select} onReady={() => setSceneReady(true)} isOccupied={isClassInSession} classInfo={activeClassSchedule} simMode={effectiveSimMode} teacherName={teacherName} /></div>)}
       </div>
 
       {/* Status bar pills in bottom-left (above floating navigation) */}

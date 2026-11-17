@@ -13,6 +13,7 @@ export interface SceneProps {
   isOccupied?: boolean;
   classInfo?: ClassSchedule | null;
   simMode?: SimMode;
+  teacherName?: string | null;
 }
 
 // 2D floor plan: used when WebGL is unavailable or the viewer prefers it.

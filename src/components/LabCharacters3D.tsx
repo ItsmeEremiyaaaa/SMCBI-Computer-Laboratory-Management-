@@ -7,6 +7,30 @@ import type { LivePc } from '../hooks/useLabLive';
 
 export type SimMode = 'walk_in' | 'in_session' | 'walk_out' | 'empty';
 
+export function isFemaleTeacher(name?: string | null): boolean {
+  if (!name) return false;
+  const n = name.toLowerCase();
+  if (
+    n.includes('ms.') ||
+    n.includes('mrs.') ||
+    n.includes('miss') ||
+    n.includes('sister') ||
+    n.includes('sr.') ||
+    n.includes('s.')
+  ) return true;
+  if (
+    n.includes('kaye') ||
+    n.includes('maria') ||
+    n.includes('mariae') ||
+    n.includes('april') ||
+    n.includes('carla') ||
+    n.includes('ella') ||
+    n.includes('grace') ||
+    n.includes('mary')
+  ) return true;
+  return false;
+}
+
 interface LabCharacters3DProps {
   lab: Lab;
   pcs: LivePc[];
@@ -14,6 +38,7 @@ interface LabCharacters3DProps {
   d: number;
   style: 'island' | 'table';
   simMode: SimMode;
+  teacherName?: string | null;
   onSimulationComplete?: () => void;
 }
 
@@ -624,6 +649,7 @@ export default function LabCharacters3D({
   d,
   style,
   simMode,
+  teacherName,
   onSimulationComplete,
 }: LabCharacters3DProps) {
   const [elapsed, setElapsed] = useState(0);
@@ -720,9 +746,15 @@ export default function LabCharacters3D({
         totalWalkDist += Math.hypot(cleaned[i + 1].x - cleaned[i].x, cleaned[i + 1].z - cleaned[i].z);
       }
 
-      // Staggered entry delay: arrive in small groups of 2-3 like a real class
-      const enterDelay = 0.25 + (idx % 8) * 0.55 + Math.floor(idx / 8) * 1.4;
-      const exitDelay = 0.20 + ((workingPcs.length - 1 - idx) % 8) * 0.45 + Math.floor((workingPcs.length - 1 - idx) / 8) * 1.2;
+      // Staggered entry: arrive naturally 1 by 1 or 2 by 2 through the door (no huge crowd)
+      const pairIdx = Math.floor(idx / 2);
+      const isSecondInPair = idx % 2 === 1;
+      const enterDelay = 0.3 + pairIdx * 1.7 + (isSecondInPair ? 0.38 : 0);
+
+      const revIdx = workingPcs.length - 1 - idx;
+      const exitPairIdx = Math.floor(revIdx / 2);
+      const isSecondExit = revIdx % 2 === 1;
+      const exitDelay = 0.3 + exitPairIdx * 1.5 + (isSecondExit ? 0.35 : 0);
       const walkSpeed = 1.05 + ((h % 5) - 2) * 0.04; // Calm, steady indoor pace (1.01 to 1.09 m/s)
 
       return {
@@ -764,19 +796,14 @@ export default function LabCharacters3D({
     }
   });
 
-  const showTeachers = simMode !== 'empty';
+  const showTeacher = simMode !== 'empty';
 
   return (
     <group>
-      {/* Front Instructors at Whiteboard */}
-      {showTeachers && (
-        <group>
-          <group position={[-1.1, 0, front + 1.45]}>
-            <Teacher3D gender="male" />
-          </group>
-          <group position={[1.1, 0, front + 1.45]}>
-            <Teacher3D gender="female" />
-          </group>
+      {/* Exactly 1 Teacher per comlab matching schedule (Mr. or Ms.) */}
+      {showTeacher && (
+        <group position={[0, 0, front + 1.45]}>
+          <Teacher3D gender={isFemaleTeacher(teacherName) ? 'female' : 'male'} />
         </group>
       )}
 

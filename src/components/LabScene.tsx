@@ -712,6 +712,7 @@ function SceneContent({
   onSelect,
   isOccupied,
   simMode,
+  teacherName,
 }: {
   lab: Lab;
   pcs: LivePc[];
@@ -719,6 +720,7 @@ function SceneContent({
   onSelect: (id: string) => void;
   isOccupied?: boolean;
   simMode?: SimMode;
+  teacherName?: string | null;
 }) {
   const style = styleOf(lab);
   const w = style === 'island' ? islandCount(lab) * ISLAND_GAP + 2.4 : lab.cols * DX + 3;
@@ -743,7 +745,7 @@ function SceneContent({
         );
       })}
 
-      {/* 3D Animated Students & Whiteboard Instructors */}
+      {/* 3D Animated Students & Single Whiteboard Instructor */}
       <LabCharacters3D
         lab={lab}
         pcs={pcs}
@@ -751,6 +753,7 @@ function SceneContent({
         d={d}
         style={style}
         simMode={simMode ?? (isOccupied ? 'in_session' : 'empty')}
+        teacherName={teacherName}
       />
 
       <ContactShadows position={[0, 0.003, 0]} scale={Math.max(w, d)} opacity={0.2} blur={2.5} far={2} />
@@ -766,6 +769,7 @@ export default function LabScene({
   onReady,
   isOccupied = false,
   simMode,
+  teacherName,
 }: SceneProps) {
   const cam = LAB_CAMERAS[lab.id] ?? {
     pos: [0, 10.4, 10.8],
@@ -801,6 +805,7 @@ export default function LabScene({
         onSelect={onSelect}
         isOccupied={isOccupied}
         simMode={simMode}
+        teacherName={teacherName}
       />
       <OrbitControls makeDefault target={cam.target} maxPolarAngle={1.35} minDistance={3} maxDistance={40} enableDamping />
     </Canvas>
