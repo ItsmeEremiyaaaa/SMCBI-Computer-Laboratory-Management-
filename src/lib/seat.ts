@@ -31,7 +31,11 @@ export function shownStatus(pc: Pc, approved: Reservation[], now: Now): ShownSta
   const active = activeReservation(pc, approved, now);
   if (!active) return pc.status;
   // A class in session means the comlab is actively in use, not just reserved
-  if (active.purpose === 'Regular class' || active.id.startsWith('class-')) {
+  if (
+    active.purpose === 'Regular class' ||
+    active.purpose === 'Laboratory class' ||
+    active.id.startsWith('class-')
+  ) {
     return 'in_use';
   }
   return 'reserved';

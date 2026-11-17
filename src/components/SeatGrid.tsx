@@ -9,7 +9,7 @@ export interface SceneProps {
   selectedId: string | null;
   onSelect: (id: string) => void;
   onReady?: () => void;
-  simulationMode?: 'in_session' | 'entering' | 'exiting' | 'empty';
+  isOccupied?: boolean;
   classInfo?: ClassSchedule | null;
 }
 

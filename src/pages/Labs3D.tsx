@@ -2,16 +2,11 @@ import { lazy, Suspense, useEffect, useMemo, useRef, useState } from 'react';
 import { NavLink, useParams } from 'react-router-dom';
 import {
   Box,
-  Clock,
   Compass,
-  GraduationCap,
   Grid3x3,
-  LogIn,
-  LogOut,
   MousePointerClick,
   Move3d,
   RotateCcw,
-  Users,
   ZoomIn,
 } from 'lucide-react';
 import { useAuth } from '../auth';
@@ -141,9 +136,9 @@ export default function Labs3D() {
   const select = (id: string) => setSelectedId(id || null);
   const [showGuideModal, setShowGuideModal] = useState(false);
 
-  // Campus Life & Schedule Quality of Life Simulation
+  // Realtime Laboratory Schedule & Classroom Monitoring
   const schedules = useLoad(() => api.listSchedules());
-  const [qolMode, setQolMode] = useState<'auto' | 'in_session' | 'entering' | 'exiting' | 'empty'>('auto');
+  const [testOverride, setTestOverride] = useState<'in_session' | 'available' | null>(null);
 
   const today = manilaNow();
   const dow = isoWeekday(today.date);
@@ -160,41 +155,44 @@ export default function Labs3D() {
   };
   const nowMin = toMin(today.time);
 
-  const activeClass = labSchedules.find((s) => toMin(s.start_time) <= nowMin && nowMin < toMin(s.end_time)) ?? null;
-  const upcomingClass = !activeClass
-    ? (labSchedules.find((s) => {
-        const diff = toMin(s.start_time) - nowMin;
-        return diff > 0 && diff <= 25;
-      }) ?? null)
-    : null;
-  const dismissedClass = !activeClass && !upcomingClass
-    ? (labSchedules.slice().reverse().find((s) => {
-        const diff = nowMin - toMin(s.end_time);
-        return diff >= 0 && diff <= 15;
-      }) ?? null)
-    : null;
+  const activeClassSchedule = labSchedules.find((s) => toMin(s.start_time) <= nowMin && nowMin < toMin(s.end_time)) ?? null;
+  const activeBooking = pcs.find(
+    (p) =>
+      p.current &&
+      p.current.lab_id === lab?.id &&
+      (p.current.purpose === 'Laboratory class' ||
+        p.current.purpose === 'Regular class' ||
+        p.current.id.startsWith('class-') ||
+        p.current.pc_id === null)
+  )?.current ?? null;
 
-  const autoMode: 'in_session' | 'entering' | 'exiting' | 'empty' = activeClass
-    ? 'in_session'
-    : upcomingClass
-    ? 'entering'
-    : dismissedClass
-    ? 'exiting'
-    : 'empty';
+  const isLiveInSession = Boolean(activeClassSchedule || activeBooking);
+  const isClassInSession = testOverride === null ? isLiveInSession : testOverride === 'in_session';
 
-  const effectiveMode = qolMode === 'auto' ? autoMode : qolMode;
-  const currentScheduleContext = activeClass || upcomingClass || dismissedClass || labSchedules[0] || null;
+  const activeClassDetails = activeClassSchedule
+    ? {
+        section: activeClassSchedule.section,
+        subject: activeClassSchedule.subject,
+        instructor: activeClassSchedule.instructor,
+      }
+    : activeBooking
+    ? {
+        section: activeBooking.title.split('—')[1]?.trim() || activeBooking.title.split(':')[0]?.trim() || 'Class Session',
+        subject: activeBooking.title.split('—')[0]?.trim() || activeBooking.title.split(':')[1]?.trim() || 'Laboratory Class',
+        instructor: activeBooking.requester_name,
+      }
+    : null;
 
   // When class is in session, the comlab workstations are actively In Use!
   const displayedPcs = useMemo(() => {
-    if (effectiveMode === 'in_session') {
+    if (isClassInSession) {
       return pcs.map((p) => (p.shown === 'broken' ? p : { ...p, shown: 'in_use' as const }));
     }
-    if (effectiveMode === 'empty') {
+    if (testOverride === 'available') {
       return pcs.map((p) => (p.shown === 'broken' ? p : { ...p, shown: 'free' as const }));
     }
     return pcs;
-  }, [pcs, effectiveMode]);
+  }, [pcs, isClassInSession, testOverride]);
 
   const selected = displayedPcs.find((p) => p.id === selectedId);
   const counts = Object.fromEntries(STATUSES.map((s) => [s, displayedPcs.filter((p) => p.shown === s).length]));
@@ -249,119 +247,45 @@ export default function Labs3D() {
         </div>
       </div>
 
-      {/* Campus Life / Class Schedule Quality of Life Toolbar */}
-      <div className="absolute left-4 top-16 z-20 flex max-w-[calc(100%-2rem)] flex-wrap items-center gap-2 rounded-xl border border-line/60 bg-panel/95 p-1.5 shadow-md backdrop-blur sm:max-w-max">
-        {/* Live Context Badge */}
-        <div className="flex items-center gap-2 px-2 py-1 text-xs">
-          {effectiveMode === 'in_session' && (
-            <>
-              <span className="relative flex h-2.5 w-2.5">
-                <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-400 opacity-75" />
-                <span className="relative inline-flex h-2.5 w-2.5 rounded-full bg-emerald-500" />
-              </span>
-              <GraduationCap size={15} className="text-emerald-600" />
-              <span className="font-semibold text-ink">
-                Class in Session: {currentScheduleContext ? `${currentScheduleContext.section} · ${currentScheduleContext.subject}` : 'Laboratory Full'}
-              </span>
-              {currentScheduleContext && (
-                <span className="hidden text-muted md:inline">({currentScheduleContext.instructor})</span>
-              )}
-            </>
-          )}
-          {effectiveMode === 'entering' && (
-            <>
-              <span className="relative flex h-2.5 w-2.5">
-                <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-amber-400 opacity-75" />
-                <span className="relative inline-flex h-2.5 w-2.5 rounded-full bg-amber-500" />
-              </span>
-              <LogIn size={15} className="text-amber-600" />
-              <span className="font-semibold text-ink">
-                Students Arriving: {upcomingClass ? `${upcomingClass.section} · ${upcomingClass.subject}` : 'Passing Period'}
-              </span>
-              <span className="hidden text-muted md:inline">(Walking to assigned PCs)</span>
-            </>
-          )}
-          {effectiveMode === 'exiting' && (
+      {/* Realtime Laboratory Monitoring Pill */}
+      <div className="absolute left-4 top-16 z-20 flex max-w-[calc(100%-2rem)] flex-wrap items-center gap-2.5 rounded-xl border border-line/60 bg-panel/95 px-3 py-1.5 shadow-md backdrop-blur">
+        <div className="flex items-center gap-2 text-xs">
+          {isClassInSession ? (
             <>
               <span className="relative flex h-2.5 w-2.5">
                 <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-blue-400 opacity-75" />
                 <span className="relative inline-flex h-2.5 w-2.5 rounded-full bg-blue-500" />
               </span>
-              <LogOut size={15} className="text-blue-600" />
-              <span className="font-semibold text-ink">Class Dismissed</span>
-              <span className="hidden text-muted md:inline">(Students exiting through door)</span>
+              <span className="font-semibold text-ink">
+                Class in Session: {activeClassDetails ? `${activeClassDetails.section} · ${activeClassDetails.subject}` : 'Laboratory In Use'}
+              </span>
+              {activeClassDetails?.instructor && (
+                <span className="hidden text-muted md:inline">({activeClassDetails.instructor})</span>
+              )}
             </>
-          )}
-          {effectiveMode === 'empty' && (
+          ) : (
             <>
-              <span className="h-2.5 w-2.5 rounded-full bg-slate-400" />
-              <span className="font-medium text-muted">No Active Class · Lab Quiet</span>
+              <span className="h-2.5 w-2.5 rounded-full bg-emerald-500" />
+              <span className="font-semibold text-ink">Laboratory Available</span>
+              <span className="text-muted text-[11px]">(No active class scheduled)</span>
             </>
           )}
         </div>
 
-        <div className="hidden h-4 w-px bg-line sm:block" />
+        <div className="hidden h-3.5 w-px bg-line sm:block" />
 
-        {/* QoL Simulation Quick Actions */}
-        <div className="flex flex-wrap items-center gap-1" role="group" aria-label="Campus Life Simulation">
+        {/* Realtime / Test Toggle */}
+        <div className="flex items-center gap-1.5">
           <button
-            onClick={() => setQolMode('auto')}
-            className={`flex items-center gap-1 rounded-lg px-2 py-1 text-[11px] font-medium transition-all ${
-              qolMode === 'auto'
+            onClick={() => setTestOverride((prev) => (prev ? null : isClassInSession ? 'available' : 'in_session'))}
+            className={`rounded-lg px-2 py-0.5 text-[11px] font-medium transition-all ${
+              testOverride !== null
                 ? 'bg-accent text-white shadow-xs'
                 : 'text-muted hover:bg-chalk hover:text-ink'
             }`}
-            title="Follow real-time weekly class schedule"
+            title="Preview laboratory state between active class session and available lab"
           >
-            <Clock size={12} />
-            <span>Auto</span>
-          </button>
-          <button
-            onClick={() => setQolMode('entering')}
-            className={`flex items-center gap-1 rounded-lg px-2 py-1 text-[11px] font-medium transition-all ${
-              qolMode === 'entering'
-                ? 'bg-amber-500 text-white shadow-xs'
-                : 'text-muted hover:bg-chalk hover:text-ink'
-            }`}
-            title="Simulate students walking in from door to their PCs"
-          >
-            <LogIn size={12} />
-            <span>Arrive</span>
-          </button>
-          <button
-            onClick={() => setQolMode('in_session')}
-            className={`flex items-center gap-1 rounded-lg px-2 py-1 text-[11px] font-medium transition-all ${
-              qolMode === 'in_session'
-                ? 'bg-emerald-600 text-white shadow-xs'
-                : 'text-muted hover:bg-chalk hover:text-ink'
-            }`}
-            title="Simulate full class in session with students and instructors"
-          >
-            <Users size={12} />
-            <span>In Session</span>
-          </button>
-          <button
-            onClick={() => setQolMode('exiting')}
-            className={`flex items-center gap-1 rounded-lg px-2 py-1 text-[11px] font-medium transition-all ${
-              qolMode === 'exiting'
-                ? 'bg-blue-600 text-white shadow-xs'
-                : 'text-muted hover:bg-chalk hover:text-ink'
-            }`}
-            title="Simulate class dismissal with students walking out"
-          >
-            <LogOut size={12} />
-            <span>Dismiss</span>
-          </button>
-          <button
-            onClick={() => setQolMode('empty')}
-            className={`flex items-center gap-1 rounded-lg px-2 py-1 text-[11px] font-medium transition-all ${
-              qolMode === 'empty'
-                ? 'bg-slate-700 text-white shadow-xs'
-                : 'text-muted hover:bg-chalk hover:text-ink'
-            }`}
-            title="Simulate empty lab"
-          >
-            <span>Empty</span>
+            {testOverride !== null ? 'Reset to Live' : 'Test Class'}
           </button>
         </div>
       </div>
@@ -375,7 +299,7 @@ export default function Labs3D() {
       {/* 3D Scene / 2D SeatGrid filling 100% of the screen with smooth fade-in reveal */}
       <div className={`h-full w-full transition-opacity duration-500 ease-out ${sceneReady ? 'opacity-100' : 'opacity-0'}`}>
         {lab && (mode === '3d'
-          ? <SceneBoundary onError={() => setMode('2d')} fallback={<SeatGrid lab={lab} pcs={displayedPcs} selectedId={selectedId} onSelect={select} onReady={() => setSceneReady(true)} simulationMode={effectiveMode} classInfo={currentScheduleContext} />}>
+          ? <SceneBoundary onError={() => setMode('2d')} fallback={<SeatGrid lab={lab} pcs={displayedPcs} selectedId={selectedId} onSelect={select} onReady={() => setSceneReady(true)} isOccupied={isClassInSession} classInfo={activeClassSchedule} />}>
               <Suspense fallback={<LabLoadingOverlay labName={lab.name} ready={false} />}>
                 <LabScene
                   key={lab.id}
@@ -384,12 +308,11 @@ export default function Labs3D() {
                   selectedId={selectedId}
                   onSelect={select}
                   onReady={() => setSceneReady(true)}
-                  simulationMode={effectiveMode}
-                  classInfo={currentScheduleContext}
+                  isOccupied={isClassInSession}
                 />
               </Suspense>
             </SceneBoundary>
-          : <div className="h-full w-full overflow-auto p-6 pt-28 pb-24"><SeatGrid lab={lab} pcs={displayedPcs} selectedId={selectedId} onSelect={select} onReady={() => setSceneReady(true)} simulationMode={effectiveMode} classInfo={currentScheduleContext} /></div>)}
+          : <div className="h-full w-full overflow-auto p-6 pt-28 pb-24"><SeatGrid lab={lab} pcs={displayedPcs} selectedId={selectedId} onSelect={select} onReady={() => setSceneReady(true)} isOccupied={isClassInSession} classInfo={activeClassSchedule} /></div>)}
       </div>
 
       {/* Status bar pills in bottom-left (above floating navigation) */}

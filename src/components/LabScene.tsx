@@ -1,13 +1,59 @@
-import { useRef, useState } from 'react';
+import { useMemo, useRef, useState } from 'react';
 import { Canvas, useFrame } from '@react-three/fiber';
-import { ContactShadows, OrbitControls, RoundedBox } from '@react-three/drei';
+import { Billboard, ContactShadows, OrbitControls, RoundedBox, useTexture } from '@react-three/drei';
+import * as THREE from 'three';
 import { CanvasTexture, MathUtils, type Group, type MeshStandardMaterial } from 'three';
 import type { LivePc } from '../hooks/useLabLive';
 import type { Lab } from '../lib/types';
 import type { SceneProps } from './SeatGrid';
 import { LAYOUTS } from '../lib/layouts';
 import { STATUS_COLOR } from './ui';
-import LabCharacters from './LabCharacters';
+
+// Cached frame geometries for all 11 columns, 7 rows of the character atlas
+const spriteGeoCache = new Map<string, THREE.PlaneGeometry>();
+function getSpriteGeometry(col: number, row: number, width: number, height: number, flipped = false) {
+  const key = `${col}_${row}_${width}_${height}_${flipped}`;
+  let geo = spriteGeoCache.get(key);
+  if (!geo) {
+    geo = new THREE.PlaneGeometry(width, height);
+    const u0 = flipped ? (col + 1) / 11 : col / 11;
+    const u1 = flipped ? col / 11 : (col + 1) / 11;
+    const v0 = (6 - row) / 7;
+    const v1 = (7 - row) / 7;
+    const uvs = new Float32Array([
+      u0, v1,
+      u1, v1,
+      u0, v0,
+      u1, v0,
+    ]);
+    geo.setAttribute('uv', new THREE.BufferAttribute(uvs, 2));
+    spriteGeoCache.set(key, geo);
+  }
+  return geo;
+}
+
+// Student actively seated at their assigned workstation
+function SeatedStudent({ pcId, material }: { pcId: string; material: THREE.Material }) {
+  const hash = useMemo(() => {
+    let h = 0;
+    for (let i = 0; i < pcId.length; i++) h = (h * 31 + pcId.charCodeAt(i)) >>> 0;
+    return h;
+  }, [pcId]);
+
+  const gender = hash % 2 === 0 ? 'male' : 'female';
+  // Alternate between laptop typing/interaction rows (rows 4 & 5) and sitting attentive rows (rows 2 & 3)
+  const useLaptop = hash % 3 !== 0;
+  const row = useLaptop ? (gender === 'male' ? 4 : 5) : (gender === 'male' ? 2 : 3);
+  const col = hash % 11;
+
+  const geo = useMemo(() => getSpriteGeometry(col, row, 1.05, 1.45, false), [col, row]);
+
+  return (
+    <Billboard lockX={true} lockZ={true} position={[0, 0, 0.52]}>
+      <mesh position={[0, 1.45 / 2, 0]} geometry={geo} material={material} />
+    </Billboard>
+  );
+}
 
 // Modeled on the SMCBI labs: Lab 1/2 have long white benches with white partitions;
 // Netlab has separate dark-top tables on metal legs. Both use white monobloc chairs.
@@ -168,8 +214,8 @@ function getCrackTexture(): CanvasTexture {
   return crackTextureCache;
 }
 
-function Workstation({ pc, pos, rot = 0, style, selected, onSelect }:
-  { pc: LivePc; pos: [number, number, number]; rot?: number; style: Style; selected: boolean; onSelect: () => void }) {
+function Workstation({ pc, pos, rot = 0, style, selected, onSelect, isOccupied, atlasMaterial }:
+  { pc: LivePc; pos: [number, number, number]; rot?: number; style: Style; selected: boolean; onSelect: () => void; isOccupied?: boolean; atlasMaterial?: THREE.Material }) {
   const [hover, setHover] = useState(false);
   const monitor = useRef<Group>(null);
   const screen = useRef<MeshStandardMaterial>(null);
@@ -247,6 +293,10 @@ function Workstation({ pc, pos, rot = 0, style, selected, onSelect }:
       <mesh position={[0, DESK_H + 0.025, 0.1]}><boxGeometry args={[0.44, 0.018, 0.14]} />{black}</mesh>
       <mesh position={[0.32, DESK_H + 0.025, 0.12]}><boxGeometry args={[0.06, 0.02, 0.1]} />{black}</mesh>
       <Monobloc position={[0, 0, 0.62]} />
+      {/* Realtime Classroom Monitoring: Student actively working at desk when class is in session */}
+      {isOccupied && pc.shown !== 'broken' && atlasMaterial && (
+        <SeatedStudent pcId={pc.id} material={atlasMaterial} />
+      )}
       {(selected || hover) && (
         <mesh rotation-x={-Math.PI / 2} position={[0, 0.006, 0.3]}>
           <ringGeometry args={[0.62, 0.69, 48]} />
@@ -705,18 +755,93 @@ const LAB_CAMERAS: Record<string, { pos: [number, number, number]; target: [numb
   },
 };
 
+function SceneContent({
+  lab,
+  pcs,
+  selectedId,
+  onSelect,
+  isOccupied,
+}: {
+  lab: Lab;
+  pcs: LivePc[];
+  selectedId: string | null;
+  onSelect: (id: string) => void;
+  isOccupied?: boolean;
+}) {
+  const style = styleOf(lab);
+  const w = style === 'island' ? islandCount(lab) * ISLAND_GAP + 2.4 : lab.cols * DX + 3;
+  const d = style === 'island' ? (sideRows(lab) + (lab.rows > sideRows(lab) ? 1 : 0)) * ISLAND_ROW + 7.5 : lab.rows * DZ + 4.5;
+  const front = -d / 2;
+
+  const atlasTexture = useTexture('/sprites/uniform_atlas.png');
+  atlasTexture.minFilter = THREE.LinearFilter;
+  atlasTexture.magFilter = THREE.LinearFilter;
+
+  const atlasMaterial = useMemo(
+    () =>
+      new THREE.MeshBasicMaterial({
+        map: atlasTexture,
+        transparent: true,
+        alphaTest: 0.1,
+        side: THREE.DoubleSide,
+      }),
+    [atlasTexture]
+  );
+
+  return (
+    <>
+      <Room lab={lab} w={w} d={d} style={style} />
+      {style === 'island' && <Spines lab={lab} pcs={pcs} />}
+      {pcs.map((pc) => {
+        const { pos, rot } = place(pc, lab, style);
+        return (
+          <Workstation
+            key={pc.id}
+            pc={pc}
+            style={style}
+            pos={pos}
+            rot={rot}
+            selected={pc.id === selectedId}
+            onSelect={() => onSelect(pc.id)}
+            isOccupied={isOccupied}
+            atlasMaterial={atlasMaterial}
+          />
+        );
+      })}
+
+      {/* Instructors at Whiteboard during active class */}
+      {isOccupied && (
+        <group>
+          <Billboard lockX={true} lockZ={true} position={[-1.1, 0, front + 1.45]}>
+            <mesh
+              position={[0, 1.68 / 2, 0]}
+              geometry={getSpriteGeometry(0, 6, 1.05, 1.68, false)}
+              material={atlasMaterial}
+            />
+          </Billboard>
+          <Billboard lockX={true} lockZ={true} position={[1.1, 0, front + 1.45]}>
+            <mesh
+              position={[0, 1.62 / 2, 0]}
+              geometry={getSpriteGeometry(1, 6, 0.98, 1.62, false)}
+              material={atlasMaterial}
+            />
+          </Billboard>
+        </group>
+      )}
+
+      <ContactShadows position={[0, 0.003, 0]} scale={Math.max(w, d)} opacity={0.2} blur={2.5} far={2} />
+    </>
+  );
+}
+
 export default function LabScene({
   lab,
   pcs,
   selectedId,
   onSelect,
   onReady,
-  simulationMode = 'empty',
-  classInfo = null,
+  isOccupied = false,
 }: SceneProps) {
-  const style = styleOf(lab);
-  const w = style === 'island' ? islandCount(lab) * ISLAND_GAP + 2.4 : lab.cols * DX + 3;
-  const d = style === 'island' ? (sideRows(lab) + (lab.rows > sideRows(lab) ? 1 : 0)) * ISLAND_ROW + 7.5 : lab.rows * DZ + 4.5;
   const cam = LAB_CAMERAS[lab.id] ?? {
     pos: [0, 10.4, 10.8],
     target: [0, 0.7, -1.1],
@@ -734,26 +859,26 @@ export default function LabScene({
       <ReadySignal onReady={onReady} />
       <color attach="background" args={['#dfe5ee']} />
       <hemisphereLight args={['#ffffff', '#c4ccd6', 1]} />
-      <directionalLight position={[5, 10, 6]} intensity={1.1} castShadow shadow-mapSize={[2048, 2048]}
-        shadow-camera-left={-12} shadow-camera-right={12} shadow-camera-top={12} shadow-camera-bottom={-12} />
-      <Room lab={lab} w={w} d={d} style={style} />
-      {style === 'island' && <Spines lab={lab} pcs={pcs} />}
-      {pcs.map((pc) => {
-        const { pos, rot } = place(pc, lab, style);
-        return <Workstation key={pc.id} pc={pc} style={style} pos={pos} rot={rot}
-          selected={pc.id === selectedId} onSelect={() => onSelect(pc.id)} />;
-      })}
-      {/* Living Laboratory Simulation: Dynamic students & instructors tied to schedule */}
-      <LabCharacters
+      <directionalLight
+        position={[5, 10, 6]}
+        intensity={1.1}
+        castShadow
+        shadow-mapSize={[2048, 2048]}
+        shadow-camera-left={-12}
+        shadow-camera-right={12}
+        shadow-camera-top={12}
+        shadow-camera-bottom={-12}
+      />
+      <SceneContent
         lab={lab}
         pcs={pcs}
-        w={w}
-        d={d}
-        mode={simulationMode}
-        classInfo={classInfo}
+        selectedId={selectedId}
+        onSelect={onSelect}
+        isOccupied={isOccupied}
       />
-      <ContactShadows position={[0, 0.003, 0]} scale={Math.max(w, d)} opacity={0.2} blur={2.5} far={2} />
       <OrbitControls makeDefault target={cam.target} maxPolarAngle={1.35} minDistance={3} maxDistance={40} enableDamping />
     </Canvas>
   );
 }
+
+useTexture.preload('/sprites/uniform_atlas.png');
