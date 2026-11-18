@@ -123,7 +123,7 @@ function StatusDonut({ pcs }: { pcs: LivePc[] }) {
         <text x="70" y="66" textAnchor="middle" className="rotate-90 fill-ink text-[22px] font-bold" transform="rotate(90 70 70)">{free}</text>
         <text x="70" y="86" textAnchor="middle" className="fill-muted text-[10px]" transform="rotate(90 70 70)">free now</text>
       </svg>
-      <ul className="grid flex-1 gap-2 text-sm">
+      <ul className="grid flex-1 grid-cols-1 gap-2 text-sm">
         {STATUSES.map((s) => {
           const n = pcs.filter((p) => p.shown === s).length;
           return (
@@ -144,7 +144,7 @@ function StatusDonut({ pcs }: { pcs: LivePc[] }) {
 function WeekUsage({ labs, booked }: { labs: Lab[]; booked: Record<string, number> }) {
   const max = Math.max(1, ...labs.map((l) => booked[l.id] ?? 0));
   return (
-    <ul className="grid gap-4 px-5 pb-5">
+    <ul className="grid grid-cols-1 gap-4 px-5 pb-5">
       {labs.map((l) => {
         const h = booked[l.id] ?? 0;
         return (
@@ -209,7 +209,7 @@ export default function Dashboard() {
         <Link to="/reservations?new=1"><Button><Plus size={16} />Request a lab</Button></Link>
       </header>
 
-      <div className="mb-6 grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+      <div className="mb-6 grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
         <StatCard icon={MonitorCheck} label="PCs free now" value={<>{free}<span className="text-lg font-semibold text-muted">/{pcs.length}</span></>} note="Across all three labs" to="/labs" />
         <StatCard icon={MonitorSmartphone} label="In use or reserved" value={inUse} note="Students, classes and bookings" to="/labs" />
         <StatCard icon={CalendarClock} label="Classes today" value={classesOn(today, classes.data ?? []).length} note="From the weekly class schedule" to="/schedule" />
@@ -222,11 +222,11 @@ export default function Dashboard() {
         <Monitor className="text-accent" size={18} />
         Labs right now
       </h2>
-      <div className="mb-6 grid gap-4 md:grid-cols-3">
+      <div className="mb-6 grid grid-cols-1 gap-4 md:grid-cols-3">
         {labs.data?.map((l) => <LabTile key={l.id} lab={l} pcs={pcs} />)}
       </div>
 
-      <div className="mb-6 grid gap-4 lg:grid-cols-2">
+      <div className="mb-6 grid grid-cols-1 gap-4 lg:grid-cols-2">
         <Panel title="PC status" icon={MonitorCheck}><StatusDonut pcs={pcs} /></Panel>
         <Panel title="Lab usage this week" icon={ClipboardList}
           actions={<span className="text-xs text-muted">{fmtDate(monday)} to {fmtDate(addDays(monday, 6))}</span>}>
@@ -234,11 +234,11 @@ export default function Dashboard() {
         </Panel>
       </div>
 
-      <div className="grid gap-4 lg:grid-cols-2">
+      <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
         <Panel title="Today’s schedule" icon={CalendarClock}
           actions={<Link to="/schedule" className="text-sm font-medium text-accent hover:underline">Class schedule</Link>}>
           {todays.length === 0 ? <Empty>No classes or bookings in the labs today.</Empty> : (
-            <ul className="grid gap-2 px-5 pb-5">
+            <ul className="grid grid-cols-1 gap-2 px-5 pb-5">
               {todays.slice(0, 7).map((r) => (
                 <li key={r.id} className="flex items-center gap-4 rounded-xl bg-chalk/70 px-3 py-2.5 text-sm">
                   <div className="w-20 shrink-0 font-cond font-semibold text-accent">{fmtTime(r.start_time)}<br /><span className="font-normal text-muted">{fmtTime(r.end_time)}</span></div>
@@ -255,7 +255,7 @@ export default function Dashboard() {
         <Panel title={isTeacher ? 'My pending requests' : 'Waiting for approval'} icon={Hourglass}
           actions={pending.length > 0 && <Link to="/reservations?status=pending" className="text-sm font-medium text-accent hover:underline">Review all</Link>}>
           {pending.length === 0 ? <Empty>Nothing waiting. You’re all caught up.</Empty> : (
-            <ul className="grid gap-2 px-5 pb-5">
+            <ul className="grid grid-cols-1 gap-2 px-5 pb-5">
               {pending.slice(0, 5).map((r) => (
                 <li key={r.id} className="flex items-center gap-3 rounded-xl bg-chalk/70 px-3 py-2.5 text-sm">
                   <div className="min-w-0 flex-1">

@@ -70,7 +70,7 @@ export default function Calendar() {
       <PageHeader title="Calendar" sub="Pick a day to see what's happening in each lab, hour by hour."
         actions={<Button onClick={() => setEdit({ title: '', description: null, event_date: day, event_time: '08:00', event_type: 'academic' })}><Plus size={16} />Add event</Button>} />
 
-      <div className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_400px]">
+      <div className="grid grid-cols-1 gap-4 xl:grid-cols-[minmax(0,1fr)_400px]">
         {/* Month overview */}
         <Panel>
           <div className="flex flex-wrap items-center justify-between gap-2 border-b border-line px-4 py-3">
@@ -108,24 +108,30 @@ export default function Calendar() {
               return (
                 <button key={i} type="button" onClick={() => setDay(date)} aria-pressed={selected}
                   aria-label={`${date}: ${ev.length} events, ${bk.length} lab bookings`}
-                  className={`group relative flex min-h-24 flex-col gap-1 p-1.5 text-left transition-colors sm:min-h-28 ${border}
+                  className={`group relative flex min-h-16 min-w-0 flex-col gap-1 p-1 text-left transition-colors sm:min-h-28 sm:p-1.5 ${border}
                     ${selected ? 'bg-accent/5 ring-2 ring-inset ring-accent' : weekend ? 'bg-chalk/40 hover:bg-chalk' : 'hover:bg-chalk/70'}`}>
-                  <div className="flex items-center justify-between">
+                  <div className="flex items-center justify-center sm:justify-between">
                     <span className={`inline-grid h-6 min-w-6 place-items-center rounded-full px-1 text-xs ${date === today ? 'bg-accent font-semibold text-white' : selected ? 'font-semibold text-accent' : 'text-ink'}`}>{d}</span>
-                    {bk.length > 0 && <span className="text-[10px] font-medium text-muted">{bk.length} use{bk.length > 1 ? 's' : ''}</span>}
+                    {bk.length > 0 && <span className="hidden text-[10px] font-medium text-muted sm:inline">{bk.length} use{bk.length > 1 ? 's' : ''}</span>}
                   </div>
+                  {/* phones: a dot per event; larger screens: the event names */}
+                  {ev.length > 0 && (
+                    <span className="flex justify-center gap-0.5 sm:hidden" aria-hidden>
+                      {ev.slice(0, 3).map((e) => <span key={e.id} className={`h-1.5 w-1.5 rounded-full ${TYPE_DOT[e.event_type]}`} />)}
+                    </span>
+                  )}
                   {ev.slice(0, 2).map((e) => (
                     <span key={e.id} title={e.description ?? e.title}
-                      className={`truncate rounded border-l-2 px-1.5 py-0.5 text-[11px] font-medium ${TYPE_STYLE[e.event_type]}`}>{e.title}</span>
+                      className={`hidden truncate rounded border-l-2 px-1.5 py-0.5 text-[11px] font-medium sm:block ${TYPE_STYLE[e.event_type]}`}>{e.title}</span>
                   ))}
-                  {ev.length > 2 && <span className="px-1 text-[10px] text-muted">+{ev.length - 2} more</span>}
+                  {ev.length > 2 && <span className="hidden px-1 text-[10px] text-muted sm:inline">+{ev.length - 2} more</span>}
                   {/* How busy each lab is that day (share of 7 AM – 9 PM booked) */}
                   {bk.length > 0 && (
-                    <div className="mt-auto grid gap-0.5">
+                    <div className="mt-auto grid w-full gap-0.5">
                       {labList.map((l) => {
                         const h = bk.filter((r) => r.lab_id === l.id).reduce((s, r) => s + hours(r.end_time) - hours(r.start_time), 0);
                         return h > 0 && (
-                          <div key={l.id} className="h-1.5 overflow-hidden rounded-full bg-line/60" title={`${labShort(l.id)}: ${Math.round(h * 10) / 10} h booked`}>
+                          <div key={l.id} className="h-1 overflow-hidden rounded-full bg-line/60 sm:h-1.5" title={`${labShort(l.id)}: ${Math.round(h * 10) / 10} h booked`}>
                             <div className="h-full rounded-full" style={{ width: `${Math.min(100, (h / (DAY_END - DAY_START)) * 100)}%`, background: labColor(l.id) }} />
                           </div>
                         );

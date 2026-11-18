@@ -215,6 +215,8 @@ function ProfileModal({ p, canChangeRole, onClose, onSave }:
 
 const blank: StudentInput = { student_id: '', full_name: '', email: '', course: 'BSIT', section: '', year_level: '1st Year', phone: null, address: null, sex: null, status: 'Enrolled' };
 
+const PAGE = 50; // students shown at a time (Show more loads the next 50)
+
 const STATUS_STYLE: Record<StudentStatus, string> = {
   Enrolled: 'bg-emerald-50 text-emerald-800 border-emerald-200',
   Inactive: 'bg-slate-100 text-slate-700 border-slate-200',
@@ -228,11 +230,13 @@ function Students({ q }: { q: string }) {
   const [course, setCourse] = useState('');
   const [year, setYear] = useState('');
   const [status, setStatus] = useState('');
+  const [limit, setLimit] = useState(PAGE);
   const [error, setError] = useState<string | null>(null);
   const all = list.data ?? [];
   const rows = all.filter((s) => (!course || s.course === course) && (!year || s.year_level === year) && (!status || (s.status ?? 'Enrolled') === status)
     && match(q, s.full_name, s.email, s.student_id, s.section))
     .sort((a, b) => a.year_level.localeCompare(b.year_level) || a.student_id.localeCompare(b.student_id));
+  const shown = rows.slice(0, limit);
 
   // Enrollment summary for the selected course (compare against the registrar's list).
   const scope = all.filter((s) => (!course || s.course === course) && (s.status ?? 'Enrolled') === 'Enrolled');
@@ -255,7 +259,7 @@ function Students({ q }: { q: string }) {
       {summary.length > 0 && (
         <Panel className="mb-4">
           <div className="overflow-x-auto">
-            <table className="w-full min-w-[28rem] text-sm">
+            <table className="w-full text-sm">
               <thead className="border-b border-line text-left text-muted">
                 <tr>{['Enrolled' + (course ? ` ${course}` : ''), 'Male', 'Female', 'Total'].map((h) => <th key={h} className="px-4 py-2 font-medium">{h}</th>)}</tr>
               </thead>
@@ -293,14 +297,38 @@ function Students({ q }: { q: string }) {
       </div>
       {error && <div className="mb-4"><Alert>{error}</Alert></div>}
       <Panel>
-        {rows.length === 0 ? <Empty>{list.loading ? 'Loading…' : 'No students found. Add one to get started.'}</Empty> : (
-          <div className="overflow-x-auto">
+        {rows.length === 0 ? <Empty>{list.loading ? 'Loading…' : 'No students found. Add one to get started.'}</Empty> : (<>
+          {/* phones: one compact card per student */}
+          <ul className="divide-y divide-line sm:hidden">
+            {shown.map((s) => {
+              const st = s.status ?? 'Enrolled';
+              return (
+                <li key={s.id} className="flex items-start gap-3 px-4 py-3">
+                  <div className="min-w-0 flex-1">
+                    <p className="truncate font-medium">{s.full_name}</p>
+                    <p className="text-xs text-muted">
+                      <span className="font-cond font-semibold text-ink">{s.student_id}</span> · {s.course} {s.year_level.replace(' Year', ' yr')} {s.section}{s.sex ? ` · ${s.sex}` : ''}
+                    </p>
+                    <select value={st} onChange={(e) => changeStatus(s, e.target.value as StudentStatus)} aria-label={`Status of ${s.full_name}`}
+                      className={`mt-1.5 rounded-full border px-2 py-0.5 text-xs font-semibold ${STATUS_STYLE[st]}`}>
+                      {STUDENT_STATUSES.map((x) => <option key={x}>{x}</option>)}
+                    </select>
+                  </div>
+                  <div className="flex shrink-0 flex-col items-end gap-1">
+                    <Button size="sm" variant="ghost" onClick={() => setEdit(s)}>Edit</Button>
+                    <Button size="sm" variant="quiet" onClick={() => remove(s)}>Delete</Button>
+                  </div>
+                </li>
+              );
+            })}
+          </ul>
+          <div className="hidden overflow-x-auto sm:block">
             <table className="w-full min-w-[48rem] text-sm">
               <thead className="border-b border-line text-left text-muted">
                 <tr>{['Student ID', 'Name', 'Course', 'Year', 'Section', 'Sex', 'Status', ''].map((h) => <th key={h} className="px-4 py-2.5 font-medium">{h}</th>)}</tr>
               </thead>
               <tbody className="divide-y divide-line">
-                {rows.map((s) => {
+                {shown.map((s) => {
                   const st = s.status ?? 'Enrolled';
                   return (
                     <tr key={s.id}>
@@ -326,7 +354,12 @@ function Students({ q }: { q: string }) {
               </tbody>
             </table>
           </div>
-        )}
+          {rows.length > shown.length && (
+            <button onClick={() => setLimit(limit + PAGE)} className="w-full border-t border-line py-3 text-sm font-medium text-accent hover:bg-chalk">
+              Show {Math.min(PAGE, rows.length - shown.length)} more of {rows.length - shown.length}
+            </button>
+          )}
+        </>)}
       </Panel>
       {edit && <StudentModal s={edit} onClose={() => setEdit(null)}
         onSave={async (x) => { await api.saveStudent(x); setEdit(null); await list.reload(); }} />}

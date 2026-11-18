@@ -33,7 +33,7 @@ export default function StudentHome() {
     <div className="mx-auto max-w-3xl">
       <PageHeader title={`Hi, ${profile?.full_name.split(' ')[0] ?? 'there'}`} sub={section ? `${section} · student` : 'Student account'} />
 
-      <div className="grid gap-4 md:grid-cols-2">
+      <div className="grid grid-cols-1 items-start gap-4 md:grid-cols-2">
         <Panel className="p-5">
           <p className="flex items-center gap-2 text-sm font-semibold text-muted"><MonitorCheck size={16} />Your seat</p>
           {seat.data ? (
@@ -54,7 +54,8 @@ export default function StudentHome() {
         </Panel>
 
         <Panel className="p-5">
-          <p className="flex items-center gap-2 text-sm font-semibold text-muted"><CalendarClock size={16} />Lab classes today</p>
+          <p className="flex items-center gap-2 text-sm font-semibold text-muted"><CalendarClock size={16} />{section ? `${section} lab classes today` : 'Lab classes today · all sections'}</p>
+          {!section && <p className="mt-1 text-xs text-muted">Your account isn't linked to a student record yet, so every class is shown. Ask the lab office to add your record.</p>}
           {today.length === 0 ? <p className="mt-2 text-sm text-muted">No lab classes today.</p> : (
             <ul className="mt-2 grid gap-2">
               {today.map((c) => (
