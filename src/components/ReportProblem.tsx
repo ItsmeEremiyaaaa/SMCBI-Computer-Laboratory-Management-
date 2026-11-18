@@ -48,8 +48,7 @@ export default function ReportProblem({ pcId, pcLabel, onDone }: { pcId: string;
             <Textarea value={note} onChange={(e) => setNote(e.target.value)} rows={2} maxLength={200} placeholder="e.g. Screen stays black after turning on" />
           </Field>
           <p className="text-xs text-muted">Staff check reports and mark the PC broken if needed. You can only have one open report per PC.</p>
-          <div className="flex justify-end gap-2">
-            <Button type="button" variant="ghost" onClick={close}>Cancel</Button>
+          <div className="flex justify-end">
             <Button type="button" disabled={busy} onClick={send}>{busy ? 'Sending…' : 'Send report'}</Button>
           </div>
         </div>

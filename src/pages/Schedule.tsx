@@ -136,7 +136,7 @@ function ScheduleModal({ s, labs, onClose, onSave }:
           <Field label="First day"><Input type="date" value={f.starts_on} onChange={set('starts_on')} /></Field>
           <Field label="Last day"><Input type="date" value={f.ends_on} onChange={set('ends_on')} /></Field>
         </div>
-        <div className="flex justify-end gap-2"><Button type="button" variant="ghost" onClick={onClose}>Cancel</Button><Button>Save class</Button></div>
+        <div className="flex justify-end"><Button>Save class</Button></div>
       </form>
     </Modal>
   );

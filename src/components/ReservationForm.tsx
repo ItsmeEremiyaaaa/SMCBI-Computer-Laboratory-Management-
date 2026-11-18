@@ -163,7 +163,6 @@ export default function ReservationForm({ labs: allLabs, pcs, initial, onSubmit,
       </div>
       <div className="flex items-center justify-end gap-2">
         <p className="mr-auto text-xs text-muted"><span className="text-broken">*</span> required</p>
-        <Button type="button" variant="ghost" onClick={onCancel}>Cancel</Button>
         <Button disabled={busy}>{busy ? 'Sending…' : 'Send request'}</Button>
       </div>
     </form>

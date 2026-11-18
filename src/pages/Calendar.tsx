@@ -261,7 +261,7 @@ function EventModal({ e, onClose, onSave, onDelete }:
         {e.id && <p className="text-xs text-muted">Scheduled {fmtDate(e.event_date)}.</p>}
         <div className="flex justify-between gap-2">
           {onDelete ? <Button type="button" variant="quiet" onClick={() => askConfirm({ title: 'Delete this event?', message: 'It moves to the Archive, where an admin can restore it.', confirmLabel: 'Delete', danger: true }).then((ok) => { if (ok) onDelete(); })}>Delete event</Button> : <span />}
-          <div className="flex gap-2"><Button type="button" variant="ghost" onClick={onClose}>Cancel</Button><Button>Save event</Button></div>
+          <Button>Save event</Button>
         </div>
       </form>
     </Modal>

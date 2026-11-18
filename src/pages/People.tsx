@@ -243,7 +243,7 @@ function ProfileModal({ p, canChangeRole, onClose, onSave }:
           <Field label="Phone"><Input value={f.phone} onChange={set('phone')} inputMode="numeric" maxLength={11} /></Field>
           <Field label="Address"><Input value={f.address} onChange={set('address')} /></Field>
         </div>
-        <div className="flex justify-end gap-2"><Button type="button" variant="ghost" onClick={onClose}>Cancel</Button><Button>Save changes</Button></div>
+        <div className="flex justify-end"><Button>Save changes</Button></div>
       </form>
     </Modal>
   );
@@ -445,7 +445,7 @@ function StudentModal({ s, onClose, onSave }: { s: StudentInput; onClose: () => 
           <Field label="Phone"><Input value={f.phone ?? ''} onChange={set('phone')} inputMode="numeric" maxLength={11} /></Field>
           <Field label="Address"><Input value={f.address ?? ''} onChange={set('address')} /></Field>
         </div>
-        <div className="flex justify-end gap-2"><Button type="button" variant="ghost" onClick={onClose}>Cancel</Button><Button>Save student</Button></div>
+        <div className="flex justify-end"><Button>Save student</Button></div>
       </form>
     </Modal>
   );

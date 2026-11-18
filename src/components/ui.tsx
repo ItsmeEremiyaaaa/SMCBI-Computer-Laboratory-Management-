@@ -136,7 +136,7 @@ export function ConfirmHost() {
   }, []);
   const done = (ok: boolean) => { q?.resolve(ok); setQ(null); };
   return (
-    <Modal open={!!q} title={q?.title ?? ''} onClose={() => done(false)}>
+    <Modal open={!!q} title={q?.title ?? ''} onClose={() => done(false)} hideClose>
       <p className="text-sm text-muted">{q?.message}</p>
       <div className="mt-5 flex justify-end gap-2">
         <Button type="button" variant="ghost" onClick={() => done(false)}>Cancel</Button>
@@ -146,7 +146,7 @@ export function ConfirmHost() {
   );
 }
 
-export function Modal({ open, title, onClose, children, wide = false }: { open: boolean; title: string; onClose: () => void; children: ReactNode; wide?: boolean }) {
+export function Modal({ open, title, onClose, children, wide = false, hideClose = false }: { open: boolean; title: string; onClose: () => void; children: ReactNode; wide?: boolean; hideClose?: boolean }) {
   const ref = useRef<HTMLDialogElement>(null);
   useEffect(() => {
     const d = ref.current;
@@ -164,7 +164,9 @@ export function Modal({ open, title, onClose, children, wide = false }: { open: 
       <div className="mx-auto mt-2 h-1 w-10 rounded-full bg-line sm:hidden" aria-hidden />
       <div className="flex items-center justify-between gap-3 border-b border-line px-4 py-3 sm:px-5">
         <h2 className="min-w-0 truncate font-semibold">{title}</h2>
-        <button onClick={onClose} aria-label="Close" className="shrink-0 rounded p-1 text-muted hover:bg-chalk"><X size={18} /></button>
+        {!hideClose && (
+          <button onClick={onClose} aria-label="Close" className="shrink-0 rounded p-1 text-muted hover:bg-chalk"><X size={18} /></button>
+        )}
       </div>
       <div className="max-h-[80dvh] overflow-y-auto p-4 pb-[max(1rem,env(safe-area-inset-bottom))] sm:max-h-[75vh] sm:p-5">{children}</div>
     </dialog>
