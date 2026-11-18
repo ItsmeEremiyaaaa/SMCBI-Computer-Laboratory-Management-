@@ -3,7 +3,7 @@ import { NavLink, Outlet, useLocation } from 'react-router-dom';
 import NotificationBell from './NotificationBell';
 import StudentBell from './StudentBell';
 import { Archive, Box, CalendarClock, CalendarDays, ClipboardList, LayoutGrid, LogOut, Menu, PanelLeftClose, PanelLeftOpen, QrCode, Users, X } from 'lucide-react';
-import { Crest } from './ui';
+import { Crest, useExclusive } from './ui';
 import IntroSplash from './IntroSplash';
 import { useAuth } from '../auth';
 import { api, type Stats } from '../lib/api';
@@ -48,6 +48,7 @@ export default function Layout() {
   const isLabs = pathname.startsWith('/labs');
 
   useEffect(() => setOpen(false), [pathname]);
+  useExclusive(open, () => setOpen(false));
   useEffect(() => {
     if (profile?.role !== 'admin' && profile?.role !== 'staff') return;
     const load = () => api.stats().then(setStats).catch(() => {});

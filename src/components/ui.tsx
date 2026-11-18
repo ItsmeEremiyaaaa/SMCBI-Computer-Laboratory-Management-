@@ -1,4 +1,4 @@
-import { useEffect, useRef, type ButtonHTMLAttributes, type InputHTMLAttributes, type ReactNode, type SelectHTMLAttributes, type TextareaHTMLAttributes } from 'react';
+import { useEffect, useId, useRef, type ButtonHTMLAttributes, type InputHTMLAttributes, type ReactNode, type SelectHTMLAttributes, type TextareaHTMLAttributes } from 'react';
 import { X, type LucideIcon } from 'lucide-react';
 import type { ResStatus, ShownStatus } from '../lib/types';
 
@@ -98,6 +98,20 @@ export function Empty({ children }: { children: ReactNode }) {
 
 export function Alert({ children }: { children: ReactNode }) {
   return <p role="alert" className="rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-800">{children}</p>;
+}
+
+// Only one floating panel at a time (menu, bells, PC card…): opening one closes the others.
+export function useExclusive(open: boolean, close: () => void) {
+  const id = useId();
+  const closeRef = useRef(close);
+  closeRef.current = close;
+  useEffect(() => {
+    if (!open) return;
+    window.dispatchEvent(new CustomEvent('comlab:overlay', { detail: id }));
+    const other = (e: Event) => { if ((e as CustomEvent<string>).detail !== id) closeRef.current(); };
+    window.addEventListener('comlab:overlay', other);
+    return () => window.removeEventListener('comlab:overlay', other);
+  }, [open, id]);
 }
 
 export function Modal({ open, title, onClose, children }: { open: boolean; title: string; onClose: () => void; children: ReactNode }) {

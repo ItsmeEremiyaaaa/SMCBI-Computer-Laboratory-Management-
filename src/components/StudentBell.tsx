@@ -5,7 +5,7 @@ import { useAuth } from '../auth';
 import { api } from '../lib/api';
 import { classesOn, manilaNow } from '../lib/seat';
 import { sectionOf } from '../pages/StudentHome';
-import { fmtDate, fmtTime } from './ui';
+import { fmtDate, fmtTime, useExclusive } from './ui';
 
 const SEEN_KEY = 'comlab-student-bell-seen';
 const LAB_SHORT: Record<string, string> = { lab1: 'ComLab 1', lab2: 'ComLab 2', netlab: 'NetLab' };
@@ -78,6 +78,7 @@ export default function StudentBell() {
   const [open, setOpen] = useState(false);
   const [notes, setNotes] = useState<Note[]>([]);
   const [seen, setSeen] = useState(lastSeen);
+  useExclusive(open, () => setOpen(false));
   const box = useRef<HTMLDivElement>(null);
 
   const load = useCallback(async () => {

@@ -4,7 +4,7 @@ import { Bell, ClipboardList, MonitorX, TriangleAlert, UserPlus } from 'lucide-r
 import { useAuth } from '../auth';
 import { api } from '../lib/api';
 import type { Pc, PcReport, Profile, Reservation } from '../lib/types';
-import { fmtDate, fmtTime } from './ui';
+import { fmtDate, fmtTime, useExclusive } from './ui';
 
 const LAB_SHORT: Record<string, string> = { lab1: 'ComLab 1', lab2: 'ComLab 2', netlab: 'NetLab' };
 const peopleTab = (p: Profile) => (p.role === 'student' ? 'accounts' : p.role === 'staff' ? 'staff' : 'teachers');
@@ -44,6 +44,7 @@ export default function NotificationBell({ count, className = '' }: { count: num
   }, [open, isAdmin]);
 
   const done = () => setOpen(false);
+  useExclusive(open, done);
   const empty = data && !data.accounts.length && !data.reports.length && !data.requests.length && !data.broken.length;
   const pcLabel = (id: string) => data?.pcs.find((p) => p.id === id)?.label ?? id;
 

@@ -18,7 +18,7 @@ import { isoWeekday, manilaNow } from '../lib/seat';
 import PcPanel from '../components/PcPanel';
 import SeatGrid from '../components/SeatGrid';
 import SceneBoundary from '../components/SceneBoundary';
-import { Alert, Button, Led, Modal, STATUS_LABEL, STATUSES } from '../components/ui';
+import { Alert, Button, Led, Modal, STATUS_LABEL, STATUSES, useExclusive } from '../components/ui';
 import type { SimMode } from '../components/LabCharacters3D';
 import type { Student } from '../lib/types';
 import { effectiveStatuses, studentsInSection } from '../lib/rules';
@@ -257,7 +257,12 @@ export default function Labs3D() {
     [pcs, effectiveSimMode, classStudents, checkedIn],
   );
 
-  const selected = displayedPcs.find((p) => p.id === selectedId);
+  // keep showing the PC while the live list briefly reloads (otherwise the card would close after an action)
+  const lastSelected = useRef<(typeof displayedPcs)[number] | undefined>(undefined);
+  const selected = displayedPcs.find((p) => p.id === selectedId) ?? (lastSelected.current?.id === selectedId ? lastSelected.current : undefined);
+  lastSelected.current = selected;
+  useExclusive(!!selected, () => setSelectedId(null));
+  useExclusive(!!studentPick, () => setStudentPick(null));
   const counts = Object.fromEntries(STATUSES.map((s) => [s, displayedPcs.filter((p) => p.shown === s).length]));
 
   // Awareness modal: automatically display on first visit (persists in localStorage)
