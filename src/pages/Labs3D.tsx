@@ -2,11 +2,16 @@ import { lazy, Suspense, useEffect, useMemo, useRef, useState } from 'react';
 import { NavLink, useParams } from 'react-router-dom';
 import {
   Box,
-  Compass,
+  CircleDashed,
+  CircleHelp,
+  DoorOpen,
+  Footprints,
   Grid3x3,
+  MonitorPlay,
   MousePointerClick,
   Move3d,
   RotateCcw,
+  Timer,
   ZoomIn,
 } from 'lucide-react';
 import { useAuth } from '../auth';
@@ -32,6 +37,16 @@ function labDisplayName(name?: string, id?: string) {
   if (id === 'netlab' || name?.toLowerCase().includes('netlab') || name?.toLowerCase().includes('networking')) return 'Networking Laboratory';
   return name ?? '';
 }
+
+const labShortName = (name?: string, id?: string) =>
+  ({ 'Computer Laboratory 1': 'ComLab 1', 'Computer Laboratory 2': 'ComLab 2', 'Networking Laboratory': 'NetLab' } as Record<string, string>)[labDisplayName(name, id)] ?? name ?? '';
+
+const SIM_BUTTONS = [
+  ['walk_in', Footprints, 'Walk in', 'Simulate students entering 1 by 1 and sitting at workstations'],
+  ['in_session', MonitorPlay, 'In session', 'Simulate active class with all students seated working'],
+  ['walk_out', DoorOpen, 'Dismiss', 'Simulate class dismissal: students leave 1 by 1'],
+  ['empty', CircleDashed, 'Empty', 'Simulate an empty laboratory'],
+] as const satisfies readonly (readonly [SimMode, unknown, string, string])[];
 
 // Centered SMCBI Loading Animation with smooth circular reveal transition matching the web intro
 function LabLoadingOverlay({ labName, ready }: { labName?: string; ready: boolean }) {
@@ -247,7 +262,7 @@ export default function Labs3D() {
   useEffect(() => {
     setSceneReady(false);
     // Safety timer: automatically unveil if render takes longer than 2.2s
-    const safety = setTimeout(() => setSceneReady(true), 2200);
+    const safety = setTimeout(() => setSceneReady(true), 6000); // last resort only; normally the scene reports ready once settled
     return () => clearTimeout(safety);
   }, [lab?.id, mode]);
 
@@ -256,162 +271,101 @@ export default function Labs3D() {
       {/* Centered SMCBI Loading Animation Overlay */}
       <LabLoadingOverlay labName={lab?.name} ready={sceneReady} />
 
-      {/* Floating top-left Lab Switcher & View Mode */}
-      <div className="absolute left-4 top-4 z-20 flex flex-wrap items-center gap-2 rounded-xl border border-line/60 bg-panel/90 p-1 shadow-md backdrop-blur">
-        <nav className="flex flex-wrap gap-1" aria-label="Choose lab">
-          {labs.data?.map((l) => (
-            <NavLink key={l.id} to={`/labs/${l.id}`} onClick={() => setSelectedId(null)}
-              className={() => `rounded-lg px-3 py-1.5 text-xs font-semibold transition-all ${l.id === lab?.id ? 'bg-accent text-white shadow-sm' : 'text-muted hover:text-ink'}`}>
-              {labDisplayName(l.name, l.id)}
-            </NavLink>
-          ))}
-        </nav>
-        <div className="h-4 w-px bg-line" />
-        <div className="flex gap-1" role="group" aria-label="View">
-          <button onClick={() => setMode('3d')} disabled={!hasWebGL} aria-pressed={mode === '3d'}
-            className={`flex items-center gap-1.5 rounded-lg px-2.5 py-1.5 text-xs font-medium transition-all ${mode === '3d' ? 'bg-chalk text-ink font-semibold shadow-xs' : 'text-muted hover:text-ink'} disabled:opacity-40`}>
-            <Box size={14} />3D</button>
-          <button onClick={() => setMode('2d')} aria-pressed={mode === '2d'}
-            className={`flex items-center gap-1.5 rounded-lg px-2.5 py-1.5 text-xs font-medium transition-all ${mode === '2d' ? 'bg-chalk text-ink font-semibold shadow-xs' : 'text-muted hover:text-ink'}`}>
-            <Grid3x3 size={14} />Floor plan</button>
-        </div>
-      </div>
-
-      {/* Realtime Laboratory Monitoring Pill */}
-      <div className="absolute left-4 top-16 z-20 flex max-w-[calc(100%-2rem)] flex-wrap items-center gap-2.5 rounded-xl border border-line/60 bg-panel/95 px-3 py-1.5 shadow-md backdrop-blur">
-        <div className="flex items-center gap-2 text-xs">
-          {upcomingClassSchedule ? (
-            <>
-              <span className="relative flex h-2.5 w-2.5">
-                <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-amber-400 opacity-75" />
-                <span className="relative inline-flex h-2.5 w-2.5 rounded-full bg-amber-500" />
-              </span>
-              <span className="font-semibold text-ink">
-                Students Arriving: {upcomingClassSchedule.section} · {upcomingClassSchedule.subject} (Starts {upcomingClassSchedule.start_time})
-              </span>
-              {upcomingClassSchedule.instructor && (
-                <span className="hidden text-muted md:inline">({upcomingClassSchedule.instructor})</span>
-              )}
-            </>
-          ) : isClassInSession ? (
-            <>
-              <span className="relative flex h-2.5 w-2.5">
-                <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-blue-400 opacity-75" />
-                <span className="relative inline-flex h-2.5 w-2.5 rounded-full bg-blue-500" />
-              </span>
-              <span className="font-semibold text-ink">
-                Class in Session: {activeClassDetails ? `${activeClassDetails.section} · ${activeClassDetails.subject}` : 'Laboratory In Use'}
-              </span>
-              {activeClassDetails?.instructor && (
-                <span className="hidden text-muted md:inline">({activeClassDetails.instructor})</span>
-              )}
-            </>
-          ) : (
-            <>
-              <span className="h-2.5 w-2.5 rounded-full bg-emerald-500" />
-              <span className="font-semibold text-ink">Laboratory Available</span>
-              <span className="text-muted text-[11px]">(No active class scheduled)</span>
-            </>
-          )}
+      {/* Top toolbar: lab + view switcher, then live class status, PC counts and simulation controls */}
+      <div className="absolute left-4 top-4 z-20 flex max-w-[calc(100%-2rem)] flex-col items-start gap-2">
+        <div className="flex flex-wrap items-center gap-1 rounded-2xl bg-slate-900/80 p-1 text-white shadow-lg ring-1 ring-white/10 backdrop-blur-md">
+          <nav className="flex gap-1" aria-label="Choose lab">
+            {labs.data?.map((l) => (
+              <NavLink key={l.id} to={`/labs/${l.id}`} onClick={() => setSelectedId(null)}
+                title={labDisplayName(l.name, l.id)}
+                className={() => `rounded-xl px-3.5 py-1.5 text-xs font-semibold transition-all ${l.id === lab?.id ? 'bg-white text-slate-900 shadow' : 'text-white/70 hover:bg-white/10 hover:text-white'}`}>
+                {labShortName(l.name, l.id)}
+              </NavLink>
+            ))}
+          </nav>
+          <div className="mx-1 h-5 w-px bg-white/20" />
+          <div className="flex gap-1" role="group" aria-label="View">
+            {([['3d', Box, '3D'], ['2d', Grid3x3, 'Floor plan']] as const).map(([m, Icon, label]) => (
+              <button key={m} onClick={() => setMode(m)} disabled={m === '3d' && !hasWebGL} aria-pressed={mode === m}
+                className={`flex items-center gap-1.5 rounded-xl px-3 py-1.5 text-xs font-semibold transition-all disabled:opacity-40 ${mode === m ? 'bg-accent text-white shadow' : 'text-white/70 hover:bg-white/10 hover:text-white'}`}>
+                <Icon size={14} />{label}
+              </button>
+            ))}
+          </div>
         </div>
 
-        <div className="hidden h-3.5 w-px bg-line sm:block" />
+        <div className="flex max-w-full flex-wrap items-center gap-x-3 gap-y-2 rounded-2xl border border-line/60 bg-panel/95 px-3 py-2 shadow-lg backdrop-blur-md">
+          {/* Class status */}
+          <div className="flex min-w-0 items-center gap-2.5">
+            <span className="relative flex h-2.5 w-2.5 shrink-0">
+              {(upcomingClassSchedule || isClassInSession) && (
+                <span className={`absolute inline-flex h-full w-full animate-ping rounded-full opacity-75 ${upcomingClassSchedule ? 'bg-amber-400' : 'bg-blue-400'}`} />
+              )}
+              <span className={`relative inline-flex h-2.5 w-2.5 rounded-full ${upcomingClassSchedule ? 'bg-amber-500' : isClassInSession ? 'bg-blue-500' : 'bg-emerald-500'}`} />
+            </span>
+            <div className="min-w-0 leading-tight">
+              <p className="text-[10px] font-semibold uppercase tracking-wider text-muted">
+                {upcomingClassSchedule ? `Students arriving · starts ${upcomingClassSchedule.start_time}` : isClassInSession ? 'Class in session' : 'Available'}
+              </p>
+              <p className="truncate text-xs font-semibold text-ink">
+                {upcomingClassSchedule
+                  ? `${upcomingClassSchedule.section} · ${upcomingClassSchedule.subject}`
+                  : isClassInSession
+                    ? (activeClassDetails ? `${activeClassDetails.section} · ${activeClassDetails.subject}` : 'Laboratory in use')
+                    : 'No active class scheduled'}
+                {(upcomingClassSchedule ?? activeClassDetails)?.instructor && (
+                  <span className="font-normal text-muted"> — {(upcomingClassSchedule ?? activeClassDetails)?.instructor}</span>
+                )}
+              </p>
+            </div>
+          </div>
 
-        {/* Live Workstation Status Counts inside Laboratory Availability Panel */}
-        <ul className="flex items-center gap-2.5 text-xs">
-          {STATUSES.map((s) => (
-            <li key={s} className="flex items-center gap-1.5 font-medium text-muted">
-              <Led status={s} />
-              <span className="hidden md:inline">{STATUS_LABEL[s]}</span>
-              <b className="font-semibold text-ink">{counts[s]}</b>
-            </li>
-          ))}
-        </ul>
+          <div className="hidden h-7 w-px bg-line sm:block" />
 
-        <div className="hidden h-3.5 w-px bg-line sm:block" />
+          {/* Live workstation counts */}
+          <ul className="flex flex-wrap items-center gap-1.5 text-xs">
+            {STATUSES.map((s) => (
+              <li key={s} title={STATUS_LABEL[s]} className="flex items-center gap-1.5 rounded-full bg-chalk px-2.5 py-1 font-medium text-muted">
+                <Led status={s} />
+                <span className="hidden md:inline">{STATUS_LABEL[s]}</span>
+                <b className="font-semibold text-ink">{counts[s]}</b>
+              </li>
+            ))}
+          </ul>
 
-        {/* Quality of Life Animated Simulation Controls */}
-        <div className="flex flex-wrap items-center gap-1">
-          <button
-            onClick={() => setUserSimOverride('walk_in')}
-            className={`flex items-center gap-1 rounded-lg px-2 py-0.5 text-[11px] font-medium transition-all ${
-              effectiveSimMode === 'walk_in' && userSimOverride !== null
-                ? 'bg-accent text-white shadow-xs font-semibold'
-                : 'text-muted hover:bg-chalk hover:text-ink'
-            }`}
-            title="Simulate students entering strictly 1 by 1 in single file and sitting at workstations"
-          >
-            <span>🚶</span>
-            <span>Simulate Walk In</span>
-          </button>
+          <div className="hidden h-7 w-px bg-line sm:block" />
 
-          <button
-            onClick={() => setUserSimOverride('in_session')}
-            className={`flex items-center gap-1 rounded-lg px-2 py-0.5 text-[11px] font-medium transition-all ${
-              effectiveSimMode === 'in_session' && userSimOverride !== null
-                ? 'bg-accent text-white shadow-xs font-semibold'
-                : 'text-muted hover:bg-chalk hover:text-ink'
-            }`}
-            title="Simulate active class with all students seated working"
-          >
-            <span>💻</span>
-            <span>Simulate In Session</span>
-          </button>
-
-          <button
-            onClick={() => setUserSimOverride('walk_out')}
-            className={`flex items-center gap-1 rounded-lg px-2 py-0.5 text-[11px] font-medium transition-all ${
-              effectiveSimMode === 'walk_out' && userSimOverride !== null
-                ? 'bg-accent text-white shadow-xs font-semibold'
-                : 'text-muted hover:bg-chalk hover:text-ink'
-            }`}
-            title="Simulate class dismissal: students leave strictly 1 by 1 in single file"
-          >
-            <span>🚪</span>
-            <span>Simulate Dismissal</span>
-          </button>
-
-          <button
-            onClick={() => setUserSimOverride('empty')}
-            className={`flex items-center gap-1 rounded-lg px-2 py-0.5 text-[11px] font-medium transition-all ${
-              effectiveSimMode === 'empty' && userSimOverride !== null
-                ? 'bg-accent text-white shadow-xs font-semibold'
-                : 'text-muted hover:bg-chalk hover:text-ink'
-            }`}
-            title="Simulate empty laboratory with workstations available"
-          >
-            <span>🟢</span>
-            <span>Empty</span>
-          </button>
-
-          {userSimOverride !== null && (
-            <button
-              onClick={() => setUserSimOverride(null)}
-              className="ml-0.5 rounded-lg border border-accent/40 bg-accent-soft px-2 py-0.5 text-[11px] font-semibold text-accent hover:bg-accent hover:text-white transition-all shadow-xs"
-              title="Reset to real Philippine Manila timetable (auto-syncs students and single teacher)"
-            >
-              ⏱️ Reset to Realtime
+          {/* Simulation controls */}
+          <div className="flex flex-wrap items-center gap-1">
+            <div className="flex gap-0.5 rounded-xl bg-chalk p-0.5" role="group" aria-label="Simulate">
+              {SIM_BUTTONS.map(([m, Icon, label, hint]) => (
+                <button key={m} onClick={() => setUserSimOverride(m)} title={hint}
+                  aria-pressed={effectiveSimMode === m && userSimOverride !== null}
+                  className={`flex items-center gap-1 rounded-lg px-2 py-1 text-[11px] font-medium transition-all ${
+                    effectiveSimMode === m && userSimOverride !== null ? 'bg-accent text-white shadow-sm' : 'text-muted hover:bg-panel hover:text-ink'
+                  }`}>
+                  <Icon size={13} />
+                  <span className="hidden lg:inline">{label}</span>
+                </button>
+              ))}
+            </div>
+            {userSimOverride !== null && (
+              <button onClick={() => setUserSimOverride(null)}
+                className="flex items-center gap-1 rounded-lg border border-accent/40 bg-accent-soft px-2 py-1 text-[11px] font-semibold text-accent transition-all hover:bg-accent hover:text-white"
+                title="Reset to real Philippine Manila timetable (auto-syncs students and single teacher)">
+                <Timer size={13} />Live
+              </button>
+            )}
+            <button onClick={() => setShowGuideModal(true)} aria-label="3D Controls Guide" title="Open 3D Navigation & Controls Guide"
+              className="grid h-7 w-7 place-items-center rounded-lg text-muted transition-all hover:bg-chalk hover:text-accent active:scale-95">
+              <CircleHelp size={16} />
             </button>
-          )}
+          </div>
         </div>
-
-        <div className="hidden h-3.5 w-px bg-line sm:block" />
-
-        {/* 3D Controls Guide Button inside Laboratory Availability Panel */}
-        <button
-          onClick={() => setShowGuideModal(true)}
-          className="flex items-center gap-1.5 rounded-lg border border-line/60 bg-chalk/60 px-2 py-0.5 text-[11px] font-medium text-ink transition-all hover:bg-chalk hover:border-line hover:text-accent shadow-2xs active:scale-95"
-          aria-label="3D Controls Guide"
-          title="Open 3D Navigation & Controls Guide"
-        >
-          <Compass size={13} className="text-accent" />
-          <span className="hidden sm:inline">3D Controls Guide</span>
-          <span className="grid h-3.5 w-3.5 place-items-center rounded-full bg-accent-soft text-[9px] font-bold text-accent">?</span>
-        </button>
       </div>
 
       {(error || labs.error) && (
-        <div className="absolute left-4 top-28 z-20 max-w-md">
+        <div className="absolute left-4 top-36 z-20 max-w-md">
           <Alert>{error || labs.error}</Alert>
         </div>
       )}
@@ -434,14 +388,14 @@ export default function Labs3D() {
                 />
               </Suspense>
             </SceneBoundary>
-          : <div className="h-full w-full overflow-auto p-6 pt-28 pb-24"><SeatGrid lab={lab} pcs={displayedPcs} selectedId={selectedId} onSelect={select} onReady={() => setSceneReady(true)} isOccupied={isClassInSession} classInfo={activeClassSchedule} simMode={effectiveSimMode} teacherName={teacherName} /></div>)}
+          : <div className="h-full w-full overflow-auto p-6 pt-36 pb-24"><SeatGrid lab={lab} pcs={displayedPcs} selectedId={selectedId} onSelect={select} onReady={() => setSceneReady(true)} isOccupied={isClassInSession} classInfo={activeClassSchedule} simMode={effectiveSimMode} teacherName={teacherName} /></div>)}
       </div>
 
 
 
       {/* Floating PC inspection drawer in top-right when a workstation is selected */}
       {selected && lab && (
-        <aside className="absolute right-4 top-16 z-30 w-80 max-w-[calc(100%-2rem)] max-h-[calc(100%-6rem)] overflow-y-auto rounded-2xl border border-line bg-panel/95 shadow-2xl backdrop-blur transition-all">
+        <aside className="absolute right-4 top-20 z-30 w-80 max-w-[calc(100%-2rem)] max-h-[calc(100%-6rem)] overflow-y-auto rounded-2xl border border-line bg-panel/95 shadow-2xl backdrop-blur transition-all">
           <PcPanel pc={selected} lab={lab} canEdit={profile?.role !== 'teacher'} onClose={() => setSelectedId(null)} />
         </aside>
       )}

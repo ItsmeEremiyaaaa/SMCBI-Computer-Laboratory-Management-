@@ -216,22 +216,6 @@ function woodTex() {
   }));
 }
 
-// Yellow arrow band with teal lettering for the back wall (transparent background).
-const wallArtTex = () => paintTex([1024, 256], (ctx, w, h) => {
-  ctx.fillStyle = '#facc15';
-  ctx.beginPath();
-  ctx.moveTo(0, 150); ctx.lineTo(w - 190, 150); ctx.lineTo(w - 190, 60); ctx.lineTo(w, 0);
-  ctx.lineTo(w - 120, 140); ctx.lineTo(w - 160, 230); ctx.lineTo(w - 190, 230); ctx.lineTo(0, 230);
-  ctx.closePath(); ctx.fill();
-  ctx.fillStyle = '#0f9b8e';
-  ctx.font = 'bold 64px Arial Black, Arial, sans-serif';
-  ctx.textBaseline = 'middle';
-  ctx.fillText('CODE. CREATE.', 30, 192);
-  ctx.font = 'bold 38px Arial, sans-serif';
-  ctx.fillText('build things', 520, 172);
-  ctx.fillText('out of NOTHING', 520, 212);
-});
-
 let crackTextureCache: CanvasTexture | null = null;
 
 function getCrackTexture(): CanvasTexture {
@@ -764,12 +748,6 @@ function FrontWallDecor({
         <meshStandardMaterial color="#64748b" />
       </mesh>
 
-      {/* Yellow accent stripe */}
-      <mesh position={[0, 2.95, front + 0.06]}>
-        <boxGeometry args={[w, 0.18, 0.03]} />
-        <meshStandardMaterial color="#facc15" roughness={0.4} />
-      </mesh>
-
       {/* Wall speakers in the upper front corners */}
       {[-1, 1].map((s) => (
         <mesh key={s} position={[s * (w / 2 - 0.5), 2.45, front + 0.16]} castShadow>
@@ -855,7 +833,6 @@ function Room({ lab, w, d, style }: { lab: Lab; w: number; d: number; style: Sty
 
   const floor = useMemo(() => floorTex(w / 0.6, d / 0.6), [w, d]);
   const ceiling = useMemo(() => ceilingTex(w / 0.6, d / 0.6), [w, d]);
-  const art = useMemo(wallArtTex, []);
   // Recessed light panels on a 2.4 m grid
   const lights = useMemo(() => {
     const out: [number, number][] = [];
@@ -896,14 +873,10 @@ function Room({ lab, w, d, style }: { lab: Lab; w: number; d: number; style: Sty
         {wall}
       </mesh>
 
-      {/* Back wall with the yellow arrow graphic */}
+      {/* Back wall */}
       <mesh position={[0, CEIL / 2, back]} receiveShadow>
         <boxGeometry args={[w + 0.1, CEIL, 0.1]} />
         {wall}
-      </mesh>
-      <mesh position={[0, 2.0, back - 0.06]} rotation-y={Math.PI}>
-        <planeGeometry args={[Math.min(w - 1, 9), Math.min(w - 1, 9) / 4]} />
-        <meshStandardMaterial map={art} transparent roughness={0.6} />
       </mesh>
       <mesh position={[0, 0.06, back - 0.06]}>
         <boxGeometry args={[w, 0.12, 0.03]} />
@@ -934,12 +907,11 @@ function Room({ lab, w, d, style }: { lab: Lab; w: number; d: number; style: Sty
         </>
       )}
 
-      {/* ComLab 2: Door to NetLab (front left), Window, Door to ComLab 1 (front right) */}
+      {/* ComLab 2: Door to NetLab (front left) and window */}
       {lab.id === 'lab2' && (
         <>
           <Doorway position={[-w / 2 + 1.25, 0, front + 0.06]} rotationY={0} />
           <FrontWallWindow position={[w / 2 - 3.4, 1.6, front + 0.06]} w={1.8} h={1.4} />
-          <Doorway position={[w / 2 - 1.35, 0, front + 0.06]} rotationY={0} />
         </>
       )}
 
@@ -951,13 +923,13 @@ function Room({ lab, w, d, style }: { lab: Lab; w: number; d: number; style: Sty
   );
 }
 
+// Reports ready only once the orbit controls have aimed the camera and textures/shaders have
+// had a few frames to upload, so the scene is revealed already settled instead of jumping.
 function ReadySignal({ onReady }: { onReady?: () => void }) {
-  const signaled = useRef(false);
-  useFrame(() => {
-    if (!signaled.current) {
-      signaled.current = true;
-      onReady?.();
-    }
+  const frames = useRef(0);
+  useFrame((state) => {
+    if (!state.controls || frames.current > 30) return;
+    if (++frames.current === 30) onReady?.();
   });
   return null;
 }
@@ -1063,9 +1035,8 @@ export default function LabScene({
     <Canvas
       shadows
       dpr={[1, 2]}
-      camera={{ position: [w / 2 - 0.5, CEIL - 0.45, d / 2 - 0.5], fov: 62, near: 0.05 }}
+      camera={{ position: [w / 2 - 0.5, CEIL - 0.45, d / 2 - 0.5], fov: 62, near: 0.1, far: 60 }} // tight near/far keeps depth precise so small parts don't flicker
       onPointerMissed={() => onSelect('')}
-      onCreated={() => onReady?.()}
     >
       <ReadySignal onReady={onReady} />
       <RoomCamera key={lab.id} w={w} d={d} />

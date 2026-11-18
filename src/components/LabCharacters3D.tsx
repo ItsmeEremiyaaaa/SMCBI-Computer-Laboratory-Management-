@@ -633,13 +633,14 @@ function StudentAgent3D({
           </mesh>
           {/* Hair back */}
           <mesh position={[0, -0.02, -0.08]} castShadow>
-            <boxGeometry args={[0.21, 0.18, 0.08]} />
+            {/* hair pieces share one width so their sides never sit a few mm apart (that z-fights / flickers) */}
+            <boxGeometry args={[0.22, 0.18, 0.08]} />
             {hairMat}
           </mesh>
           {/* Female long hair */}
           {!isMale && (
             <mesh position={[0, -0.14, -0.08]} castShadow>
-              <boxGeometry args={[0.23, 0.20, 0.08]} />
+              <boxGeometry args={[0.22, 0.20, 0.08]} />
               {hairMat}
             </mesh>
           )}

@@ -1,7 +1,7 @@
 import { manilaNow } from './seat';
 import { LAYOUTS, seatsFor } from './layouts';
 import { TIMETABLE } from './timetable';
-import type { ClassSchedule, Lab, LabEvent, Pc, Profile, Reservation, Student } from './types';
+import { BSIT_ROSTER, type ClassSchedule, type Lab, type LabEvent, type Pc, type Profile, type Reservation, type Student } from './types';
 
 export interface MockState {
   profiles: Profile[];
@@ -53,11 +53,6 @@ export function seed(): MockState {
     { ...base, id: 'r4', title: 'Office Productivity — BSBA 1C', lab_id: 'lab2', pc_id: null, purpose: 'Spreadsheet lesson', date: tomorrow, start_time: '13:00', end_time: '15:00', requester_id: 'teacher', requester_name: 'Maria Santos', participants: 35, status: 'pending' },
   ];
 
-  const stu = (n: number, full_name: string, course: string, section: string, year_level: string): Student => ({
-    id: `s${n}`, student_id: `2025-${pad(n)}01`, full_name, email: `${full_name.split(' ')[0].toLowerCase()}${n}@smcbi.edu.ph`,
-    course, section, year_level, phone: null, address: null,
-  });
-
   return {
     labs, pcs, reservations,
     profiles: [
@@ -66,17 +61,32 @@ export function seed(): MockState {
       person('teacher', 'Maria Santos', 'teacher', true, 'BSIT'),
       person('newteacher', 'Carlo Dizon', 'teacher', false, 'BSBA'),
     ],
-    students: [
-      stu(1, 'Ana Cruz', 'BSIT', 'A', '1st Year'), stu(2, 'Ben Lopez', 'BSIT', 'B', '2nd Year'),
-      stu(3, 'Carla Mendoza', 'BSBA', 'C', '1st Year'), stu(4, 'Dan Garcia', 'BSHM', 'A', '3rd Year'),
-      stu(5, 'Ella Ramos', 'BEED', 'A', '2nd Year'), stu(6, 'Felix Tan', 'BSED', 'B', '4th Year'),
-    ],
+    students: bsitRoster(),
     schedules: seedSchedules(),
     events: [
       { id: 'e1', title: 'Lab maintenance', description: 'All labs closed for cleaning', event_date: addDays(now.date, 3), event_time: '08:00', event_type: 'meeting', owner_id: 'admin' },
       { id: 'e2', title: 'Midterm week', description: null, event_date: addDays(now.date, 7), event_time: '07:30', event_type: 'academic', owner_id: 'admin' },
     ],
   };
+}
+
+// Placeholder BSIT records matching the official enrollment counts (same rows as migration 0005).
+// IDs are C + entry year + 4 digits (e.g. C260001); names are placeholders to be edited.
+// Sections are filled round-robin, at most ~40 students each.
+export function bsitRoster(): Student[] {
+  return BSIT_ROSTER.flatMap(({ yy, year_level, male, female }) => {
+    const n = male + female;
+    const sections = Math.ceil(n / 40);
+    return Array.from({ length: n }, (_, k): Student => {
+      const i = k + 1;
+      const student_id = `C${yy}${String(i).padStart(4, '0')}`;
+      return {
+        id: `stu-${student_id}`, student_id, full_name: `${year_level} Student ${String(i).padStart(3, '0')}`,
+        email: `${student_id.toLowerCase()}@smcbi.edu.ph`, course: 'BSIT', section: String.fromCharCode(65 + (k % sections)),
+        year_level, phone: null, address: null, sex: i <= male ? 'Male' : 'Female', status: 'Enrolled',
+      };
+    });
+  });
 }
 
 export const seedSchedules = (): ClassSchedule[] => TIMETABLE.map((s, i) => ({ ...s, id: `cls${i + 1}` }));

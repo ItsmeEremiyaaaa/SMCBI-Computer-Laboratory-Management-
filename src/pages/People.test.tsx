@@ -26,7 +26,7 @@ describe('People', () => {
     const u = userEvent.setup();
     renderTab('students');
     await u.click(await screen.findByRole('button', { name: /add student/i }));
-    await u.type(screen.getByLabelText(/student id/i), '2025-0101');
+    await u.type(screen.getByLabelText(/student id/i), 'C260001');
     await u.type(screen.getByLabelText(/full name/i), 'Copy Cat');
     await u.type(screen.getByLabelText(/email/i), 'copy@smcbi.edu.ph');
     await u.type(screen.getByLabelText(/section/i), 'A');

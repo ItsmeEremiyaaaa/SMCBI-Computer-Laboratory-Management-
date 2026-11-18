@@ -64,7 +64,22 @@ export interface Student {
   year_level: string;
   phone: string | null;
   address: string | null;
+  sex: Sex | null;
+  status: StudentStatus;
 }
+
+export const SEXES = ['Male', 'Female'] as const;
+export type Sex = (typeof SEXES)[number];
+export const STUDENT_STATUSES = ['Enrolled', 'Inactive', 'Dropped', 'Graduated'] as const;
+export type StudentStatus = (typeof STUDENT_STATUSES)[number];
+
+// BSIT enrollment, SY 2026–2027 1st semester (as of July 9, 2026). ID prefix = C + entry year.
+export const BSIT_ROSTER = [
+  { yy: '26', year_level: '1st Year', male: 71, female: 20 },
+  { yy: '25', year_level: '2nd Year', male: 34, female: 14 },
+  { yy: '24', year_level: '3rd Year', male: 64, female: 20 },
+  { yy: '23', year_level: '4th Year', male: 17, female: 8 },
+] as const;
 
 export interface LabEvent {
   id: string;

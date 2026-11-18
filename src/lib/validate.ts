@@ -1,4 +1,4 @@
-import { DEPARTMENTS, YEAR_LEVELS, type ClassSchedule, type ReservationInput, type Student } from './types';
+import { DEPARTMENTS, SEXES, STUDENT_STATUSES, YEAR_LEVELS, type ClassSchedule, type ReservationInput, type Student } from './types';
 
 export function validateReservation(r: ReservationInput, today: string): string[] {
   const e: string[] = [];
@@ -11,7 +11,7 @@ export function validateReservation(r: ReservationInput, today: string): string[
   return e;
 }
 
-type StudentInput = Pick<Student, 'student_id' | 'full_name' | 'email' | 'course' | 'section' | 'year_level'>;
+type StudentInput = Pick<Student, 'student_id' | 'full_name' | 'email' | 'course' | 'section' | 'year_level'> & Partial<Pick<Student, 'sex' | 'status'>>;
 
 export function validateStudent(s: StudentInput): string[] {
   const e: string[] = [];
@@ -21,6 +21,8 @@ export function validateStudent(s: StudentInput): string[] {
   if (!(DEPARTMENTS as readonly string[]).includes(s.course)) e.push('Choose a course.');
   if (!s.section?.trim()) e.push('Section is required.');
   if (!(YEAR_LEVELS as readonly string[]).includes(s.year_level)) e.push('Choose a year level.');
+  if (s.sex != null && !(SEXES as readonly string[]).includes(s.sex)) e.push('Choose male or female.');
+  if (s.status != null && !(STUDENT_STATUSES as readonly string[]).includes(s.status)) e.push('Choose a status.');
   return e;
 }
 

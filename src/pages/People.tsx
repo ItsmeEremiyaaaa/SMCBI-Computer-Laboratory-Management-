@@ -4,7 +4,7 @@ import { Plus, Search } from 'lucide-react';
 import { useAuth } from '../auth';
 import { useLoad } from '../hooks/useLoad';
 import { api, type StudentInput } from '../lib/api';
-import { DEPARTMENTS, YEAR_LEVELS, type Profile, type Role, type Student } from '../lib/types';
+import { DEPARTMENTS, SEXES, STUDENT_STATUSES, YEAR_LEVELS, type Profile, type Role, type Student, type StudentStatus } from '../lib/types';
 import { validateStudent } from '../lib/validate';
 import { Alert, Button, Empty, Field, Input, Modal, PageHeader, Panel, Select } from '../components/ui';
 
@@ -128,51 +128,116 @@ function ProfileModal({ p, canChangeRole, onClose, onSave }:
   );
 }
 
-const blank: StudentInput = { student_id: '', full_name: '', email: '', course: 'BSIT', section: '', year_level: '1st Year', phone: null, address: null };
+const blank: StudentInput = { student_id: '', full_name: '', email: '', course: 'BSIT', section: '', year_level: '1st Year', phone: null, address: null, sex: null, status: 'Enrolled' };
+
+const STATUS_STYLE: Record<StudentStatus, string> = {
+  Enrolled: 'bg-emerald-50 text-emerald-800 border-emerald-200',
+  Inactive: 'bg-slate-100 text-slate-700 border-slate-200',
+  Dropped: 'bg-red-50 text-red-800 border-red-200',
+  Graduated: 'bg-blue-50 text-blue-800 border-blue-200',
+};
 
 function Students({ q }: { q: string }) {
   const list = useLoad(() => api.listStudents());
   const [edit, setEdit] = useState<StudentInput | null>(null);
   const [course, setCourse] = useState('');
+  const [year, setYear] = useState('');
+  const [status, setStatus] = useState('');
   const [error, setError] = useState<string | null>(null);
-  const rows = (list.data ?? []).filter((s) => (!course || s.course === course) && match(q, s.full_name, s.email, s.student_id))
-    .sort((a, b) => a.full_name.localeCompare(b.full_name));
+  const all = list.data ?? [];
+  const rows = all.filter((s) => (!course || s.course === course) && (!year || s.year_level === year) && (!status || (s.status ?? 'Enrolled') === status)
+    && match(q, s.full_name, s.email, s.student_id, s.section))
+    .sort((a, b) => a.year_level.localeCompare(b.year_level) || a.student_id.localeCompare(b.student_id));
+
+  // Enrollment summary for the selected course (compare against the registrar's list).
+  const scope = all.filter((s) => (!course || s.course === course) && (s.status ?? 'Enrolled') === 'Enrolled');
+  const summary = YEAR_LEVELS.map((y) => {
+    const ys = scope.filter((s) => s.year_level === y);
+    return { y, male: ys.filter((s) => s.sex === 'Male').length, female: ys.filter((s) => s.sex === 'Female').length, total: ys.length };
+  }).filter((r) => r.total > 0);
 
   async function remove(s: Student) {
     if (!confirm(`Delete ${s.full_name}? This can't be undone.`)) return;
     try { await api.deleteStudent(s.id); await list.reload(); } catch (e) { setError((e as Error).message); }
   }
+  async function changeStatus(s: Student, next: StudentStatus) {
+    setError(null);
+    try { await api.saveStudent({ ...s, status: next }); await list.reload(); } catch (e) { setError((e as Error).message); }
+  }
 
   return (
     <>
+      {summary.length > 0 && (
+        <Panel className="mb-4">
+          <div className="overflow-x-auto">
+            <table className="w-full min-w-[28rem] text-sm">
+              <thead className="border-b border-line text-left text-muted">
+                <tr>{['Enrolled' + (course ? ` ${course}` : ''), 'Male', 'Female', 'Total'].map((h) => <th key={h} className="px-4 py-2 font-medium">{h}</th>)}</tr>
+              </thead>
+              <tbody className="divide-y divide-line">
+                {summary.map((r) => (
+                  <tr key={r.y} className="cursor-pointer hover:bg-chalk/60" onClick={() => setYear(year === r.y ? '' : r.y)}>
+                    <td className={`px-4 py-2 font-medium ${year === r.y ? 'text-accent' : ''}`}>{r.y}</td>
+                    <td className="px-4 py-2">{r.male}</td><td className="px-4 py-2">{r.female}</td><td className="px-4 py-2 font-semibold">{r.total}</td>
+                  </tr>
+                ))}
+                <tr className="font-semibold">
+                  <td className="px-4 py-2">Grand total</td>
+                  <td className="px-4 py-2">{summary.reduce((n, r) => n + r.male, 0)}</td>
+                  <td className="px-4 py-2">{summary.reduce((n, r) => n + r.female, 0)}</td>
+                  <td className="px-4 py-2">{summary.reduce((n, r) => n + r.total, 0)}</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </Panel>
+      )}
+
       <div className="mb-4 flex flex-wrap items-center gap-3">
-        <Select value={course} onChange={(e) => setCourse(e.target.value)} className="w-40" aria-label="Filter by course">
+        <Select value={course} onChange={(e) => setCourse(e.target.value)} className="w-36" aria-label="Filter by course">
           <option value="">All courses</option>{DEPARTMENTS.map((d) => <option key={d}>{d}</option>)}
         </Select>
+        <Select value={year} onChange={(e) => setYear(e.target.value)} className="w-36" aria-label="Filter by year">
+          <option value="">All years</option>{YEAR_LEVELS.map((y) => <option key={y}>{y}</option>)}
+        </Select>
+        <Select value={status} onChange={(e) => setStatus(e.target.value)} className="w-36" aria-label="Filter by status">
+          <option value="">Any status</option>{STUDENT_STATUSES.map((s) => <option key={s}>{s}</option>)}
+        </Select>
+        <span className="text-sm text-muted">{rows.length} shown</span>
         <Button className="ml-auto" onClick={() => setEdit(blank)}><Plus size={16} />Add student</Button>
       </div>
       {error && <div className="mb-4"><Alert>{error}</Alert></div>}
       <Panel>
         {rows.length === 0 ? <Empty>{list.loading ? 'Loading…' : 'No students found. Add one to get started.'}</Empty> : (
           <div className="overflow-x-auto">
-            <table className="w-full min-w-[40rem] text-sm">
+            <table className="w-full min-w-[48rem] text-sm">
               <thead className="border-b border-line text-left text-muted">
-                <tr>{['Student ID', 'Name', 'Course', 'Year', 'Section', ''].map((h) => <th key={h} className="px-4 py-2.5 font-medium">{h}</th>)}</tr>
+                <tr>{['Student ID', 'Name', 'Course', 'Year', 'Section', 'Sex', 'Status', ''].map((h) => <th key={h} className="px-4 py-2.5 font-medium">{h}</th>)}</tr>
               </thead>
               <tbody className="divide-y divide-line">
-                {rows.map((s) => (
-                  <tr key={s.id}>
-                    <td className="font-cond px-4 py-2.5">{s.student_id}</td>
-                    <td className="px-4 py-2.5"><p className="font-medium">{s.full_name}</p><p className="text-muted">{s.email}</p></td>
-                    <td className="px-4 py-2.5">{s.course}</td>
-                    <td className="px-4 py-2.5">{s.year_level}</td>
-                    <td className="px-4 py-2.5">{s.section}</td>
-                    <td className="px-4 py-2.5 text-right">
-                      <Button size="sm" variant="ghost" onClick={() => setEdit(s)}>Edit</Button>{' '}
-                      <Button size="sm" variant="quiet" onClick={() => remove(s)}>Delete</Button>
-                    </td>
-                  </tr>
-                ))}
+                {rows.map((s) => {
+                  const st = s.status ?? 'Enrolled';
+                  return (
+                    <tr key={s.id}>
+                      <td className="font-cond px-4 py-2.5">{s.student_id}</td>
+                      <td className="px-4 py-2.5"><p className="font-medium">{s.full_name}</p><p className="text-muted">{s.email}</p></td>
+                      <td className="px-4 py-2.5">{s.course}</td>
+                      <td className="px-4 py-2.5">{s.year_level}</td>
+                      <td className="px-4 py-2.5">{s.section}</td>
+                      <td className="px-4 py-2.5">{s.sex ?? <span className="text-muted">—</span>}</td>
+                      <td className="px-4 py-2.5">
+                        <select value={st} onChange={(e) => changeStatus(s, e.target.value as StudentStatus)} aria-label={`Status of ${s.full_name}`}
+                          className={`rounded-full border px-2 py-0.5 text-xs font-semibold ${STATUS_STYLE[st]}`}>
+                          {STUDENT_STATUSES.map((x) => <option key={x}>{x}</option>)}
+                        </select>
+                      </td>
+                      <td className="whitespace-nowrap px-4 py-2.5 text-right">
+                        <Button size="sm" variant="ghost" onClick={() => setEdit(s)}>Edit</Button>{' '}
+                        <Button size="sm" variant="quiet" onClick={() => remove(s)}>Delete</Button>
+                      </td>
+                    </tr>
+                  );
+                })}
               </tbody>
             </table>
           </div>
@@ -185,12 +250,12 @@ function Students({ q }: { q: string }) {
 }
 
 function StudentModal({ s, onClose, onSave }: { s: StudentInput; onClose: () => void; onSave: (x: StudentInput) => Promise<void> }) {
-  const [f, setF] = useState(s);
+  const [f, setF] = useState<StudentInput>({ ...s, status: s.status ?? 'Enrolled', sex: s.sex ?? null });
   const [error, setError] = useState<string | null>(null);
-  const set = (k: keyof StudentInput) => (e: { target: { value: string } }) => setF({ ...f, [k]: e.target.value });
+  const set = (k: keyof StudentInput) => (e: { target: { value: string } }) => setF({ ...f, [k]: k === 'sex' && !e.target.value ? null : e.target.value });
   async function submit(e: FormEvent) {
     e.preventDefault();
-    const x = { ...f, student_id: f.student_id.trim(), full_name: f.full_name.trim(), email: f.email.trim(), section: f.section.trim() };
+    const x = { ...f, student_id: f.student_id.trim().toUpperCase(), full_name: f.full_name.trim(), email: f.email.trim(), section: f.section.trim() };
     const errs = validateStudent(x);
     if (errs.length) return setError(errs.join(' '));
     try { await onSave(x); } catch (err) { setError((err as Error).message); }
@@ -200,7 +265,7 @@ function StudentModal({ s, onClose, onSave }: { s: StudentInput; onClose: () => 
       <form onSubmit={submit} noValidate className="grid gap-4">
         {error && <Alert>{error}</Alert>}
         <div className="grid gap-3 sm:grid-cols-[10rem_1fr]">
-          <Field label="Student ID"><Input value={f.student_id} onChange={set('student_id')} placeholder="2025-0001" /></Field>
+          <Field label="Student ID"><Input value={f.student_id} onChange={set('student_id')} placeholder="C230505" /></Field>
           <Field label="Full name"><Input value={f.full_name} onChange={set('full_name')} /></Field>
         </div>
         <Field label="Email"><Input type="email" value={f.email} onChange={set('email')} /></Field>
@@ -208,6 +273,10 @@ function StudentModal({ s, onClose, onSave }: { s: StudentInput; onClose: () => 
           <Field label="Course"><Select value={f.course} onChange={set('course')}>{DEPARTMENTS.map((d) => <option key={d}>{d}</option>)}</Select></Field>
           <Field label="Year level"><Select value={f.year_level} onChange={set('year_level')}>{YEAR_LEVELS.map((y) => <option key={y}>{y}</option>)}</Select></Field>
           <Field label="Section"><Input value={f.section} onChange={set('section')} /></Field>
+        </div>
+        <div className="grid gap-3 sm:grid-cols-2">
+          <Field label="Sex"><Select value={f.sex ?? ''} onChange={set('sex')}><option value="">Not set</option>{SEXES.map((x) => <option key={x}>{x}</option>)}</Select></Field>
+          <Field label="Status"><Select value={f.status} onChange={set('status')}>{STUDENT_STATUSES.map((x) => <option key={x}>{x}</option>)}</Select></Field>
         </div>
         <div className="grid gap-3 sm:grid-cols-2">
           <Field label="Phone"><Input value={f.phone ?? ''} onChange={set('phone')} inputMode="numeric" maxLength={11} /></Field>
