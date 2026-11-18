@@ -17,7 +17,7 @@ const CANTIL = 'Jhon Bryan J. Cantil, MIT';
 const GELERA = 'Mariel Gelera';
 const BALUNAN = 'Vince Jose Balunan';
 const MANQUIQUIZ = 'April Mae Manquiquiz';
-const WASKIN = 'Melanie B. Waskin, LPT';
+const WASKIN = 'Melanie B. Waskin, LPT, MAED';
 const LELIS = 'John Carl Ray Lelis';
 
 export const TIMETABLE: ScheduleInput[] = [
