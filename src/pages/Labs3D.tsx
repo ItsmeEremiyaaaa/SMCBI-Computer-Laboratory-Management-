@@ -317,6 +317,19 @@ export default function Labs3D() {
 
         <div className="hidden h-3.5 w-px bg-line sm:block" />
 
+        {/* Live Workstation Status Counts inside Laboratory Availability Panel */}
+        <ul className="flex items-center gap-2.5 text-xs">
+          {STATUSES.map((s) => (
+            <li key={s} className="flex items-center gap-1.5 font-medium text-muted">
+              <Led status={s} />
+              <span className="hidden md:inline">{STATUS_LABEL[s]}</span>
+              <b className="font-semibold text-ink">{counts[s]}</b>
+            </li>
+          ))}
+        </ul>
+
+        <div className="hidden h-3.5 w-px bg-line sm:block" />
+
         {/* Quality of Life Animated Simulation Controls */}
         <div className="flex flex-wrap items-center gap-1">
           <button
@@ -381,6 +394,20 @@ export default function Labs3D() {
             </button>
           )}
         </div>
+
+        <div className="hidden h-3.5 w-px bg-line sm:block" />
+
+        {/* 3D Controls Guide Button inside Laboratory Availability Panel */}
+        <button
+          onClick={() => setShowGuideModal(true)}
+          className="flex items-center gap-1.5 rounded-lg border border-line/60 bg-chalk/60 px-2 py-0.5 text-[11px] font-medium text-ink transition-all hover:bg-chalk hover:border-line hover:text-accent shadow-2xs active:scale-95"
+          aria-label="3D Controls Guide"
+          title="Open 3D Navigation & Controls Guide"
+        >
+          <Compass size={13} className="text-accent" />
+          <span className="hidden sm:inline">3D Controls Guide</span>
+          <span className="grid h-3.5 w-3.5 place-items-center rounded-full bg-accent-soft text-[9px] font-bold text-accent">?</span>
+        </button>
       </div>
 
       {(error || labs.error) && (
@@ -410,25 +437,7 @@ export default function Labs3D() {
           : <div className="h-full w-full overflow-auto p-6 pt-28 pb-24"><SeatGrid lab={lab} pcs={displayedPcs} selectedId={selectedId} onSelect={select} onReady={() => setSceneReady(true)} isOccupied={isClassInSession} classInfo={activeClassSchedule} simMode={effectiveSimMode} teacherName={teacherName} /></div>)}
       </div>
 
-      {/* Status bar pills in bottom-left (above floating navigation) */}
-      <ul className="pointer-events-none absolute bottom-20 left-4 z-20 flex flex-wrap gap-x-4 gap-y-1.5 rounded-xl border border-line/60 bg-panel/90 px-3.5 py-2 text-xs shadow-md backdrop-blur">
-        {STATUSES.map((s) => (
-          <li key={s} className="flex items-center gap-1.5 font-medium"><Led status={s} />{STATUS_LABEL[s]} <b className="font-semibold text-ink">{counts[s]}</b></li>
-        ))}
-      </ul>
 
-      {/* 3D Navigation Guide Trigger Button in bottom-right */}
-      {!selected && (
-        <button
-          onClick={() => setShowGuideModal(true)}
-          className="absolute bottom-20 right-4 z-20 flex items-center gap-2 rounded-xl border border-line/70 bg-panel/95 px-3.5 py-2 text-xs font-medium text-ink shadow-md backdrop-blur transition-all hover:bg-chalk hover:border-line hover:shadow-lg active:scale-95"
-          aria-label="3D Controls Guide"
-        >
-          <Compass size={15} className="text-accent" />
-          <span>3D Controls Guide</span>
-          <span className="grid h-4 w-4 place-items-center rounded-full bg-accent-soft text-[10px] font-bold text-accent">?</span>
-        </button>
-      )}
 
       {/* Floating PC inspection drawer in top-right when a workstation is selected */}
       {selected && lab && (

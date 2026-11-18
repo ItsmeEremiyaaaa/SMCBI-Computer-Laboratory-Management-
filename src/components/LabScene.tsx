@@ -43,7 +43,7 @@ function place(pc: LivePc, lab: Lab, style: Style): { pos: [number, number, numb
   return { pos: [cx + (left ? -0.58 : 0.58), 0, sideZ(sideRows(lab) - 1, lab) + ISLAND_ROW / 2 + 0.65], rot: 0 };
 }
 
-// One wooden support per island, as long as that island's run of side seats.
+// Modern Central Divider Partition between island rows
 function Spines({ lab, pcs }: { lab: Lab; pcs: LivePc[] }) {
   const n = islandCount(lab);
   const endRow = LAYOUTS[lab.id]?.island?.endRow;
@@ -55,10 +55,18 @@ function Spines({ lab, pcs }: { lab: Lab; pcs: LivePc[] }) {
         const z0 = sideZ(Math.min(...rows), lab) - ISLAND_ROW / 2;
         const z1 = sideZ(Math.max(...rows), lab) + ISLAND_ROW / 2;
         return (
-          <mesh key={i} position={[islandX(i, n), (DESK_H + 0.3) / 2, (z0 + z1) / 2]} castShadow receiveShadow>
-            <boxGeometry args={[0.12, DESK_H + 0.3, z1 - z0]} />
-            <meshStandardMaterial color="#b98a58" roughness={0.75} />
-          </mesh>
+          <group key={i} position={[islandX(i, n), 0, (z0 + z1) / 2]}>
+            {/* Center cable spine structure */}
+            <mesh position={[0, (DESK_H + 0.28) / 2, 0]} castShadow receiveShadow>
+              <boxGeometry args={[0.08, DESK_H + 0.28, z1 - z0]} />
+              <meshStandardMaterial color="#f8fafc" roughness={0.4} />
+            </mesh>
+            {/* Aluminum top rail trim */}
+            <mesh position={[0, DESK_H + 0.29, 0]}>
+              <boxGeometry args={[0.10, 0.02, z1 - z0]} />
+              <meshStandardMaterial color="#94a3b8" metalness={0.7} roughness={0.25} />
+            </mesh>
+          </group>
         );
       })}
     </>
@@ -69,14 +77,90 @@ function Spines({ lab, pcs }: { lab: Lab; pcs: LivePc[] }) {
 const seatX = (col: number, cols: number) => (col - (cols - 1) / 2) * DX;
 const rowZ = (row: number, rows: number) => (row - (rows - 1) / 2) * DZ + 1.2;
 
-function Monobloc({ position }: { position: [number, number, number] }) {
-  const white = <meshStandardMaterial color="#f2f3f1" roughness={0.6} />;
+// Modern Ergonomic Black Mesh Office Task Chair (matching reference photo)
+function ErgonomicMeshChair({ position, rotationY = 0 }: { position: [number, number, number]; rotationY?: number }) {
+  const black = <meshStandardMaterial color="#18181b" roughness={0.65} />;
+  const meshMat = <meshStandardMaterial color="#27272a" roughness={0.75} />;
+  const chrome = <meshStandardMaterial color="#94a3b8" metalness={0.75} roughness={0.25} />;
   return (
-    <group position={position}>
-      <mesh position={[0, 0.44, 0]} castShadow><boxGeometry args={[0.44, 0.04, 0.42]} />{white}</mesh>
-      <mesh position={[0, 0.74, 0.2]} rotation-x={-0.12} castShadow><boxGeometry args={[0.42, 0.5, 0.035]} />{white}</mesh>
-      {[[-0.19, -0.17], [0.19, -0.17], [-0.19, 0.18], [0.19, 0.18]].map(([x, z]) => (
-        <mesh key={`${x}${z}`} position={[x, 0.21, z]} castShadow><cylinderGeometry args={[0.022, 0.03, 0.44]} />{white}</mesh>
+    <group position={position} rotation-y={rotationY}>
+      {/* 5-Star Caster Wheel Base */}
+      <group position={[0, 0.04, 0]}>
+        {[0, 72, 144, 216, 288].map((deg) => {
+          const rad = (deg * Math.PI) / 180;
+          return (
+            <group key={deg} rotation-y={rad}>
+              {/* Star leg ray */}
+              <mesh position={[0, 0, 0.15]} castShadow>
+                <boxGeometry args={[0.035, 0.025, 0.26]} />
+                {black}
+              </mesh>
+              {/* Caster wheel */}
+              <mesh position={[0, -0.02, 0.26]} castShadow>
+                <cylinderGeometry args={[0.022, 0.022, 0.028, 8]} />
+                {black}
+              </mesh>
+            </group>
+          );
+        })}
+      </group>
+
+      {/* Hydraulic pneumatic lift cylinder */}
+      <mesh position={[0, 0.22, 0]} castShadow>
+        <cylinderGeometry args={[0.024, 0.03, 0.34, 12]} />
+        {chrome}
+      </mesh>
+
+      {/* Seat cushion (contoured ergonomic foam, height 0.44m) */}
+      <group position={[0, 0.43, 0]}>
+        <mesh castShadow receiveShadow>
+          <boxGeometry args={[0.46, 0.055, 0.44]} />
+          {black}
+        </mesh>
+        <mesh position={[0, 0.032, 0]}>
+          <boxGeometry args={[0.42, 0.015, 0.40]} />
+          {black}
+        </mesh>
+      </group>
+
+      {/* Ergonomic Curved Mesh Backrest */}
+      <group position={[0, 0.70, 0.18]} rotation-x={-0.08}>
+        {/* Central spine support */}
+        <mesh position={[0, -0.06, 0.02]} castShadow>
+          <boxGeometry args={[0.05, 0.36, 0.025]} />
+          {black}
+        </mesh>
+        {/* Outer backrest frame */}
+        <mesh castShadow>
+          <boxGeometry args={[0.44, 0.46, 0.024]} />
+          {black}
+        </mesh>
+        {/* Breathable Mesh panel */}
+        <mesh position={[0, 0, -0.004]}>
+          <planeGeometry args={[0.38, 0.40]} />
+          {meshMat}
+        </mesh>
+        {/* Lumbar support contour */}
+        <mesh position={[0, -0.10, -0.012]}>
+          <boxGeometry args={[0.32, 0.06, 0.018]} />
+          {black}
+        </mesh>
+      </group>
+
+      {/* Left and Right Armrests */}
+      {[-0.22, 0.22].map((armX) => (
+        <group key={armX} position={[armX, 0.53, 0.03]}>
+          {/* Vertical upright arm post */}
+          <mesh castShadow>
+            <boxGeometry args={[0.028, 0.18, 0.035]} />
+            {black}
+          </mesh>
+          {/* Soft padded armrest pad */}
+          <mesh position={[0, 0.09, -0.04]} castShadow>
+            <boxGeometry args={[0.055, 0.022, 0.20]} />
+            {black}
+          </mesh>
+        </group>
       ))}
     </group>
   );
@@ -173,64 +257,97 @@ function Workstation({ pc, pos, rot = 0, style, selected, onSelect }:
   const [hover, setHover] = useState(false);
   const monitor = useRef<Group>(null);
   const screen = useRef<MeshStandardMaterial>(null);
+
   // Selected monitor lifts, grows and tilts toward the seat; its screen pulses. Hover lifts it slightly.
   useFrame(({ clock }, dt) => {
     const m = monitor.current;
     if (!m) return;
     const k = 1 - Math.exp(-dt * 10);
-    m.position.y = MathUtils.lerp(m.position.y, DESK_H + 0.4 + (selected ? 0.16 : hover ? 0.05 : 0), k);
+    m.position.y = MathUtils.lerp(m.position.y, DESK_H + 0.36 + (selected ? 0.16 : hover ? 0.05 : 0), k);
     m.rotation.x = MathUtils.lerp(m.rotation.x, selected ? 0.22 : 0, k);
     m.scale.setScalar(MathUtils.lerp(m.scale.x, selected ? 1.15 : 1, k));
     if (screen.current) screen.current.emissiveIntensity = glow + (selected ? 0.5 + 0.5 * Math.sin(clock.elapsedTime * 4) : 0);
   });
+
   const color = STATUS_COLOR[pc.shown];
   const glow = pc.shown === 'broken' ? 0.7 : pc.shown === 'free' ? 0.85 : 1.5;
-  const black = <meshStandardMaterial color="#15181d" roughness={0.45} />;
+  const silverMetal = <meshStandardMaterial color="#94a3b8" metalness={0.65} roughness={0.3} />;
+  const whiteShell = <meshStandardMaterial color="#f8fafc" roughness={0.25} />;
+
+  const deskWidth = style === 'table' ? DX - 0.04 : 1.12;
+
   return (
     <group position={pos} rotation-y={rot} name={`pc:${pc.id}`}
       onClick={(e) => { e.stopPropagation(); onSelect(); }}
       onPointerOver={(e) => { e.stopPropagation(); setHover(true); document.body.style.cursor = 'pointer'; }}
       onPointerOut={() => { setHover(false); document.body.style.cursor = ''; }}>
-      {style === 'island' && <>
-        {/* Comlab 1: white desk against the wooden support */}
-        <mesh position={[0, DESK_H, -0.02]} castShadow receiveShadow>
-          <boxGeometry args={[1.08, 0.04, DESK_D - 0.04]} />
-          <meshStandardMaterial color={selected || hover ? '#dce8f8' : '#f7f7f5'} roughness={0.35} />
-        </mesh>
-        {[-0.52, 0.52].map((x) => (
-          <mesh key={x} position={[x, DESK_H / 2, -0.02]} castShadow><boxGeometry args={[0.03, DESK_H, DESK_D - 0.08]} />
-            <meshStandardMaterial color="#ebe6dc" /></mesh>
-        ))}
-      </>}
-      {style === 'table' && <>
-        {/* Netlab: own dark table on metal legs */}
-        <mesh position={[0, DESK_H, 0]} castShadow receiveShadow>
-          <boxGeometry args={[DX - 0.04, 0.035, DESK_D]} />
-          <meshStandardMaterial color={selected || hover ? '#3a4658' : '#2b2f36'} roughness={0.5} />
-        </mesh>
-        {[[-0.5, -0.3], [0.5, -0.3], [-0.5, 0.3], [0.5, 0.3]].map(([x, z]) => (
-          <mesh key={`${x}${z}`} position={[x, DESK_H / 2, z]}><boxGeometry args={[0.035, DESK_H, 0.035]} />
-            <meshStandardMaterial color="#8d939c" metalness={0.6} roughness={0.35} /></mesh>
-        ))}
-      </>}
-      {/* system unit under the desk */}
-      <mesh position={[0.38, 0.22, -0.08]} castShadow><boxGeometry args={[0.19, 0.42, 0.42]} />{black}</mesh>
-      <mesh position={[0.38, 0.36, 0.131]}>
-        <boxGeometry args={[0.025, 0.025, 0.01]} />
-        <meshStandardMaterial color={color} emissive={color} emissiveIntensity={2} toneMapped={false} />
+      
+      {/* Light natural warm wood tabletop (beech/warm oak matching reference photo) */}
+      <mesh position={[0, DESK_H, -0.01]} castShadow receiveShadow>
+        <boxGeometry args={[deskWidth, 0.038, DESK_D - 0.02]} />
+        <meshStandardMaterial color={selected || hover ? '#e8d4be' : '#dfb88c'} roughness={0.42} />
       </mesh>
-      {/* monitor: black bezel, screen shows status */}
-      <mesh position={[0, DESK_H + 0.025, -0.18]}><boxGeometry args={[0.22, 0.02, 0.16]} />{black}</mesh>
-      <mesh position={[0, DESK_H + 0.13, -0.21]}><boxGeometry args={[0.05, 0.2, 0.03]} />{black}</mesh>
-      <group ref={monitor} position={[0, DESK_H + 0.4, -0.2]}>
-        <RoundedBox args={[0.62, 0.4, 0.035]} radius={0.01} castShadow>{black}</RoundedBox>
-        <mesh position={[0, 0.01, 0.019]}>
+
+      {/* Modern silver-gray brushed aluminum square metal legs at corners */}
+      {[
+        [-deskWidth / 2 + 0.04, -DESK_D / 2 + 0.06],
+        [-deskWidth / 2 + 0.04, DESK_D / 2 - 0.06],
+        [deskWidth / 2 - 0.04, -DESK_D / 2 + 0.06],
+        [deskWidth / 2 - 0.04, DESK_D / 2 - 0.06],
+      ].map(([lx, lz]) => (
+        <mesh key={`${lx}${lz}`} position={[lx, DESK_H / 2, lz]} castShadow>
+          <boxGeometry args={[0.04, DESK_H, 0.04]} />
+          {silverMetal}
+        </mesh>
+      ))}
+
+      {/* Metal frame cross-beams under table */}
+      <mesh position={[0, DESK_H - 0.025, 0]}>
+        <boxGeometry args={[deskWidth - 0.08, 0.03, DESK_D - 0.12]} />
+        {silverMetal}
+      </mesh>
+
+      {/* Center Acoustic Divider Partition between facing desks (low frosted screen with silver clips) */}
+      {style === 'island' && (
+        <group position={[0, DESK_H + 0.16, -DESK_D / 2]}>
+          <mesh castShadow>
+            <boxGeometry args={[deskWidth, 0.28, 0.022]} />
+            <meshStandardMaterial color="#f8fafc" roughness={0.35} />
+          </mesh>
+          {[-deskWidth * 0.32, deskWidth * 0.32].map((bx) => (
+            <mesh key={bx} position={[bx, -0.14, 0]}>
+              <boxGeometry args={[0.028, 0.05, 0.038]} />
+              {silverMetal}
+            </mesh>
+          ))}
+        </group>
+      )}
+
+      {/* Modern All-in-One PC Stand (sleek silver aluminum L-stand) */}
+      <group position={[0, DESK_H + 0.015, -0.17]}>
+        <mesh position={[0, 0.005, 0.02]}><boxGeometry args={[0.18, 0.01, 0.15]} />{silverMetal}</mesh>
+        <mesh position={[0, 0.10, -0.03]} rotation-x={0.12}><boxGeometry args={[0.075, 0.20, 0.018]} />{silverMetal}</mesh>
+      </group>
+
+      {/* Modern All-in-One Display Monitor */}
+      <group ref={monitor} position={[0, DESK_H + 0.36, -0.18]}>
+        {/* Sleek white/silver rear casing */}
+        <RoundedBox args={[0.62, 0.40, 0.026]} radius={0.01} castShadow>
+          {whiteShell}
+        </RoundedBox>
+        {/* Front glass bezel */}
+        <mesh position={[0, 0, 0.014]}>
+          <planeGeometry args={[0.61, 0.39]} />
+          <meshStandardMaterial color="#0f172a" roughness={0.1} metalness={0.2} />
+        </mesh>
+        {/* Active glowing display screen */}
+        <mesh position={[0, 0.01, 0.015]}>
           <planeGeometry args={[0.57, 0.33]} />
           <meshStandardMaterial ref={screen} color={color} emissive={color} emissiveIntensity={glow} toneMapped={false} />
         </mesh>
         {/* Broken glass crack fracture overlay */}
         {pc.shown === 'broken' && (
-          <mesh position={[0, 0.01, 0.02]}>
+          <mesh position={[0, 0.01, 0.017]}>
             <planeGeometry args={[0.57, 0.33]} />
             <meshStandardMaterial
               map={getCrackTexture()}
@@ -243,10 +360,26 @@ function Workstation({ pc, pos, rot = 0, style, selected, onSelect }:
           </mesh>
         )}
       </group>
-      {/* keyboard + mouse */}
-      <mesh position={[0, DESK_H + 0.025, 0.1]}><boxGeometry args={[0.44, 0.018, 0.14]} />{black}</mesh>
-      <mesh position={[0.32, DESK_H + 0.025, 0.12]}><boxGeometry args={[0.06, 0.02, 0.1]} />{black}</mesh>
-      <Monobloc position={[0, 0, 0.62]} />
+
+      {/* Slim white desktop keyboard (matching reference photo) */}
+      <mesh position={[0, DESK_H + 0.022, 0.10]} castShadow>
+        <boxGeometry args={[0.42, 0.012, 0.13]} />
+        <meshStandardMaterial color="#f8fafc" roughness={0.4} />
+      </mesh>
+      <mesh position={[0, DESK_H + 0.028, 0.10]}>
+        <boxGeometry args={[0.39, 0.005, 0.11]} />
+        <meshStandardMaterial color="#e2e8f0" roughness={0.5} />
+      </mesh>
+
+      {/* Slim white optical mouse */}
+      <mesh position={[0.30, DESK_H + 0.024, 0.11]} castShadow>
+        <boxGeometry args={[0.055, 0.018, 0.09]} />
+        <meshStandardMaterial color="#f8fafc" roughness={0.3} />
+      </mesh>
+
+      {/* Modern Ergonomic Black Mesh Office Task Chair */}
+      <ErgonomicMeshChair position={[0, 0, 0.62]} />
+
       {(selected || hover) && (
         <mesh rotation-x={-Math.PI / 2} position={[0, 0.006, 0.3]}>
           <ringGeometry args={[0.62, 0.69, 48]} />
@@ -513,6 +646,39 @@ function FireExtinguisher({ position, rotationY = 0 }: { position: [number, numb
   );
 }
 
+// Large Flat-Screen Wall-Mounted Presentation Display (matching reference photo)
+function WallMountedDisplay({ position, rotationY = 0 }: { position: [number, number, number]; rotationY?: number }) {
+  return (
+    <group position={position} rotation-y={rotationY}>
+      {/* Wall mounting bracket */}
+      <mesh position={[0, 0, -0.03]} castShadow>
+        <boxGeometry args={[0.9, 0.5, 0.03]} />
+        <meshStandardMaterial color="#0f172a" />
+      </mesh>
+      {/* Slim black bezel casing */}
+      <mesh castShadow>
+        <boxGeometry args={[2.3, 1.32, 0.035]} />
+        <meshStandardMaterial color="#111827" roughness={0.3} metalness={0.7} />
+      </mesh>
+      {/* Vibrant presentation screen (as in reference photo) */}
+      <mesh position={[0, 0, 0.019]}>
+        <planeGeometry args={[2.24, 1.26]} />
+        <meshStandardMaterial
+          color="#0f172a"
+          emissive="#1e3a8a"
+          emissiveIntensity={0.65}
+          roughness={0.1}
+        />
+      </mesh>
+      {/* Power LED */}
+      <mesh position={[1.05, -0.62, 0.02]}>
+        <sphereGeometry args={[0.005, 8, 8]} />
+        <meshStandardMaterial color="#38bdf8" emissive="#38bdf8" emissiveIntensity={2} />
+      </mesh>
+    </group>
+  );
+}
+
 // Front Wall Features: Clean Whiteboard with pen tray & eraser, and Centered Teacher Station
 function FrontWallDecor({
   w,
@@ -528,7 +694,7 @@ function FrontWallDecor({
       {/* Wall skirting baseboard */}
       <mesh position={[0, 0.06, front + 0.06]}>
         <boxGeometry args={[w, 0.12, 0.03]} />
-        <meshStandardMaterial color="#1e293b" />
+        <meshStandardMaterial color="#64748b" />
       </mesh>
 
       {/* SMCBI Navy Blue Accent Stripe */}
@@ -568,40 +734,38 @@ function FrontWallDecor({
 
       {/* Teacher's Station: Centered in front of the whiteboard */}
       <group position={[0, 0, front + 1.4]}>
-        <mesh position={[0, DESK_H, 0]} castShadow>
+        {/* Light natural warm wood tabletop (matching reference photo) */}
+        <mesh position={[0, DESK_H, 0]} castShadow receiveShadow>
           <boxGeometry args={[1.5, 0.04, 0.7]} />
-          <meshStandardMaterial color="#ffffff" roughness={0.35} />
+          <meshStandardMaterial color="#dfb88c" roughness={0.4} />
         </mesh>
+        {/* Modesty panel */}
         <mesh position={[0, DESK_H / 2, -0.32]}>
-          <boxGeometry args={[1.45, DESK_H, 0.03]} />
-          <meshStandardMaterial color="#334155" />
+          <boxGeometry args={[1.42, DESK_H - 0.08, 0.02]} />
+          <meshStandardMaterial color="#f1f5f9" roughness={0.5} />
         </mesh>
-        {/* Desk legs */}
-        {[-0.68, 0.68].map((lx) => (
-          <mesh key={lx} position={[lx, DESK_H / 2, 0]}>
-            <boxGeometry args={[0.04, DESK_H, 0.64]} />
-            <meshStandardMaterial color="#64748b" metalness={0.6} />
+        {/* Brushed silver metal legs */}
+        {[[-0.68, -0.30], [-0.68, 0.30], [0.68, -0.30], [0.68, 0.30]].map(([lx, lz]) => (
+          <mesh key={`${lx}${lz}`} position={[lx, DESK_H / 2, lz]} castShadow>
+            <boxGeometry args={[0.04, DESK_H, 0.04]} />
+            <meshStandardMaterial color="#94a3b8" metalness={0.65} roughness={0.3} />
           </mesh>
         ))}
-        {/* Teacher's Laptop */}
+        {/* Teacher's Modern Laptop */}
         <group position={[0, DESK_H + 0.02, 0]}>
-          <mesh><boxGeometry args={[0.34, 0.015, 0.24]} /><meshStandardMaterial color="#0f172a" /></mesh>
+          <mesh><boxGeometry args={[0.34, 0.015, 0.24]} /><meshStandardMaterial color="#e2e8f0" metalness={0.5} /></mesh>
           <mesh position={[0, 0.11, -0.1]} rotation-x={0.25}><boxGeometry args={[0.34, 0.22, 0.012]} /><meshStandardMaterial color="#0f172a" /></mesh>
           <mesh position={[0, 0.11, -0.093]} rotation-x={0.25}><planeGeometry args={[0.32, 0.2]} /><meshStandardMaterial color="#38bdf8" emissive="#0284c7" emissiveIntensity={0.8} /></mesh>
         </group>
         {/* Ergonomic teacher chair */}
-        <group position={[0, 0, -0.45]}>
-          <mesh position={[0, 0.48, 0]} castShadow><boxGeometry args={[0.48, 0.06, 0.46]} /><meshStandardMaterial color="#1e293b" /></mesh>
-          <mesh position={[0, 0.82, -0.21]} rotation-x={-0.08} castShadow><boxGeometry args={[0.46, 0.58, 0.04]} /><meshStandardMaterial color="#1e293b" /></mesh>
-          <mesh position={[0, 0.24, 0]}><cylinderGeometry args={[0.03, 0.03, 0.48, 12]} /><meshStandardMaterial color="#64748b" metalness={0.8} /></mesh>
-        </group>
+        <ErgonomicMeshChair position={[0, 0, -0.45]} />
       </group>
     </group>
   );
 }
 
 function Room({ lab, w, d, style }: { lab: Lab; w: number; d: number; style: Style }) {
-  const wall = <meshStandardMaterial color="#f1efe8" roughness={0.9} />;
+  const wall = <meshStandardMaterial color="#f8fafc" roughness={0.7} />;
   const front = -d / 2;
   const back = d / 2;
 
@@ -618,12 +782,12 @@ function Room({ lab, w, d, style }: { lab: Lab; w: number; d: number; style: Sty
 
   return (
     <group>
-      {/* Polished white tile floor */}
+      {/* Polished architectural light floor (matching reference photo) */}
       <mesh rotation-x={-Math.PI / 2} receiveShadow>
         <planeGeometry args={[w, d]} />
-        <meshStandardMaterial color="#f0f2f5" roughness={0.45} />
+        <meshStandardMaterial color="#ebeef2" roughness={0.35} metalness={0.05} />
       </mesh>
-      <gridHelper args={[Math.max(w, d), Math.round(Math.max(w, d) / 0.6), '#cbd5e1', '#e2e8f0']} position={[0, 0.002, 0]} />
+      <gridHelper args={[Math.max(w, d), Math.round(Math.max(w, d) / 0.6), '#cbd5e1', '#f1f5f9']} position={[0, 0.002, 0]} />
 
       {/* Front Wall */}
       <mesh position={[0, 1.6, front]} receiveShadow>
@@ -634,7 +798,7 @@ function Room({ lab, w, d, style }: { lab: Lab; w: number; d: number; style: Sty
       {/* Back edge low floor threshold skirting (open dollhouse cutaway with no tall wall blocking the camera view) */}
       <mesh position={[0, 0.04, back]}>
         <boxGeometry args={[w, 0.08, 0.05]} />
-        <meshStandardMaterial color="#1e293b" />
+        <meshStandardMaterial color="#64748b" />
       </mesh>
 
       {/* Front Wall Decor (Clean Whiteboard & Centered Teacher Station) */}
@@ -643,6 +807,9 @@ function Room({ lab, w, d, style }: { lab: Lab; w: number; d: number; style: Sty
       {/* Glass Windows on Left and Right Walls */}
       <GlassWindowWall side={-1} w={w} d={d} front={front} doorZList={leftDoorZs} />
       <GlassWindowWall side={1} w={w} d={d} front={front} doorZList={rightDoorZs} />
+
+      {/* Wall-Mounted Big-Screen Presentation Display on Right Wall (matching reference photo) */}
+      <WallMountedDisplay position={[w / 2 - 0.06, 1.85, 0]} rotationY={-Math.PI / 2} />
 
       {/* Exit Door in the window at the cactus location (left wall) for all labs */}
       <Doorway position={[-w / 2, 0, exitDoorZ]} rotationY={Math.PI / 2} />
@@ -786,11 +953,11 @@ export default function LabScene({
       onCreated={() => onReady?.()}
     >
       <ReadySignal onReady={onReady} />
-      <color attach="background" args={['#dfe5ee']} />
-      <hemisphereLight args={['#ffffff', '#c4ccd6', 1]} />
+      <color attach="background" args={['#f1f5f9']} />
+      <hemisphereLight args={['#ffffff', '#cbd5e1', 1.2]} />
       <directionalLight
         position={[5, 10, 6]}
-        intensity={1.1}
+        intensity={1.2}
         castShadow
         shadow-mapSize={[2048, 2048]}
         shadow-camera-left={-12}

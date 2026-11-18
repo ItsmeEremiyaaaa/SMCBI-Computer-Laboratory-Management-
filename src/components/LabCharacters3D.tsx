@@ -844,9 +844,9 @@ export default function LabCharacters3D({
 
   return (
     <group>
-      {/* Exactly 1 Teacher per comlab matching schedule (Mr. or Ms.) */}
+      {/* Exactly 1 Teacher per comlab matching schedule (Mr. or Ms.), standing firmly on the floor beside the whiteboard */}
       {showTeacher && (
-        <group position={[0, 0, front + 1.45]}>
+        <group position={[1.35, 0, front + 0.95]} rotation-y={-0.25}>
           <Teacher3D gender={isFemaleTeacher(teacherName) ? 'female' : 'male'} />
         </group>
       )}
