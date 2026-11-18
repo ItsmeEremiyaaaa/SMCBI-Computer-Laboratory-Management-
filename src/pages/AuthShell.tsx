@@ -25,38 +25,6 @@ function Sky() {
   );
 }
 
-// Night-sky blob on the card: moon, shooting stars, rolling hills.
-function NightBlob() {
-  return (
-    <svg viewBox="0 0 420 320" className="h-full w-full drop-shadow-xl" aria-hidden>
-      <defs>
-        <clipPath id="auth-blob">
-          <path d="M70 40 C 130 -10 250 10 300 30 C 370 55 430 110 405 190 C 385 255 330 300 240 305 C 150 312 60 290 30 220 C 0 150 20 80 70 40Z" />
-        </clipPath>
-        <linearGradient id="auth-sky" x1="0" y1="0" x2="0" y2="1">
-          <stop offset="0" stopColor="#1e2a8a" />
-          <stop offset="1" stopColor="#4a5fd0" />
-        </linearGradient>
-      </defs>
-      <g clipPath="url(#auth-blob)">
-        <rect width="420" height="320" fill="url(#auth-sky)" />
-        {STARS.slice(0, 22).map((s, i) => <circle key={i} cx={(s.x * 4.2) % 420} cy={(s.y * 1.8) % 170} r={s.r * 0.9} fill="#fff" opacity=".8" />)}
-        {[[120, 60], [190, 95], [300, 50]].map(([x, y]) => (
-          <line key={x} x1={x} y1={y} x2={x - 38} y2={y + 26} stroke="#fff" strokeWidth="2" strokeLinecap="round" opacity=".7" />
-        ))}
-        <circle cx="275" cy="125" r="30" fill="#fcd34d" />
-        <circle cx="275" cy="125" r="44" fill="#fcd34d" opacity=".18" />
-        <path d="M-10 230 C 80 190 160 240 240 215 S 380 180 440 215 V330 H-10Z" fill="#6d7fe0" />
-        <path d="M-10 262 C 100 232 210 280 300 252 S 400 238 440 255 V330 H-10Z" fill="#3443b0" />
-        <path d="M-10 290 C 120 270 260 305 440 282 V330 H-10Z" fill="#202c86" />
-      </g>
-      {/* little floating blobs like the reference */}
-      <circle cx="350" cy="24" r="9" fill="#2e3a9e" />
-      <ellipse cx="300" cy="12" rx="22" ry="7" fill="#2e3a9e" />
-    </svg>
-  );
-}
-
 export default function AuthShell({ children }: { children: ReactNode }) {
   return (
     <div className="relative grid min-h-screen place-items-center overflow-hidden bg-[radial-gradient(ellipse_at_top,#3b47b8,#1a2366_60%,#121a52)] px-4 py-8 sm:py-12">
@@ -75,8 +43,6 @@ export default function AuthShell({ children }: { children: ReactNode }) {
         <svg className="pointer-events-none absolute inset-x-0 top-0 h-32 w-full lg:hidden" viewBox="0 0 360 130" preserveAspectRatio="none" aria-hidden>
           <path d="M0 0 H360 V40 C 300 85 230 30 160 70 C 100 104 50 80 0 100Z" fill="#3b47b8" />
           <circle cx="300" cy="28" r="34" fill="#f59e0b" opacity=".9" />
-          <circle cx="130" cy="22" r="12" fill="#fda4af" />
-          <path d="M210 0 a30 30 0 0 0 60 0z" fill="#fcd34d" />
         </svg>
         <div className="absolute left-6 top-6 lg:hidden"><Crest size={40} /></div>
         <svg className="pointer-events-none absolute -bottom-12 -right-12 h-28 w-28 lg:hidden" viewBox="0 0 100 100" aria-hidden>
@@ -93,12 +59,13 @@ export default function AuthShell({ children }: { children: ReactNode }) {
               <p className="text-xs text-blue-100">St. Mary’s College of Bansalan</p>
             </div>
           </div>
-          <div className="mx-auto mt-6 w-full max-w-md flex-1"><NightBlob /></div>
-          <h2 className="text-4xl leading-tight text-[#1e2a6e]">
-            Every lab, <b className="font-extrabold">every PC</b>
-            <span className="block text-3xl font-light">in one place.</span>
-          </h2>
-          <p className="mt-2 max-w-sm text-sm text-slate-500">Check free seats, book a NetLab PC, and check in by scanning your PC’s QR code.</p>
+          <div className="mt-auto pb-10">
+            <h2 className="text-5xl leading-tight text-[#1e2a6e]">
+              Every lab, <b className="font-extrabold">every PC</b>
+              <span className="block text-4xl font-light">in one place.</span>
+            </h2>
+            <p className="mt-3 max-w-sm text-slate-500">Check free seats, book a NetLab PC, and check in by scanning your PC’s QR code.</p>
+          </div>
         </section>
 
         <section className="relative px-7 pb-10 pt-32 lg:flex lg:items-center lg:justify-center lg:p-10 lg:pl-4">
