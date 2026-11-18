@@ -16,6 +16,7 @@ Output files go to `tools\out\`.
 
 | Script | What it does |
 |---|---|
+| `import_roster.py roster.xlsx [--remove-placeholders] [--apply]` | Import the registrar's student list (start from `templates/student_roster_template.xlsx`; the registrar's own headings usually work too). Adds/updates by Student ID, skips bad rows with the reason, dry run unless `--apply`. `--remove-placeholders` deletes only the generated "1st Year Student 001" rows not in the file |
 | `attendance.py 2026-11-01 2026-11-30 [--section "BSIT 1A"]` | Attendance per class session from QR check-ins → Excel, one sheet per section plus a summary |
 | `usage_report.py 2026-11` | Monthly report → Excel: class/booking hours per lab, busiest PCs, student no-shows, broken PCs |
 | `accounts.py not-signed-up` | Enrolled students who haven't created a website account → Excel |

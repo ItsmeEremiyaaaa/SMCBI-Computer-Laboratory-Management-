@@ -60,3 +60,37 @@ def test_account_tools():
     updates, problems = status_changes(sheet, STU)
     assert [(u["student_id"], u["to"]) for u in updates] == [("C260001", "Graduated")]
     assert len(problems) == 2 and "unknown Student ID" in problems[0] and "unknown status" in problems[1]
+
+
+def test_roster_import_parses_messy_registrar_sheets():
+    from import_roster import parse, plan
+    sheet = pd.DataFrame({
+        "ID No.": ["c23-0505", "C260001", "C260002", "X1", ""],
+        "Last Name": ["ESCUBIDO", "Cruz", "Lopez", "Bad", ""],
+        "First Name": ["JEREMIAH", "Ana", "Ben", "Row", ""],
+        "Gender": ["M", "F", "Male", "M", ""],
+        "Program": ["bsit", "BSIT", "BS-IT", "BSIT", ""],
+        "Year": ["4th", "1", "First Year", "2", ""],
+        "Sec": ["BSIT 4-A", "A", "a", "A", ""],
+    })
+    rows, problems = parse(sheet)
+    assert [r["student_id"] for r in rows] == ["C230505", "C260001", "C260002"]
+    assert rows[0] | {} == {**rows[0], "full_name": "Jeremiah Escubido", "year_level": "4th Year", "section": "A", "sex": "Male",
+                            "course": "BSIT", "email": "c230505@smcbi.edu.ph"}
+    assert rows[2]["year_level"] == "1st Year" and rows[2]["section"] == "A"
+    assert len(problems) == 1 and problems[0].startswith("Row 5:") and "C230505" in problems[0]  # blank row ignored
+
+    existing = [{**STU[0], "full_name": "1st Year Student 001"},  # placeholder that becomes Ana
+                {**STU[2], "full_name": "1st Year Student 003"},  # placeholder not in file → removable
+                {"id": "s9", "student_id": "C259999", "full_name": "Real Person", "email": "c259999@smcbi.edu.ph"}]
+    p = plan(rows, existing, remove_placeholders=True)
+    assert [r["student_id"] for r in p["add"]] == ["C230505", "C260002"]
+    assert [r["student_id"] for r in p["update"]] == ["C260001"]
+    assert [s["student_id"] for s in p["remove"]] == ["C260003"]  # real people are never removed
+    assert plan(rows, existing, remove_placeholders=False)["remove"] == []
+
+
+def test_roster_import_reports_missing_columns():
+    from import_roster import parse
+    rows, problems = parse(pd.DataFrame({"Name": ["A"]}))
+    assert rows == [] and "Missing column" in problems[0]
