@@ -217,18 +217,23 @@ function ReviewModal({ r, to, where, onClose, onDone }:
     try { await api.reviewReservation(r.id, to, notes.trim() === GREETING.trim() ? null : notes.trim() || null); onDone(); } catch (e) { setError((e as Error).message); } finally { setBusy(false); }
   }
   return (
-    <Modal open title={to === 'cancelled' ? 'Cancel this approved booking?' : `${verb} request`} onClose={onClose}>
-      <div className="grid gap-4">
-        {error && <Alert>{error}</Alert>}
+    <Modal wide open title={to === 'cancelled' ? 'Cancel this approved booking?' : `${verb} request`} onClose={onClose}>
+      {error && <div className="mb-4"><Alert>{error}</Alert></div>}
+      {/* landscape on laptops: the booking on the left, the note and the decision on the right */}
+      <div className="grid gap-4 lg:grid-cols-[1.1fr_1fr] lg:gap-6">
         <div className="rounded-lg border border-line bg-chalk/50 p-3">
           <p className="mb-2 font-semibold">{r.title}</p>
           <BookingDetails r={r} where={where} />
         </div>
-        <Field label="Note to the requester (optional)" hint="Starts with the school greeting. Type your message below it, or leave it as is to send no note."><Textarea value={notes} onChange={(e) => setNotes(e.target.value)} rows={5} autoFocus
-          onFocus={(e) => { const end = e.currentTarget.value.length; e.currentTarget.setSelectionRange(end, end); }} /></Field>
-        <div className="flex justify-end gap-2">
-          <Button variant="ghost" onClick={onClose}>Cancel</Button>
-          <Button variant={to === 'approved' ? 'primary' : 'danger'} disabled={busy} onClick={go}>{verb}</Button>
+        <div className="flex flex-col gap-4">
+          <Field label="Note to the requester (optional)" hint="Starts with the school greeting. Type your message below it, or leave it as is to send no note.">
+            <Textarea value={notes} onChange={(e) => setNotes(e.target.value)} rows={8} autoFocus
+              onFocus={(e) => { const end = e.currentTarget.value.length; e.currentTarget.setSelectionRange(end, end); }} />
+          </Field>
+          <div className="mt-auto flex justify-end gap-2">
+            <Button variant="ghost" onClick={onClose}>{to === 'cancelled' ? 'Keep booking' : 'Cancel'}</Button>
+            <Button variant={to === 'approved' ? 'primary' : 'danger'} disabled={busy} onClick={go}>{verb}</Button>
+          </div>
         </div>
       </div>
     </Modal>
