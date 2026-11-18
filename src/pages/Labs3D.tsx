@@ -208,7 +208,7 @@ export default function Labs3D() {
   // Enrolled students of the class in this lab, e.g. "BSIT 1A" → BSIT · 1st Year · section A.
   const classSection = (activeClassSchedule ?? upcomingClassSchedule)?.section ?? null;
   const classStudents = useMemo(() => {
-    const m = classSection?.match(/^([A-Z]+)s*(d)s*([A-Z])?$/i);
+    const m = classSection?.match(/^([A-Z]+)\s*(\d)\s*([A-Z])?$/i);
     if (!m) return undefined;
     const year = `${m[2]}${['', 'st', 'nd', 'rd'][Number(m[2])] ?? 'th'} Year`;
     const list = (students.data ?? [])
@@ -396,7 +396,7 @@ export default function Labs3D() {
           <div className="flex items-start justify-between gap-2">
             <div className="flex items-center gap-3">
               <span className="grid h-11 w-11 shrink-0 place-items-center rounded-full bg-accent text-sm font-bold text-white">
-                {studentPick.s.full_name.split(/s+/).map((w) => w[0]).slice(0, 2).join('').toUpperCase()}
+                {studentPick.s.full_name.split(/\s+/).map((w) => w[0]).slice(0, 2).join('').toUpperCase()}
               </span>
               <div className="min-w-0">
                 <p className="truncate font-semibold text-ink">{studentPick.s.full_name}</p>

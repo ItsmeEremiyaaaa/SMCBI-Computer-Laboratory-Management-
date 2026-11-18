@@ -4,7 +4,7 @@ import { Plus, Search } from 'lucide-react';
 import { useAuth } from '../auth';
 import { useLoad } from '../hooks/useLoad';
 import { api, type StudentInput } from '../lib/api';
-import { DEPARTMENTS, SEXES, STUDENT_STATUSES, YEAR_LEVELS, type Profile, type Role, type Student, type StudentStatus } from '../lib/types';
+import { DEPARTMENTS, SEXES, STUDENT_STATUSES, YEAR_LEVELS, type ClassSchedule, type Profile, type Role, type Student, type StudentStatus } from '../lib/types';
 import { validateStudent } from '../lib/validate';
 import { Alert, Button, Empty, Field, Input, Modal, PageHeader, Panel, Select } from '../components/ui';
 
@@ -41,6 +41,29 @@ export default function People() {
 
 const match = (q: string, ...fields: (string | null)[]) => !q || fields.some((f) => f?.toLowerCase().includes(q.toLowerCase()));
 
+// "S. April Mariae Libradilla, RVM" and "April Libradilla" both → "april libradilla":
+// drop titles/degrees after a comma and single-letter initials, keep first and last name.
+export function nameKey(name: string) {
+  const words = name.split(',')[0].toLowerCase().replace(/[^a-z\s]/g, ' ').split(/\s+/).filter((w) => w.length > 1);
+  return words.length ? `${words[0]} ${words[words.length - 1]}` : '';
+}
+
+const DAY_SHORT = ['', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
+const LAB_SHORT: Record<string, string> = { lab1: 'ComLab 1', lab2: 'ComLab 2', netlab: 'NetLab' };
+
+function ClassList({ classes }: { classes: ClassSchedule[] }) {
+  return (
+    <ul className="mt-1.5 flex flex-wrap gap-1">
+      {classes.map((c) => (
+        <li key={c.id} title={`${c.subject} · ${LAB_SHORT[c.lab_id] ?? c.lab_id}`}
+          className="rounded-md bg-chalk px-1.5 py-0.5 text-[11px] text-muted">
+          <b className="font-semibold text-ink">{c.section}</b> {c.subject.split(' ')[0]} · {DAY_SHORT[c.day_of_week]} {c.start_time.slice(0, 5)} · {LAB_SHORT[c.lab_id] ?? c.lab_id}
+        </li>
+      ))}
+    </ul>
+  );
+}
+
 function Accounts({ role, q }: { role: Role; q: string }) {
   const { profile: me } = useAuth();
   const list = useLoad(() => api.listProfiles(role), [role]);
@@ -48,6 +71,20 @@ function Accounts({ role, q }: { role: Role; q: string }) {
   const [error, setError] = useState<string | null>(null);
   const rows = (list.data ?? []).filter((p) => match(q, p.full_name, p.email, p.department))
     .sort((a, b) => Number(a.approved) - Number(b.approved) || a.full_name.localeCompare(b.full_name));
+
+  // Instructors named on the class schedule, matched to accounts by name.
+  const schedules = useLoad(() => (role === 'teacher' ? api.listSchedules() : Promise.resolve([])), [role]);
+  const byInstructor = new Map<string, { name: string; classes: ClassSchedule[] }>();
+  for (const c of [...(schedules.data ?? [])].sort((a, b) => a.day_of_week - b.day_of_week || a.start_time.localeCompare(b.start_time))) {
+    const k = nameKey(c.instructor);
+    if (!k) continue;
+    const e = byInstructor.get(k) ?? { name: c.instructor, classes: [] };
+    e.classes.push(c);
+    byInstructor.set(k, e);
+  }
+  const accountKeys = new Set((list.data ?? []).map((p) => nameKey(p.full_name)));
+  const noAccount = [...byInstructor.entries()].filter(([k, v]) => !accountKeys.has(k) && match(q, v.name))
+    .map(([, v]) => v).sort((a, b) => a.name.localeCompare(b.name));
 
   async function patch(id: string, p: Partial<Profile>) {
     setError(null);
@@ -73,6 +110,7 @@ function Accounts({ role, q }: { role: Role; q: string }) {
                 <div className="min-w-0 flex-1">
                   <p className="font-medium">{p.full_name}</p>
                   <p className="truncate text-sm text-muted">{p.email}{p.department && `, ${p.department}`}{p.course && `, ${p.course}`}</p>
+                  {byInstructor.get(nameKey(p.full_name)) && <ClassList classes={byInstructor.get(nameKey(p.full_name))!.classes} />}
                 </div>
                 {!p.approved && <span className="rounded bg-amber-50 px-2 py-0.5 text-xs font-medium text-amber-800 ring-1 ring-amber-200 ring-inset">Waiting for approval</span>}
                 <div className="flex gap-2">
@@ -86,6 +124,29 @@ function Accounts({ role, q }: { role: Role; q: string }) {
           </ul>
         )}
       </Panel>
+      {role === 'teacher' && noAccount.length > 0 && (
+        <Panel className="mt-4">
+          <div className="border-b border-line px-4 py-3">
+            <h2 className="font-semibold">On the class schedule ({noAccount.length})</h2>
+            <p className="text-sm text-muted">These instructors teach in the labs but haven't signed up yet. Once they sign up with their @smcbi.edu.ph email under the same name, they appear above with their classes, ready to approve.</p>
+          </div>
+          <ul className="divide-y divide-line">
+            {noAccount.map((t) => (
+              <li key={t.name} className="flex flex-wrap items-start gap-3 px-4 py-3">
+                <span className="grid h-9 w-9 shrink-0 place-items-center rounded-full bg-chalk text-sm font-semibold text-muted">
+                  {nameKey(t.name).split(' ').map((w) => w[0].toUpperCase()).join('')}
+                </span>
+                <div className="min-w-0 flex-1">
+                  <p className="font-medium">{t.name}</p>
+                  <p className="text-sm text-muted">{t.classes.length} lab class{t.classes.length > 1 ? 'es' : ''} a week</p>
+                  <ClassList classes={t.classes} />
+                </div>
+                <span className="rounded bg-slate-100 px-2 py-0.5 text-xs font-medium text-slate-600 ring-1 ring-slate-200 ring-inset">No account yet</span>
+              </li>
+            ))}
+          </ul>
+        </Panel>
+      )}
       {edit && <ProfileModal p={edit} canChangeRole={edit.id !== me?.id} onClose={() => setEdit(null)}
         onSave={async (x) => { await api.updateProfile(edit.id, x); setEdit(null); await list.reload(); }} />}
     </>
