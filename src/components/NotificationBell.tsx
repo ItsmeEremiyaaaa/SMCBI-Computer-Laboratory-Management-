@@ -57,7 +57,7 @@ export default function NotificationBell({ count, className = '' }: { count: num
 
       {open && (
         <div role="dialog" aria-label="Notifications"
-          className="absolute right-0 top-12 z-50 w-[22rem] max-w-[calc(100vw-2rem)] overflow-hidden rounded-2xl border border-line bg-panel shadow-2xl">
+          className="fixed inset-x-3 top-16 z-50 overflow-hidden rounded-2xl border border-line bg-panel shadow-2xl sm:absolute sm:inset-x-auto sm:right-0 sm:top-12 sm:w-[22rem]">
           <p className="border-b border-line px-4 py-3 font-semibold">Needs attention</p>
           {error && <p role="alert" className="border-b border-red-200 bg-red-50 px-4 py-2 text-sm text-red-800">{error}</p>}
           <div className="max-h-[70vh] overflow-y-auto">

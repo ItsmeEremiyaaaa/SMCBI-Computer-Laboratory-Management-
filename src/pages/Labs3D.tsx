@@ -282,12 +282,12 @@ export default function Labs3D() {
 
       {/* Top toolbar: lab + view switcher, then live class status, PC counts and simulation controls */}
       <div className="absolute left-4 top-4 z-20 flex max-w-[calc(100%-2rem)] flex-col items-start gap-2">
-        <div className="flex flex-wrap items-center gap-1 rounded-2xl bg-slate-900/80 p-1 text-white shadow-lg ring-1 ring-white/10 backdrop-blur-md">
-          <nav className="flex gap-1" aria-label="Choose lab">
+        <div className="flex max-w-[calc(100vw-9.5rem)] flex-wrap items-center gap-1 rounded-2xl bg-slate-900/80 sm:max-w-none p-1 text-white shadow-lg ring-1 ring-white/10 backdrop-blur-md">
+          <nav className="flex min-w-0 max-w-full gap-1 overflow-x-auto" aria-label="Choose lab">
             {labs.data?.map((l) => (
               <NavLink key={l.id} to={`/labs/${l.id}`} onClick={() => setSelectedId(null)}
                 title={labDisplayName(l.name, l.id)}
-                className={() => `rounded-xl px-3.5 py-1.5 text-xs font-semibold transition-all ${l.id === lab?.id ? 'bg-white text-slate-900 shadow' : 'text-white/70 hover:bg-white/10 hover:text-white'}`}>
+                className={() => `shrink-0 whitespace-nowrap rounded-xl px-3 py-1.5 text-xs font-semibold transition-all sm:px-3.5 ${l.id === lab?.id ? 'bg-white text-slate-900 shadow' : 'text-white/70 hover:bg-white/10 hover:text-white'}`}>
                 {labShortName(l.name, l.id)}
               </NavLink>
             ))}
@@ -382,14 +382,15 @@ export default function Labs3D() {
                 />
               </Suspense>
             </SceneBoundary>
-          : <div className="h-full w-full overflow-auto p-6 pt-36 pb-32"><SeatGrid lab={lab} pcs={displayedPcs} selectedId={selectedId} onSelect={select} onReady={() => setSceneReady(true)} isOccupied={isClassInSession} classInfo={activeClassSchedule} simMode={effectiveSimMode} teacherName={teacherName} /></div>)}
+          : <div className="h-full w-full overflow-auto px-3 pb-32 pt-44 sm:p-6 sm:pt-36 sm:pb-32"><SeatGrid lab={lab} pcs={displayedPcs} selectedId={selectedId} onSelect={select} onReady={() => setSceneReady(true)} isOccupied={isClassInSession} classInfo={activeClassSchedule} simMode={effectiveSimMode} teacherName={teacherName} /></div>)}
       </div>
 
 
 
       {/* Student card when an avatar is clicked */}
       {studentPick && !selected && (
-        <aside className="absolute right-4 top-20 z-30 w-80 max-w-[calc(100%-2rem)] rounded-2xl border border-line bg-panel/95 p-4 shadow-2xl backdrop-blur">
+        <aside className="fixed inset-x-0 bottom-0 z-50 max-h-[75dvh] overflow-y-auto rounded-t-2xl border border-line bg-panel shadow-2xl sm:absolute sm:inset-x-auto sm:bottom-auto sm:right-4 sm:top-20 sm:z-30 sm:w-80 sm:max-h-[calc(100%-6rem)] sm:rounded-2xl sm:bg-panel/95 sm:backdrop-blur p-4">
+          <div className="mx-auto -mt-1 mb-3 h-1 w-10 rounded-full bg-line sm:hidden" aria-hidden />
           <div className="flex items-start justify-between gap-2">
             <div className="flex items-center gap-3">
               <span className="grid h-11 w-11 shrink-0 place-items-center rounded-full bg-accent text-sm font-bold text-white">
@@ -420,7 +421,8 @@ export default function Labs3D() {
 
       {/* Floating PC inspection drawer in top-right when a workstation is selected */}
       {selected && lab && (
-        <aside className="absolute right-4 top-20 z-30 w-80 max-w-[calc(100%-2rem)] max-h-[calc(100%-6rem)] overflow-y-auto rounded-2xl border border-line bg-panel/95 shadow-2xl backdrop-blur transition-all">
+        <aside className="fixed inset-x-0 bottom-0 z-50 max-h-[75dvh] overflow-y-auto rounded-t-2xl border border-line bg-panel shadow-2xl sm:absolute sm:inset-x-auto sm:bottom-auto sm:right-4 sm:top-20 sm:z-30 sm:w-80 sm:max-h-[calc(100%-6rem)] sm:rounded-2xl sm:bg-panel/95 sm:backdrop-blur">
+          <div className="mx-auto mt-2 h-1 w-10 rounded-full bg-line sm:hidden" aria-hidden />
           <PcPanel pc={selected} lab={lab} canEdit={profile?.role === 'admin' || profile?.role === 'staff'} onClose={() => setSelectedId(null)} />
         </aside>
       )}

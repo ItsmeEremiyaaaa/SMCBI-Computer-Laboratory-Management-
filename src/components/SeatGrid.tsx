@@ -63,8 +63,10 @@ export default function SeatGrid({ lab, pcs, selectedId, onSelect, onReady }: Sc
   return (
     <div className="flex min-h-full w-full items-center justify-center">
       <figure className="w-full max-w-5xl rounded-2xl bg-panel p-3 shadow-lg ring-1 ring-line/60 sm:p-5">
+        <div className="-mx-3 overflow-x-auto px-3 sm:mx-0 sm:px-0">
         <svg viewBox={`${-w / 2 - pad} ${-d / 2 - pad} ${w + pad * 2} ${d + pad * 2}`} role="group" aria-label={`${lab.name} floor plan`}
-          className="mx-auto block h-auto max-h-[calc(100vh-17rem)] w-full select-none">
+          style={{ minWidth: `min(${Math.round(w * 52)}px, 900px)` }}
+          className="mx-auto block h-auto w-full select-none sm:max-h-[calc(100vh-17rem)] sm:!min-w-0">
           <defs>
             <pattern id="fp-tiles" width={0.6} height={0.6} patternUnits="userSpaceOnUse">
               <rect width={0.6} height={0.6} fill={FLOOR} />
@@ -118,6 +120,8 @@ export default function SeatGrid({ lab, pcs, selectedId, onSelect, onReady }: Sc
             );
           })}
         </svg>
+        </div>
+        <p className="mt-2 text-center text-[11px] text-muted sm:hidden">Swipe sideways to see the whole room.</p>
 
         <figcaption className="mt-3 flex flex-wrap items-center justify-center gap-x-5 gap-y-2 border-t border-line pt-3 text-xs text-muted">
           {STATUSES.map((s) => (

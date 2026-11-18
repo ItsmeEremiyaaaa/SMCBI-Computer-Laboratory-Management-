@@ -84,7 +84,7 @@ export default function Layout() {
         {/* Floating top-right user and notification controls */}
         <div className="pointer-events-none absolute right-4 top-4 z-30 flex items-center gap-2">
           {api.demo && (
-            <span className="pointer-events-auto rounded-xl border border-amber-200 bg-amber-100/90 px-2.5 py-1 text-xs font-medium text-amber-900 shadow-sm backdrop-blur">
+            <span className="pointer-events-auto hidden rounded-xl border sm:inline border-amber-200 bg-amber-100/90 px-2.5 py-1 text-xs font-medium text-amber-900 shadow-sm backdrop-blur">
               Demo mode
             </span>
           )}
@@ -148,7 +148,7 @@ export default function Layout() {
       )}
 
       <div className="flex min-w-0 flex-1 flex-col">
-        <div className="sticky top-0 z-30 flex h-14 items-center gap-3 bg-chalk/85 px-4 backdrop-blur md:top-3 md:rounded-2xl md:px-6 print:hidden">
+        <div className="sticky top-0 z-30 flex h-14 items-center gap-3 bg-chalk px-4 md:static md:bg-transparent md:px-6 print:hidden">
           <button className="md:hidden" onClick={() => setOpen(true)} aria-label="Open menu"><Menu /></button>
           {api.demo && (
             <span className="rounded bg-amber-100 px-2 py-0.5 text-xs font-medium text-amber-900">Demo mode, sample data</span>

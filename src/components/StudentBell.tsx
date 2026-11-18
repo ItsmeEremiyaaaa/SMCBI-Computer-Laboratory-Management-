@@ -133,7 +133,7 @@ export default function StudentBell() {
       </button>
       {open && (
         <div role="dialog" aria-label="Notifications"
-          className="absolute right-0 top-12 z-50 w-[22rem] max-w-[calc(100vw-2rem)] overflow-hidden rounded-2xl border border-line bg-panel shadow-2xl">
+          className="fixed inset-x-3 top-16 z-50 overflow-hidden rounded-2xl border border-line bg-panel shadow-2xl sm:absolute sm:inset-x-auto sm:right-0 sm:top-12 sm:w-[22rem]">
           <p className="border-b border-line px-4 py-3 font-semibold">Notifications</p>
           <div className="max-h-[70vh] overflow-y-auto">
             {notes.length === 0 && <p className="px-4 py-6 text-center text-sm text-muted">Nothing new. Booking decisions and reminders show up here.</p>}

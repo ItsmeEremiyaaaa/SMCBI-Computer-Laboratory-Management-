@@ -111,12 +111,14 @@ export function Modal({ open, title, onClose, children }: { open: boolean; title
   if (!open) return null;
   return (
     <dialog ref={ref} onClose={onClose} onCancel={onClose} aria-label={title}
-      className="m-auto w-[min(92vw,34rem)] rounded-lg border border-line bg-panel p-0 text-ink shadow-xl backdrop:bg-rail/50">
-      <div className="flex items-center justify-between border-b border-line px-5 py-3">
-        <h2 className="font-semibold">{title}</h2>
-        <button onClick={onClose} aria-label="Close" className="rounded p-1 text-muted hover:bg-chalk"><X size={18} /></button>
+      className="mb-0 mt-auto w-full max-w-full rounded-t-2xl border border-line bg-panel p-0 text-ink shadow-xl backdrop:bg-rail/50
+        sm:m-auto sm:w-[min(92vw,34rem)] sm:rounded-lg">
+      <div className="mx-auto mt-2 h-1 w-10 rounded-full bg-line sm:hidden" aria-hidden />
+      <div className="flex items-center justify-between gap-3 border-b border-line px-4 py-3 sm:px-5">
+        <h2 className="min-w-0 truncate font-semibold">{title}</h2>
+        <button onClick={onClose} aria-label="Close" className="shrink-0 rounded p-1 text-muted hover:bg-chalk"><X size={18} /></button>
       </div>
-      <div className="max-h-[75vh] overflow-y-auto p-5">{children}</div>
+      <div className="max-h-[80dvh] overflow-y-auto p-4 pb-[max(1rem,env(safe-area-inset-bottom))] sm:max-h-[75vh] sm:p-5">{children}</div>
     </dialog>
   );
 }
