@@ -2,7 +2,7 @@ import { useState, type FormEvent } from 'react';
 import { Link } from 'react-router-dom';
 import { api } from '../lib/api';
 import { DEPARTMENTS } from '../lib/types';
-import { isSchoolEmail } from '../lib/validate';
+import { isSchoolEmail, schoolEmail } from '../lib/validate';
 import { Alert, Button, Field, Input, Select } from '../components/ui';
 import AuthShell from './AuthShell';
 
@@ -16,10 +16,11 @@ export default function Signup() {
 
   async function submit(e: FormEvent) {
     e.preventDefault();
-    if (!isSchoolEmail(f.email)) return setError('Use your @smcbi.edu.ph email.');
+    const email = schoolEmail(f.email);
+    if (!isSchoolEmail(email)) return setError('Use your @smcbi.edu.ph email.');
     if (f.password.length < 8) return setError('Password must be at least 8 characters.');
     setBusy(true); setError(null);
-    try { await api.signUp(f); setDone(true); } catch (err) { setError((err as Error).message); } finally { setBusy(false); }
+    try { await api.signUp({ ...f, email }); setDone(true); } catch (err) { setError((err as Error).message); } finally { setBusy(false); }
   }
 
   return (
@@ -42,7 +43,8 @@ export default function Signup() {
         <form onSubmit={submit} noValidate className="mt-6 grid gap-4">
           {error && <Alert>{error}</Alert>}
           <Field label="Full name" hint={student ? 'Your name from the student record is used if it matches.' : undefined}><Input required value={f.full_name} onChange={set('full_name')} autoComplete="name" /></Field>
-          <Field label="Email" hint="Must end with @smcbi.edu.ph"><Input type="email" required value={f.email} onChange={set('email')} autoComplete="email" /></Field>
+          <Field label={student ? 'Email or student ID' : 'Email'} hint={f.email && !f.email.includes('@') ? `Your email: ${schoolEmail(f.email)}` : 'Must end with @smcbi.edu.ph'}>
+            <Input required value={f.email} onChange={set('email')} autoComplete="email" inputMode="email" autoCapitalize="none" spellCheck={false} placeholder={student ? 'c230505' : 'name@smcbi.edu.ph'} /></Field>
           <Field label="Password" hint="At least 8 characters"><Input type="password" required value={f.password} onChange={set('password')} autoComplete="new-password" /></Field>
           {!student && <div className="grid grid-cols-2 gap-3">
             <Field label="Department"><Select value={f.department} onChange={set('department')}>{DEPARTMENTS.map((d) => <option key={d}>{d}</option>)}</Select></Field>

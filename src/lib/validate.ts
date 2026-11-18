@@ -45,3 +45,9 @@ export const schedulesOverlap = (a: ScheduleCheck, b: ScheduleCheck) =>
   a.lab_id === b.lab_id && a.day_of_week === b.day_of_week &&
   a.start_time < b.end_time && b.start_time < a.end_time &&
   a.starts_on <= b.ends_on && b.starts_on <= a.ends_on;
+
+/** "c230505" or " C230505@SMCBI.edu.ph " → "c230505@smcbi.edu.ph" (students can type just their ID). */
+export const schoolEmail = (input: string) => {
+  const v = input.trim().toLowerCase();
+  return v && !v.includes('@') ? `${v}@smcbi.edu.ph` : v;
+};

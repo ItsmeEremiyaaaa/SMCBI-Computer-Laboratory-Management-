@@ -73,6 +73,10 @@ export function createMock(storage: Store | null = browserStorage()): Api {
       state.profiles.push(p); sessionId = p.id; save(); authListeners.forEach((f) => f());
     },
     async signOut() { sessionId = null; save(); authListeners.forEach((f) => f()); },
+    // demo mode has no email; these just succeed
+    async resetPassword() {},
+    async updatePassword(password) { me(); if (password.length < 8) throw new Error('Password must be at least 8 characters.'); },
+    async resendConfirmation() {},
 
     async listLabs() { me(); return clone(state.labs); },
     async listPcs(labId) { me(); return clone(state.pcs.filter((p) => !labId || p.lab_id === labId)); },

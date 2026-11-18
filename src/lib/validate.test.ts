@@ -27,3 +27,12 @@ describe('isSchoolEmail', () => {
   it('rejects gmail', () => expect(isSchoolEmail('a@gmail.com')).toBe(false));
   it('rejects lookalike domains', () => expect(isSchoolEmail('a@smcbi.edu.ph.evil.com')).toBe(false));
 });
+
+describe('schoolEmail', () => {
+  it('adds the school domain to a bare ID and tidies full emails', async () => {
+    const { schoolEmail } = await import('./validate');
+    expect(schoolEmail(' C230505 ')).toBe('c230505@smcbi.edu.ph');
+    expect(schoolEmail('Teacher@SMCBI.edu.ph')).toBe('teacher@smcbi.edu.ph');
+    expect(schoolEmail('')).toBe('');
+  });
+});

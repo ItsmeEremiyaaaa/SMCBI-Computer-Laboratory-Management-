@@ -47,7 +47,23 @@ export function createSupabaseApi(url: string, key: string): Api {
     },
     async signIn(email, password) {
       const { error } = await sb.auth.signInWithPassword({ email: email.trim(), password });
-      if (error) throw new Error(error.message === 'Invalid login credentials' ? 'Wrong email or password.' : error.message);
+      if (error) {
+        if (error.message === 'Invalid login credentials') throw new Error('Wrong email or password.');
+        if (/not confirmed/i.test(error.message)) throw new Error("Your email isn't confirmed yet. Open the confirmation link we emailed you, or send it again below.");
+        throw new Error(error.message);
+      }
+    },
+    async resetPassword(email) {
+      const { error } = await sb.auth.resetPasswordForEmail(email.trim(), { redirectTo: `${window.location.origin}/reset-password` });
+      if (error) throw new Error(error.message);
+    },
+    async updatePassword(password) {
+      const { error } = await sb.auth.updateUser({ password });
+      if (error) throw new Error(error.message);
+    },
+    async resendConfirmation(email) {
+      const { error } = await sb.auth.resend({ type: 'signup', email: email.trim(), options: { emailRedirectTo: window.location.origin } });
+      if (error) throw new Error(error.message);
     },
     async signUp(i) {
       const { error } = await sb.auth.signUp({

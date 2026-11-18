@@ -23,6 +23,12 @@ export interface Api {
   signIn(email: string, password: string): Promise<void>;
   signUp(input: SignUpInput): Promise<void>;
   signOut(): Promise<void>;
+  /** Email a password-reset link that opens /reset-password. */
+  resetPassword(email: string): Promise<void>;
+  /** Set a new password for the signed-in user (after following the reset link). */
+  updatePassword(password: string): Promise<void>;
+  /** Send the sign-up confirmation email again. */
+  resendConfirmation(email: string): Promise<void>;
 
   listLabs(): Promise<Lab[]>;
   listPcs(labId?: string): Promise<Pc[]>;
