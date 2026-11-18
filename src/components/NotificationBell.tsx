@@ -28,7 +28,14 @@ function useAttention() {
     api.listReports().catch(() => []),
   ]).then(([accounts, requests, pcs, reports]) => setData({ accounts, reports, requests, pcs, broken: pcs.filter((p) => p.status === 'broken') }))
     .catch(() => setData((d) => d ?? { accounts: [], reports: [], requests: [], broken: [], pcs: [] })), [isAdmin]);
-  useEffect(() => { load(); }, [load]);
+  // realtime does the instant updates; this catches anything it misses (dropped socket, phone asleep)
+  useEffect(() => {
+    load();
+    const t = setInterval(() => { if (!document.hidden) load(); }, 20_000);
+    const wake = () => { if (!document.hidden) load(); };
+    document.addEventListener('visibilitychange', wake); window.addEventListener('focus', wake);
+    return () => { clearInterval(t); document.removeEventListener('visibilitychange', wake); window.removeEventListener('focus', wake); };
+  }, [load]);
   useEffect(() => api.subscribeReservations(() => { load(); }), [load]);
   useEffect(() => api.subscribePcs(null, () => { load(); }), [load]);
   return { data, load, isAdmin };

@@ -94,13 +94,14 @@ export function createSupabaseApi(url: string, key: string): Api {
       return () => { sb.removeChannel(ch); };
     },
     subscribeReservations(cb) {
-      const ch = sb.channel(`res:${Math.random().toString(36).slice(2)}`)
-        .on('postgres_changes', { event: '*', schema: 'public', table: 'reservations' }, () => cb())
-        .on('postgres_changes', { event: '*', schema: 'public', table: 'class_schedules' }, () => cb())
-        .on('postgres_changes', { event: '*', schema: 'public', table: 'pc_reports' }, () => cb())
-        .on('postgres_changes', { event: '*', schema: 'public', table: 'profiles' }, () => cb())
-        .subscribe();
-      return () => { sb.removeChannel(ch); };
+      // One channel per table: if a table isn't published for realtime yet, only that table goes quiet
+      // (a rejected binding fails its whole channel). Bursts of changes trigger a single reload.
+      let t: ReturnType<typeof setTimeout> | undefined;
+      const fire = () => { clearTimeout(t); t = setTimeout(cb, 150); };
+      const id = Math.random().toString(36).slice(2);
+      const chs = ['reservations', 'class_schedules', 'pc_reports', 'profiles'].map((table) =>
+        sb.channel(`${table}:${id}`).on('postgres_changes', { event: '*', schema: 'public', table }, fire).subscribe());
+      return () => { clearTimeout(t); chs.forEach((ch) => sb.removeChannel(ch)); };
     },
 
     async listReservations(f = {}) {
