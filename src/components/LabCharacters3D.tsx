@@ -4,6 +4,7 @@ import { MathUtils, type Group } from 'three';
 import { LAYOUTS, seatPlacement } from '../lib/layouts';
 import type { Lab, Student } from '../lib/types';
 import type { LivePc } from '../hooks/useLabLive';
+import { box, cyl } from './labGeometry';
 
 export type SimMode = 'walk_in' | 'in_session' | 'walk_out' | 'empty';
 
@@ -99,11 +100,11 @@ export function Teacher3D({ gender }: { gender: 'male' | 'female' }) {
         [-0.10, 0.10].map((lx) => (
           <group key={lx} position={[lx, 0, 0]}>
             <mesh position={[0, 0.44, 0]}>
-              <boxGeometry args={[0.13, 0.84, 0.13]} />
+              <primitive object={box(0.13, 0.84, 0.13)} attach="geometry" />
               {pantsMat}
             </mesh>
             <mesh position={[0, 0.04, 0.04]}>
-              <boxGeometry args={[0.13, 0.08, 0.22]} />
+              <primitive object={box(0.13, 0.08, 0.22)} attach="geometry" />
               {shoesMat}
             </mesh>
           </group>
@@ -111,17 +112,17 @@ export function Teacher3D({ gender }: { gender: 'male' | 'female' }) {
       ) : (
         <>
           <mesh position={[0, 0.62, 0]}>
-            <boxGeometry args={[0.34, 0.42, 0.22]} />
+            <primitive object={box(0.34, 0.42, 0.22)} attach="geometry" />
             {skirtMat}
           </mesh>
           {[-0.09, 0.09].map((lx) => (
             <group key={lx} position={[lx, 0, 0]}>
               <mesh position={[0, 0.24, 0]}>
-                <boxGeometry args={[0.09, 0.44, 0.09]} />
+                <primitive object={box(0.09, 0.44, 0.09)} attach="geometry" />
                 {skinMat}
               </mesh>
               <mesh position={[0, 0.04, 0.03]}>
-                <boxGeometry args={[0.10, 0.07, 0.18]} />
+                <primitive object={box(0.10, 0.07, 0.18)} attach="geometry" />
                 {shoesMat}
               </mesh>
             </group>
@@ -132,23 +133,23 @@ export function Teacher3D({ gender }: { gender: 'male' | 'female' }) {
       {/* Torso */}
       <group position={[0, 1.10, 0]}>
         <mesh>
-          <boxGeometry args={[0.36, 0.46, 0.22]} />
+          <primitive object={box(0.36, 0.46, 0.22)} attach="geometry" />
           {isMale ? brownVestMat : navyBlazerMat}
         </mesh>
         {isMale ? (
           <>
             <mesh position={[0, 0.12, 0.113]}>
-              <boxGeometry args={[0.12, 0.18, 0.01]} />
+              <primitive object={box(0.12, 0.18, 0.01)} attach="geometry" />
               {whiteMat}
             </mesh>
             <mesh position={[0, 0.08, 0.116]}>
-              <boxGeometry args={[0.04, 0.22, 0.01]} />
+              <primitive object={box(0.04, 0.22, 0.01)} attach="geometry" />
               <meshStandardMaterial color="#0f172a" />
             </mesh>
           </>
         ) : (
           <mesh position={[0, 0.10, 0.113]}>
-            <boxGeometry args={[0.12, 0.16, 0.01]} />
+            <primitive object={box(0.12, 0.16, 0.01)} attach="geometry" />
             {whiteMat}
           </mesh>
         )}
@@ -156,17 +157,17 @@ export function Teacher3D({ gender }: { gender: 'male' | 'female' }) {
 
       {/* Arms */}
       <mesh position={[-0.22, 1.05, 0]}>
-        <boxGeometry args={[0.09, 0.44, 0.09]} />
+        <primitive object={box(0.09, 0.44, 0.09)} attach="geometry" />
         {isMale ? whiteMat : navyBlazerMat}
       </mesh>
       {/* Right arm gesturing toward classroom */}
       <group position={[0.22, 1.25, 0]} rotation-z={-0.6} rotation-y={0.3}>
         <mesh position={[0, -0.18, 0]}>
-          <boxGeometry args={[0.09, 0.38, 0.09]} />
+          <primitive object={box(0.09, 0.38, 0.09)} attach="geometry" />
           {isMale ? whiteMat : navyBlazerMat}
         </mesh>
         <mesh position={[0, -0.40, 0]}>
-          <boxGeometry args={[0.08, 0.08, 0.08]} />
+          <primitive object={box(0.08, 0.08, 0.08)} attach="geometry" />
           {skinMat}
         </mesh>
       </group>
@@ -174,11 +175,11 @@ export function Teacher3D({ gender }: { gender: 'male' | 'female' }) {
       {/* Head */}
       <group position={[0, 1.48, 0]}>
         <mesh>
-          <boxGeometry args={[0.21, 0.24, 0.20]} />
+          <primitive object={box(0.21, 0.24, 0.20)} attach="geometry" />
           {skinMat}
         </mesh>
         <mesh position={[0, 0.07, 0]}>
-          <boxGeometry args={[0.23, 0.14, 0.22]} />
+          <primitive object={box(0.23, 0.14, 0.22)} attach="geometry" />
           {hairMat}
         </mesh>
         {!isMale && (
@@ -188,7 +189,7 @@ export function Teacher3D({ gender }: { gender: 'male' | 'female' }) {
           </mesh>
         )}
         <mesh position={[0, 0.01, 0.11]}>
-          <boxGeometry args={[0.18, 0.04, 0.02]} />
+          <primitive object={box(0.18, 0.04, 0.02)} attach="geometry" />
           {glassesMat}
         </mesh>
       </group>
@@ -500,14 +501,14 @@ function StudentAgent3D({
       <group ref={bodyRootRef}>
         {/* Pelvis / Hips */}
         <mesh position={[0, 0.78, 0]}>
-          <boxGeometry args={[0.34, 0.14, 0.22]} />
+          <primitive object={box(0.34, 0.14, 0.22)} attach="geometry" />
           {isMale ? malePantsMat : femaleNavyMat}
         </mesh>
 
         {/* Female Navy Skirt */}
         {!isMale && (
           <mesh position={[0, 0.68, 0]}>
-            <boxGeometry args={[0.36, 0.26, 0.26]} />
+            <primitive object={box(0.36, 0.26, 0.26)} attach="geometry" />
             {femaleNavyMat}
           </mesh>
         )}
@@ -515,16 +516,16 @@ function StudentAgent3D({
         {/* Left Leg (Thigh + Knee + Calf + Shoe) */}
         <group ref={leftHipRef} position={[-0.09, 0.78, 0]}>
           <mesh position={[0, -0.20, 0]}>
-            <boxGeometry args={[0.13, 0.40, 0.13]} />
+            <primitive object={box(0.13, 0.40, 0.13)} attach="geometry" />
             {isMale ? malePantsMat : skinMat}
           </mesh>
           <group ref={leftKneeRef} position={[0, -0.40, 0]}>
             <mesh position={[0, -0.18, 0]}>
-              <boxGeometry args={[0.11, 0.36, 0.11]} />
+              <primitive object={box(0.11, 0.36, 0.11)} attach="geometry" />
               {isMale ? malePantsMat : socksMat}
             </mesh>
             <mesh position={[0, -0.34, 0.04]}>
-              <boxGeometry args={[0.12, 0.08, 0.20]} />
+              <primitive object={box(0.12, 0.08, 0.20)} attach="geometry" />
               {shoesMat}
             </mesh>
           </group>
@@ -533,16 +534,16 @@ function StudentAgent3D({
         {/* Right Leg (Thigh + Knee + Calf + Shoe) */}
         <group ref={rightHipRef} position={[0.09, 0.78, 0]}>
           <mesh position={[0, -0.20, 0]}>
-            <boxGeometry args={[0.13, 0.40, 0.13]} />
+            <primitive object={box(0.13, 0.40, 0.13)} attach="geometry" />
             {isMale ? malePantsMat : skinMat}
           </mesh>
           <group ref={rightKneeRef} position={[0, -0.40, 0]}>
             <mesh position={[0, -0.18, 0]}>
-              <boxGeometry args={[0.11, 0.36, 0.11]} />
+              <primitive object={box(0.11, 0.36, 0.11)} attach="geometry" />
               {isMale ? malePantsMat : socksMat}
             </mesh>
             <mesh position={[0, -0.34, 0.04]}>
-              <boxGeometry args={[0.12, 0.08, 0.20]} />
+              <primitive object={box(0.12, 0.08, 0.20)} attach="geometry" />
               {shoesMat}
             </mesh>
           </group>
@@ -551,7 +552,7 @@ function StudentAgent3D({
         {/* Torso */}
         <group position={[0, 1.05, 0]}>
           <mesh>
-            <boxGeometry args={[0.34, 0.38, 0.20]} />
+            <primitive object={box(0.34, 0.38, 0.20)} attach="geometry" />
             {isMale ? maleShirtMat : femaleBlouseMat}
           </mesh>
 
@@ -559,11 +560,11 @@ function StudentAgent3D({
           {!isMale && (
             <>
               <mesh position={[0, 0.13, 0.106]}>
-                <boxGeometry args={[0.22, 0.12, 0.015]} />
+                <primitive object={box(0.22, 0.12, 0.015)} attach="geometry" />
                 {femaleNavyMat}
               </mesh>
               <mesh position={[0, 0.03, 0.108]}>
-                <boxGeometry args={[0.04, 0.16, 0.015]} />
+                <primitive object={box(0.04, 0.16, 0.015)} attach="geometry" />
                 {femaleNavyMat}
               </mesh>
             </>
@@ -572,7 +573,7 @@ function StudentAgent3D({
           {/* Male Polo Collar */}
           {isMale && (
             <mesh position={[0, 0.15, 0.104]}>
-              <boxGeometry args={[0.16, 0.08, 0.015]} />
+              <primitive object={box(0.16, 0.08, 0.015)} attach="geometry" />
               <meshStandardMaterial color="#2563eb" roughness={0.4} />
             </mesh>
           )}
@@ -581,16 +582,16 @@ function StudentAgent3D({
         {/* Left Arm (Shoulder + Elbow + Forearm + Hand) */}
         <group ref={leftArmRef} position={[-0.20, 1.20, 0]}>
           <mesh position={[0, -0.14, 0]}>
-            <boxGeometry args={[0.09, 0.24, 0.09]} />
+            <primitive object={box(0.09, 0.24, 0.09)} attach="geometry" />
             {isMale ? maleShirtMat : femaleBlouseMat}
           </mesh>
           <group ref={leftElbowRef} position={[0, -0.26, 0]}>
             <mesh position={[0, -0.12, 0]}>
-              <boxGeometry args={[0.08, 0.22, 0.08]} />
+              <primitive object={box(0.08, 0.22, 0.08)} attach="geometry" />
               {skinMat}
             </mesh>
             <mesh position={[0, -0.24, 0]}>
-              <boxGeometry args={[0.08, 0.06, 0.08]} />
+              <primitive object={box(0.08, 0.06, 0.08)} attach="geometry" />
               {skinMat}
             </mesh>
           </group>
@@ -599,16 +600,16 @@ function StudentAgent3D({
         {/* Right Arm (Shoulder + Elbow + Forearm + Hand) */}
         <group ref={rightArmRef} position={[0.20, 1.20, 0]}>
           <mesh position={[0, -0.14, 0]}>
-            <boxGeometry args={[0.09, 0.24, 0.09]} />
+            <primitive object={box(0.09, 0.24, 0.09)} attach="geometry" />
             {isMale ? maleShirtMat : femaleBlouseMat}
           </mesh>
           <group ref={rightElbowRef} position={[0, -0.26, 0]}>
             <mesh position={[0, -0.12, 0]}>
-              <boxGeometry args={[0.08, 0.22, 0.08]} />
+              <primitive object={box(0.08, 0.22, 0.08)} attach="geometry" />
               {skinMat}
             </mesh>
             <mesh position={[0, -0.24, 0]}>
-              <boxGeometry args={[0.08, 0.06, 0.08]} />
+              <primitive object={box(0.08, 0.06, 0.08)} attach="geometry" />
               {skinMat}
             </mesh>
           </group>
@@ -618,30 +619,30 @@ function StudentAgent3D({
         <group ref={headRef} position={[0, 1.38, 0]}>
           {/* Neck */}
           <mesh position={[0, -0.06, 0]}>
-            <cylinderGeometry args={[0.045, 0.05, 0.08, 8]} />
+            <primitive object={cyl(0.045, 0.05, 0.08, 8)} attach="geometry" />
             {skinMat}
           </mesh>
           {/* Face */}
           <mesh>
-            <boxGeometry args={[0.20, 0.22, 0.19]} />
+            <primitive object={box(0.20, 0.22, 0.19)} attach="geometry" />
             {skinMat}
           </mesh>
           {/* Hair pieces stack without overlapping and always sit clearly outside the face box:
               coplanar faces of different meshes z-fight and flicker. */}
           {/* Hair top (y 0 … 0.14, wraps past the back of the face) */}
           <mesh position={[0, 0.07, -0.0025]}>
-            <boxGeometry args={[0.22, 0.14, 0.235]} />
+            <primitive object={box(0.22, 0.14, 0.235)} attach="geometry" />
             {hairMat}
           </mesh>
           {/* Hair back (y -0.11 … 0) */}
           <mesh position={[0, -0.055, -0.08]}>
-            <boxGeometry args={[0.22, 0.11, 0.08]} />
+            <primitive object={box(0.22, 0.11, 0.08)} attach="geometry" />
             {hairMat}
           </mesh>
           {/* Female long hair (y -0.24 … -0.11) */}
           {!isMale && (
             <mesh position={[0, -0.175, -0.08]}>
-              <boxGeometry args={[0.22, 0.13, 0.08]} />
+              <primitive object={box(0.22, 0.13, 0.08)} attach="geometry" />
               {hairMat}
             </mesh>
           )}

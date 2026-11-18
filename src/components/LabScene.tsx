@@ -1,7 +1,8 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { Canvas, useFrame, useThree } from '@react-three/fiber';
-import { OrbitControls, RoundedBox } from '@react-three/drei';
-import { CanvasTexture, MathUtils, RepeatWrapping, SRGBColorSpace, type Group, type Vector3, type MeshStandardMaterial } from 'three';
+import { OrbitControls, PerformanceMonitor } from '@react-three/drei';
+import { CanvasTexture, MathUtils, MeshStandardMaterial, RepeatWrapping, SRGBColorSpace, type BufferGeometry, type Group, type InstancedMesh, type Material, type Vector3 } from 'three';
+import { box, chairGeometry, deskGeometry, mat, placementMatrix, plane } from './labGeometry';
 import type { LivePc } from '../hooks/useLabLive';
 import type { Lab } from '../lib/types';
 import type { SceneProps } from './SeatGrid';
@@ -301,6 +302,39 @@ function getCrackTexture(): CanvasTexture {
   return crackTextureCache;
 }
 
+// All chairs and fixed desk parts of a lab as instanced meshes: a handful of draw calls for the whole room.
+function FurnitureInstances({ items, deskWidth, island }: { items: { pos: [number, number, number]; rot: number }[]; deskWidth: number; island: boolean }) {
+  const parts = useMemo(() => {
+    const chair = chairGeometry();
+    const desk = deskGeometry(deskWidth, DESK_H, DESK_D, island);
+    const woodMat = new MeshStandardMaterial({ map: woodTex(), roughness: 0.5 });
+    return [
+      { key: 'chair-black', geo: chair.black, m: mat('#18181b', 0.65), local: [0, 0, 0.62] as [number, number, number], cast: false },
+      { key: 'chair-chrome', geo: chair.chrome, m: mat('#94a3b8', 0.25, 0.75), local: [0, 0, 0.62] as [number, number, number], cast: false },
+      { key: 'chair-cushion', geo: chair.cushion, m: mat('#d6d6d9', 0.85), local: [0, 0, 0.62] as [number, number, number], cast: false },
+      { key: 'desk-wood', geo: desk.wood, m: woodMat, local: [0, 0, 0] as [number, number, number], cast: true },
+      { key: 'desk-dark', geo: desk.dark, m: mat('#1c1c1f', 0.4), local: [0, 0, 0] as [number, number, number], cast: true },
+      { key: 'desk-keys', geo: desk.keys, m: mat('#3f3f46', 0.5), local: [0, 0, 0] as [number, number, number], cast: false },
+      ...(desk.screen ? [{ key: 'desk-divider', geo: desk.screen, m: mat('#f8fafc', 0.35), local: [0, 0, 0] as [number, number, number], cast: true }] : []),
+    ];
+  }, [deskWidth, island]);
+  return <>{parts.map((p) => <InstancedPart key={p.key} geometry={p.geo} material={p.m} items={items} local={p.local} cast={p.cast} />)}</>;
+}
+
+function InstancedPart({ geometry, material, items, local, cast }:
+  { geometry: BufferGeometry; material: Material; items: { pos: [number, number, number]; rot: number }[]; local: [number, number, number]; cast: boolean }) {
+  const ref = useRef<InstancedMesh>(null);
+  useLayoutEffect(() => {
+    const m = ref.current;
+    if (!m) return;
+    items.forEach((it, i) => m.setMatrixAt(i, placementMatrix(it.pos, it.rot, local)));
+    m.count = items.length;
+    m.instanceMatrix.needsUpdate = true;
+    m.computeBoundingSphere();
+  }, [items, local]);
+  return <instancedMesh ref={ref} args={[geometry, material, Math.max(1, items.length)]} castShadow={cast} receiveShadow />;
+}
+
 function Workstation({ pc, pos, rot = 0, style, selected, onSelect }:
   { pc: LivePc; pos: [number, number, number]; rot?: number; style: Style; selected: boolean; onSelect: () => void }) {
   const [hover, setHover] = useState(false);
@@ -311,6 +345,7 @@ function Workstation({ pc, pos, rot = 0, style, selected, onSelect }:
   useFrame(({ clock }, dt) => {
     const m = monitor.current;
     if (!m) return;
+    if (!selected && !hover && Math.abs(m.position.y - (DESK_H + 0.36)) < 1e-4 && m.scale.x === 1) return;
     const k = 1 - Math.exp(-dt * 10);
     m.position.y = MathUtils.lerp(m.position.y, DESK_H + 0.36 + (selected ? 0.16 : hover ? 0.05 : 0), k);
     m.rotation.x = MathUtils.lerp(m.rotation.x, selected ? 0.22 : 0, k);
@@ -320,9 +355,6 @@ function Workstation({ pc, pos, rot = 0, style, selected, onSelect }:
 
   const color = STATUS_COLOR[pc.shown];
   const glow = pc.shown === 'broken' ? 0.7 : pc.shown === 'free' ? 0.85 : 1.5;
-  const silverMetal = <meshStandardMaterial color="#1f1f22" roughness={0.45} />; // black monitor stand
-  const whiteShell = <meshStandardMaterial color="#141416" roughness={0.35} />; // black LCD casing
-  const wood = <meshStandardMaterial map={woodTex()} color="#ffffff" roughness={0.5} />;
 
   const deskWidth = style === 'table' ? DX - 0.04 : 1.12;
 
@@ -333,65 +365,20 @@ function Workstation({ pc, pos, rot = 0, style, selected, onSelect }:
       onPointerOut={() => { setHover(false); document.body.style.cursor = ''; }}>
       
       {/* Light natural warm wood tabletop (beech/warm oak matching reference photo) */}
-      <mesh position={[0, DESK_H, -0.01]} castShadow receiveShadow>
-        <boxGeometry args={[deskWidth, 0.038, DESK_D - 0.02]} />
+      <mesh position={[0, DESK_H, -0.01]} castShadow receiveShadow geometry={box(deskWidth, 0.038, DESK_D - 0.02)}>
         <meshStandardMaterial map={woodTex()} color={selected || hover ? '#fff3e0' : '#ffffff'} roughness={0.42} />
       </mesh>
 
-      {/* Solid wooden side panels and back modesty panel */}
-      {[-1, 1].map((s) => (
-        <mesh key={s} position={[s * (deskWidth / 2 - 0.02), DESK_H / 2, -0.01]} castShadow receiveShadow>
-          <boxGeometry args={[0.03, DESK_H, DESK_D - 0.04]} />
-          {wood}
-        </mesh>
-      ))}
-      <mesh position={[0, DESK_H / 2 + 0.1, -DESK_D / 2 + 0.04]} receiveShadow>
-        <boxGeometry args={[deskWidth - 0.06, DESK_H - 0.2, 0.02]} />
-        {wood}
-      </mesh>
-
-      {/* Black CPU tower under the desk */}
-      <mesh position={[deskWidth / 2 - 0.16, 0.22, -0.12]} castShadow>
-        <boxGeometry args={[0.18, 0.42, 0.4]} />
-        <meshStandardMaterial color="#18181b" roughness={0.4} />
-      </mesh>
-
-      {/* Center Acoustic Divider Partition between facing desks (low frosted screen with silver clips) */}
-      {style === 'island' && (
-        <group position={[0, DESK_H + 0.16, -DESK_D / 2]}>
-          <mesh castShadow>
-            <boxGeometry args={[deskWidth, 0.28, 0.022]} />
-            <meshStandardMaterial color="#f8fafc" roughness={0.35} />
-          </mesh>
-          {[-deskWidth * 0.32, deskWidth * 0.32].map((bx) => (
-            <mesh key={bx} position={[bx, -0.14, 0]}>
-              <boxGeometry args={[0.028, 0.05, 0.038]} />
-              {silverMetal}
-            </mesh>
-          ))}
-        </group>
-      )}
-
-      {/* Modern All-in-One PC Stand (sleek silver aluminum L-stand) */}
-      <group position={[0, DESK_H + 0.015, -0.17]}>
-        <mesh position={[0, 0.005, 0.02]}><boxGeometry args={[0.18, 0.01, 0.15]} />{silverMetal}</mesh>
-        <mesh position={[0, 0.10, -0.03]} rotation-x={0.12}><boxGeometry args={[0.075, 0.20, 0.018]} />{silverMetal}</mesh>
-      </group>
+      {/* side/back panels, PC tower, divider, stand, keyboard, mouse and chair are drawn as instances (FurnitureInstances) */}
 
       {/* Modern All-in-One Display Monitor */}
       <group ref={monitor} position={[0, DESK_H + 0.36, -0.18]}>
         {/* Sleek white/silver rear casing */}
-        <RoundedBox args={[0.62, 0.40, 0.026]} radius={0.01} castShadow>
-          {whiteShell}
-        </RoundedBox>
+        <mesh castShadow geometry={box(0.62, 0.4, 0.026)} material={mat('#141416', 0.35)} />
         {/* Front glass bezel */}
-        <mesh position={[0, 0, 0.014]}>
-          <planeGeometry args={[0.61, 0.39]} />
-          <meshStandardMaterial color="#0f172a" roughness={0.1} metalness={0.2} />
-        </mesh>
+        <mesh position={[0, 0, 0.014]} geometry={plane(0.61, 0.39)} material={mat('#0f172a', 0.1, 0.2)} />
         {/* Active glowing display screen */}
-        <mesh position={[0, 0.01, 0.015]}>
-          <planeGeometry args={[0.57, 0.33]} />
+        <mesh position={[0, 0.01, 0.015]} geometry={plane(0.57, 0.33)}>
           <meshStandardMaterial ref={screen} color={color} emissive={color} emissiveIntensity={glow} toneMapped={false} />
         </mesh>
         {/* Broken glass crack fracture overlay */}
@@ -409,25 +396,6 @@ function Workstation({ pc, pos, rot = 0, style, selected, onSelect }:
           </mesh>
         )}
       </group>
-
-      {/* Black keyboard */}
-      <mesh position={[0, DESK_H + 0.022, 0.10]} castShadow>
-        <boxGeometry args={[0.42, 0.012, 0.13]} />
-        <meshStandardMaterial color="#1c1c1f" roughness={0.4} />
-      </mesh>
-      <mesh position={[0, DESK_H + 0.028, 0.10]}>
-        <boxGeometry args={[0.39, 0.005, 0.11]} />
-        <meshStandardMaterial color="#3f3f46" roughness={0.5} />
-      </mesh>
-
-      {/* Black optical mouse */}
-      <mesh position={[0.30, DESK_H + 0.024, 0.11]} castShadow>
-        <boxGeometry args={[0.055, 0.018, 0.09]} />
-        <meshStandardMaterial color="#1c1c1f" roughness={0.3} />
-      </mesh>
-
-      {/* Modern Ergonomic Black Mesh Office Task Chair */}
-      <ErgonomicMeshChair position={[0, 0, 0.62]} />
 
       {(selected || hover) && (
         <mesh rotation-x={-Math.PI / 2} position={[0, 0.006, 0.3]}>
@@ -901,6 +869,32 @@ function Room({ lab, w, d, style }: { lab: Lab; w: number; d: number; style: Sty
   );
 }
 
+// Exposes the renderer's counters (draw calls, geometries, materials) for performance checks in the browser console:
+// window.__comlab3d.info.render.calls etc.
+function RenderProbe() {
+  const gl = useThree((st) => st.gl);
+  useEffect(() => { (window as unknown as { __comlab3d?: unknown }).__comlab3d = gl; }, [gl]);
+  return null;
+}
+
+// The room and furniture don't move (avatars cast no shadows), so the shadow map is drawn for a
+// short burst after mount / after `version` changes instead of every frame.
+function StaticShadows({ version }: { version: string }) {
+  const gl = useThree((st) => st.gl);
+  const left = useRef(0);
+  useEffect(() => { gl.shadowMap.autoUpdate = false; left.current = 45; return () => { gl.shadowMap.autoUpdate = true; }; }, [gl, version]);
+  useFrame(() => { if (left.current > 0) { left.current--; gl.shadowMap.needsUpdate = true; } });
+  return null;
+}
+
+// Drops the pixel ratio while the frame rate is low and raises it again when there is headroom.
+function AdaptiveDpr() {
+  const setDpr = useThree((st) => st.setDpr);
+  const [dpr, set] = useState(1.5);
+  useEffect(() => setDpr(dpr), [dpr, setDpr]);
+  return <PerformanceMonitor onDecline={() => set(1)} onIncline={() => set(1.5)} />;
+}
+
 // Reports ready only once the orbit controls have aimed the camera and textures/shaders have
 // had a few frames to upload, so the scene is revealed already settled instead of jumping.
 function ReadySignal({ onReady }: { onReady?: () => void }) {
@@ -947,11 +941,16 @@ function SceneContent({
 }: Pick<SceneProps, 'lab' | 'pcs' | 'selectedId' | 'onSelect' | 'isOccupied' | 'simMode' | 'teacherName' | 'phaseOffset' | 'phaseLength' | 'students' | 'onStudentSelect'>) {
   const style = styleOf(lab);
   const { w, d } = roomSize(lab);
+  // positions only change when the lab's PCs are added/removed/moved, not when their status changes
+  const layoutKey = pcs.map((p) => `${p.id}:${p.row}:${p.col}`).join('|');
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  const furniture = useMemo(() => pcs.map((pc) => place(pc, lab)), [layoutKey, lab]);
 
   return (
     <>
       <Room lab={lab} w={w} d={d} style={style} />
       {style === 'island' && <Spines lab={lab} pcs={pcs} />}
+      <FurnitureInstances items={furniture} deskWidth={style === 'table' ? DX - 0.04 : 1.12} island={style === 'island'} />
       {pcs.map((pc) => {
         const { pos, rot } = place(pc, lab);
         return (
@@ -1008,6 +1007,9 @@ export default function LabScene({
       onPointerMissed={() => onSelect('')}
     >
       <ReadySignal onReady={onReady} />
+      <RenderProbe />
+      <StaticShadows version={`${lab.id}|${selectedId ?? ''}|${pcs.length}`} />
+      <AdaptiveDpr />
       <RoomCamera key={lab.id} w={w} d={d} />
       <color attach="background" args={['#f2f1ec']} />
       <hemisphereLight args={['#ffffff', '#bdb6aa', 1.1]} />
