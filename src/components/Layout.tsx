@@ -73,48 +73,72 @@ export default function Layout() {
     </nav>
   );
 
+  const sidebarBody = (
+    <>
+      <Brand compact={collapsed} />
+      <button onClick={toggleCollapsed} aria-label={collapsed ? 'Expand menu' : 'Collapse menu'} title={collapsed ? 'Expand menu' : 'Collapse menu'}
+        className={`mt-4 flex items-center gap-2 rounded-lg py-1.5 text-xs font-medium text-blue-200 hover:bg-white/10 hover:text-white ${collapsed ? 'justify-center' : 'px-3'}`}>
+        {collapsed ? <PanelLeftOpen size={18} /> : <><PanelLeftClose size={16} />Collapse menu</>}
+      </button>
+      {nav(collapsed)}
+      <UserBox compact={collapsed} />
+    </>
+  );
+  const sidebarSize = collapsed ? 'w-[4.5rem] px-2.5 py-4' : 'w-64 p-4';
+  const mobileMenu = open && (
+    <div className="fixed inset-0 z-40 md:hidden">
+      <div className="absolute inset-0 bg-rail/60" onClick={() => setOpen(false)} />
+      <aside className="absolute inset-y-0 left-0 flex w-64 flex-col navy-weave p-4">
+        <div className="flex items-center justify-between"><Brand />
+          <button onClick={() => setOpen(false)} aria-label="Close menu" className="text-slate-300"><X /></button></div>
+        {nav(false)}<UserBox />
+      </aside>
+    </div>
+  );
+  const bells = <>
+    {(profile.role === 'admin' || profile.role === 'staff') && <NotificationBell count={count} />}
+    {profile.role === 'student' && <StudentBell />}
+  </>;
+
+  // Labs: the 3D view / floor plan fills the whole window and the sidebar floats inside it.
+  if (isLabs) {
+    return (
+      <div className="relative h-screen w-screen overflow-hidden bg-[#dfe5ee]"
+        style={{ '--labs-left': collapsed ? '6rem' : '17.5rem' } as React.CSSProperties}>
+        <IntroSplash />
+        <main className="absolute inset-0"><Outlet /></main>
+        <aside className={`absolute bottom-3 left-3 top-3 z-30 hidden flex-col rounded-2xl navy-weave shadow-2xl transition-[width] duration-200 md:flex ${sidebarSize}`}>
+          {sidebarBody}
+        </aside>
+        <button className="absolute left-3 top-4 z-30 grid h-10 w-10 place-items-center rounded-xl navy-weave text-white shadow-lg md:hidden"
+          onClick={() => setOpen(true)} aria-label="Open menu"><Menu size={20} /></button>
+        <div className="pointer-events-none absolute right-4 top-4 z-30 flex items-center gap-2">
+          {api.demo && <span className="pointer-events-auto hidden rounded-xl border border-amber-200 bg-amber-100/90 px-2.5 py-1 text-xs font-medium text-amber-900 shadow-sm sm:inline">Demo mode</span>}
+          {bells}
+        </div>
+        {mobileMenu}
+      </div>
+    );
+  }
+
   return (
-    <div className={`flex gap-3 p-0 md:p-3 ${isLabs ? 'h-screen overflow-hidden' : 'min-h-full'}`}>
+    <div className="flex min-h-full gap-3 p-0 md:p-3">
       <IntroSplash />
-      <aside className={`sticky top-3 hidden h-[calc(100vh-1.5rem)] shrink-0 flex-col rounded-2xl navy-weave shadow-lg transition-[width] duration-200 md:flex print:!hidden ${
-        collapsed ? 'w-[4.5rem] px-2.5 py-4' : 'w-64 p-4'}`}>
-        <Brand compact={collapsed} />
-        <button onClick={toggleCollapsed} aria-label={collapsed ? 'Expand menu' : 'Collapse menu'} title={collapsed ? 'Expand menu' : 'Collapse menu'}
-          className={`mt-4 flex items-center gap-2 rounded-lg py-1.5 text-xs font-medium text-blue-200 hover:bg-white/10 hover:text-white ${collapsed ? 'justify-center' : 'px-3'}`}>
-          {collapsed ? <PanelLeftOpen size={18} /> : <><PanelLeftClose size={16} />Collapse menu</>}
-        </button>
-        {nav(collapsed)}
-        <UserBox compact={collapsed} />
+      <aside className={`sticky top-3 hidden h-[calc(100vh-1.5rem)] shrink-0 flex-col rounded-2xl navy-weave shadow-lg transition-[width] duration-200 md:flex print:!hidden ${sidebarSize}`}>
+        {sidebarBody}
       </aside>
 
-      {open && (
-        <div className="fixed inset-0 z-40 md:hidden">
-          <div className="absolute inset-0 bg-rail/60" onClick={() => setOpen(false)} />
-          <aside className="absolute inset-y-0 left-0 flex w-64 flex-col navy-weave p-4">
-            <div className="flex items-center justify-between"><Brand />
-              <button onClick={() => setOpen(false)} aria-label="Close menu" className="text-slate-300"><X /></button></div>
-            {nav(false)}<UserBox />
-          </aside>
-        </div>
-      )}
+      {mobileMenu}
 
-      <div className={`flex min-w-0 flex-1 flex-col ${isLabs ? 'min-h-0' : ''}`}>
+      <div className="flex min-w-0 flex-1 flex-col">
         <div className="sticky top-0 z-30 flex h-14 items-center gap-3 bg-chalk px-4 md:static md:bg-transparent md:px-6 print:hidden">
           <button className="md:hidden" onClick={() => setOpen(true)} aria-label="Open menu"><Menu /></button>
           {api.demo && (
             <span className="rounded bg-amber-100 px-2 py-0.5 text-xs font-medium text-amber-900">Demo mode, sample data</span>
           )}
-          <div className="ml-auto flex items-center gap-2">
-            {(profile.role === 'admin' || profile.role === 'staff') && (
-              <NotificationBell count={count} />
-            )}
-            {profile.role === 'student' && <StudentBell />}
-          </div>
+          <div className="ml-auto flex items-center gap-2">{bells}</div>
         </div>
-        {isLabs
-          // Labs fills the rest of the screen (floor plan / 3D), in a rounded panel like the sidebar
-          ? <main className="relative min-h-0 flex-1 overflow-hidden md:rounded-2xl"><Outlet /></main>
-          : <main className="mx-auto w-full max-w-7xl flex-1 px-4 py-5 md:px-6"><Outlet /></main>}
+        <main className="mx-auto w-full max-w-7xl flex-1 px-4 py-5 md:px-6"><Outlet /></main>
       </div>
     </div>
   );
