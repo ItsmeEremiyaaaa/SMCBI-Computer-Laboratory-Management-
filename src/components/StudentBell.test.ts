@@ -17,6 +17,15 @@ describe('studentNotes', () => {
     expect(titles({ bookings: [booking({ status: 'approved', reviewed_at: recent })] })).toEqual(['Booking approved: Packet Tracer']);
   });
 
+  it("tells students when a teacher books a lab for their section, not other sections'", () => {
+    const t = { requester_id: 'teacher1', requester_name: 'Ms. Cruz', pc_id: null, section: 'BSIT 1A', created_at: recent };
+    expect(titles({ bookings: [booking(t)] })).toEqual(['Ms. Cruz requested a lab for your class']);
+    expect(titles({ bookings: [booking({ ...t, status: 'approved', reviewed_at: recent })] })).toEqual(['Ms. Cruz booked a lab for your class']);
+    expect(titles({ bookings: [booking({ ...t, status: 'approved', date: now.date })] })).toEqual(['Today: Packet Tracer']);
+    expect(titles({ bookings: [booking({ ...t, section: 'BSIT 2B' })] })).toEqual([]);
+    expect(titles({ bookings: [booking({ ...t, status: 'rejected', reviewed_at: recent })] })).toEqual([]);
+  });
+
   it('warns when the PC on an upcoming booking breaks, but not for past ones', () => {
     const brokenPcs = [{ id: 'netlab-pc05', updated_at: recent }];
     expect(titles({ bookings: [booking({})], brokenPcs })).toEqual(['PC05 you booked is broken']);

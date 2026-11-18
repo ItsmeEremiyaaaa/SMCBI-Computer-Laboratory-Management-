@@ -51,10 +51,13 @@ export interface Reservation {
   status: ResStatus;
   admin_notes: string | null;
   reviewed_at: string | null;
+  /** Class section the booking is for (teacher bookings), e.g. 'BSIT 2B'; its students are notified. */
+  section?: string | null;
+  created_at?: string;
 }
 
 export type ReservationInput = Pick<Reservation,
-  'title' | 'lab_id' | 'pc_id' | 'purpose' | 'date' | 'start_time' | 'end_time' | 'participants' | 'requirements'>;
+  'title' | 'lab_id' | 'pc_id' | 'purpose' | 'date' | 'start_time' | 'end_time' | 'participants' | 'requirements'> & { section?: string | null };
 
 export interface Student {
   id: string;

@@ -21,7 +21,7 @@ export default function ReservationForm({ labs: allLabs, pcs, initial, onSubmit,
   const student = role === 'student';
   const labs = student ? allLabs.filter((l) => l.id === STUDENT_LAB) : allLabs;
   const [f, setF] = useState({
-    title: '', purpose: '', date: '', start_time: '', end_time: '', participants: '', requirements: '',
+    title: '', purpose: '', date: '', start_time: '', end_time: '', participants: '', requirements: '', section: '',
     lab_id: (student ? STUDENT_LAB : initial?.lab_id) ?? labs[0]?.id ?? '',
     pc_id: initial?.pc_id && pcs.find((p) => p.id === initial.pc_id)?.status !== 'broken' ? initial.pc_id : '',
   });
@@ -36,6 +36,7 @@ export default function ReservationForm({ labs: allLabs, pcs, initial, onSubmit,
       title: f.title.trim(), purpose: f.purpose.trim(), lab_id: f.lab_id, pc_id: f.pc_id || null,
       date: f.date, start_time: f.start_time, end_time: f.end_time,
       participants: f.participants ? Number(f.participants) : null, requirements: f.requirements.trim() || null,
+      ...(f.section ? { section: f.section } : {}),
     };
     const errs = [...validateReservation(input, manilaNow().date),
       ...bookingProblems(input, { role, pcs, reservations: approved, schedules })];
@@ -46,6 +47,7 @@ export default function ReservationForm({ labs: allLabs, pcs, initial, onSubmit,
   }
 
   const labPcs = pcs.filter((p) => p.lab_id === f.lab_id);
+  const sections = [...new Set(schedules.map((c) => c.section.trim()).filter(Boolean))].sort();
   return (
     <form onSubmit={submit} noValidate className="grid gap-4">
       {serverError && <Alert>{serverError}</Alert>}
@@ -70,6 +72,14 @@ export default function ReservationForm({ labs: allLabs, pcs, initial, onSubmit,
         </Field>
       </div>
       <Field label="Title"><Input value={f.title} onChange={set('title')} placeholder={student ? 'e.g. Packet Tracer practice' : 'e.g. Programming 2, BSIT 1A'} /></Field>
+      {!student && sections.length > 0 && (
+        <Field label="For class (optional)" hint="Students of this section get a notification about this booking.">
+          <Select value={f.section} onChange={set('section')}>
+            <option value="">No class / not for students</option>
+            {sections.map((s) => <option key={s} value={s}>{s}</option>)}
+          </Select>
+        </Field>
+      )}
       <Field label="Purpose"><Textarea value={f.purpose} onChange={set('purpose')} rows={2} /></Field>
       <div className="grid gap-3 sm:grid-cols-3">
         <Field label="Date"><Input type="date" value={f.date} onChange={set('date')} min={manilaNow().date} /></Field>

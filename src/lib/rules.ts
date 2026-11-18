@@ -87,6 +87,14 @@ export function studentsInSection(students: Student[], section: string | null | 
     .sort((a, b) => a.student_id.localeCompare(b.student_id));
 }
 
+/** Whether a class section ('BSIT 2B', or 'BSIT 4' = the whole year) includes a student's section ('BSIT 4A'). */
+export function sectionIncludes(classSection: string | null | undefined, studentSection: string | null | undefined) {
+  const re = /^([A-Z]+)\s*(\d)\s*([A-Z])?$/i;
+  const c = classSection?.trim().match(re), s = studentSection?.trim().match(re);
+  if (!c || !s) return false;
+  return c[1].toUpperCase() === s[1].toUpperCase() && c[2] === s[2] && (!c[3] || c[3].toUpperCase() === (s[3] ?? '').toUpperCase());
+}
+
 const mins = (t: string) => Number(t.slice(0, 2)) * 60 + Number(t.slice(3, 5));
 
 /**

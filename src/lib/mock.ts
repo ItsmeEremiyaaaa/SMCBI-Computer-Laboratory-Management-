@@ -124,8 +124,9 @@ export function createMock(storage: Store | null = browserStorage()): Api {
       const errs = [...validateReservation(input, manilaNow().date),
         ...bookingProblems(input, { role: p.role, pcs: state.pcs, reservations: state.reservations, schedules: state.schedules })];
       if (errs.length) throw new Error(errs.join(' '));
-      const r = { ...input, id: uid(), requester_id: p.id, requester_name: p.full_name, status: 'pending' as const,
-        admin_notes: null, reviewed_at: null };
+      if (input.section && p.role === 'student') throw new Error('Only teachers can book for a class section.');
+      const r = { ...input, section: input.section?.trim() || null, id: uid(), requester_id: p.id, requester_name: p.full_name, status: 'pending' as const,
+        admin_notes: null, reviewed_at: null, created_at: new Date().toISOString() };
       state.reservations.push(r); changedRes();
       return clone(r);
     },

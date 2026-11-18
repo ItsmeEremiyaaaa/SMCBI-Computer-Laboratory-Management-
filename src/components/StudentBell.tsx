@@ -4,6 +4,7 @@ import { Bell, CalendarClock, ClipboardCheck, Wrench, X } from 'lucide-react';
 import { useAuth } from '../auth';
 import { api } from '../lib/api';
 import { useCleared } from '../lib/cleared';
+import { sectionIncludes } from '../lib/rules';
 import { classesOn, manilaNow } from '../lib/seat';
 import { sectionOf } from '../pages/StudentHome';
 import { fmtDate, fmtTime, useExclusive } from './ui';
@@ -22,7 +23,7 @@ const manilaIso = (date: string, time: string) => `${date}T${time}:00+08:00`;
 // decided bookings, handled problem reports, and today's class/booking reminders.
 export function studentNotes(input: {
   now: { date: string; time: string }; section: string | null; userId: string;
-  bookings: { id: string; title: string; lab_id: string; pc_id: string | null; date: string; start_time: string; end_time: string; status: string; reviewed_at: string | null; admin_notes: string | null; requester_id: string }[];
+  bookings: { id: string; title: string; lab_id: string; pc_id: string | null; date: string; start_time: string; end_time: string; status: string; reviewed_at: string | null; admin_notes: string | null; requester_id: string; requester_name?: string; section?: string | null; created_at?: string }[];
   reports: { id: string; pc_id: string; problem: string; resolved_at: string | null; resolution: string | null; user_id: string }[];
   classes: { id: string; title: string; lab_id: string; start_time: string; end_time: string }[];
   pcLabel: (id: string) => string;
@@ -35,7 +36,7 @@ export function studentNotes(input: {
   const notes: Note[] = [];
 
   for (const c of input.classes) {
-    if (section && !c.title.startsWith(`${section}:`)) continue;
+    if (section && !sectionIncludes(c.title.split(':')[0], section)) continue;
     if (!section) continue; // no linked record: we don't know which classes are theirs
     const s = minutes(c.start_time), e = minutes(c.end_time);
     if (t >= e || t < s - 60) continue;
@@ -54,6 +55,23 @@ export function studentNotes(input: {
       notes.push({ id: `bk-${r.id}`, at: r.reviewed_at, group: 'booking', to: '/reservations', tone: r.status === 'approved' ? 'good' : 'bad',
         title: `Booking ${r.status}: ${r.title}`,
         sub: `${fmtDate(r.date)}, ${fmtTime(r.start_time)} · ${r.pc_id ? pcLabel(r.pc_id) : LAB_SHORT[r.lab_id]}${r.admin_notes ? ` · “${r.admin_notes}”` : ''}` });
+    }
+  }
+  // a teacher booked a lab for their class
+  for (const r of input.bookings) {
+    if (!section || !sectionIncludes(r.section, section) || r.requester_id === userId) continue;
+    if (r.date < now.date || (r.date === now.date && t >= minutes(r.end_time))) continue;
+    const when = `${fmtDate(r.date)}, ${fmtTime(r.start_time)}–${fmtTime(r.end_time)} · ${LAB_SHORT[r.lab_id] ?? r.lab_id}`;
+    const who = r.requester_name || 'Your teacher';
+    if (r.status === 'approved' && r.date === now.date) {
+      notes.push({ id: `sec-today-${r.id}`, at: manilaIso(r.date, r.start_time), group: 'today', to: '/calendar',
+        title: `Today: ${r.title}`, sub: `${who} booked ${LAB_SHORT[r.lab_id] ?? r.lab_id} for your class · ${fmtTime(r.start_time)}–${fmtTime(r.end_time)}` });
+    } else if (r.status === 'approved') {
+      notes.push({ id: `sec-${r.id}-approved`, at: r.reviewed_at ?? r.created_at ?? manilaIso(r.date, r.start_time), group: 'booking', to: '/calendar', tone: 'good',
+        title: `${who} booked a lab for your class`, sub: `${r.title} · ${when}` });
+    } else if (r.status === 'pending') {
+      notes.push({ id: `sec-${r.id}-pending`, at: r.created_at ?? manilaIso(now.date, now.time), group: 'booking', to: '/calendar',
+        title: `${who} requested a lab for your class`, sub: `${r.title} · ${when} · waiting for approval` });
     }
   }
   // a PC they booked broke: tell them before they walk to the lab
@@ -76,7 +94,7 @@ export function studentNotes(input: {
 
 const GROUPS: { g: Note['group']; title: string; icon: React.ReactNode }[] = [
   { g: 'today', title: 'Today', icon: <CalendarClock size={15} /> },
-  { g: 'booking', title: 'Your bookings', icon: <ClipboardCheck size={15} /> },
+  { g: 'booking', title: 'Bookings', icon: <ClipboardCheck size={15} /> },
   { g: 'report', title: 'Your problem reports', icon: <Wrench size={15} /> },
 ];
 
@@ -88,7 +106,7 @@ function useStudentNotes() {
   const load = useCallback(async () => {
     if (!profile) return;
     const [bookings, reports, schedules, pcs] = await Promise.all([
-      api.listReservations({ mine: true }).catch(() => []),
+      api.listReservations().catch(() => []),
       api.listReports({ all: true }).catch(() => []),
       api.listSchedules().catch(() => []),
       api.listPcs().catch(() => []),

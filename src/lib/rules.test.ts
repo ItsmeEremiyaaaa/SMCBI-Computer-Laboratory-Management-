@@ -1,4 +1,4 @@
-import { bookingProblems, checkInProblem, effectiveStatuses } from './rules';
+import { bookingProblems, checkInProblem, effectiveStatuses, sectionIncludes } from './rules';
 import type { ClassSchedule, Pc, Reservation, ReservationInput } from './types';
 
 const pc = (id: string, status: Pc['status'] = 'free', lab_id = 'netlab'): Pc =>
@@ -88,5 +88,15 @@ describe('usedHours', () => {
     ];
     const checkIns = [{ lab_id: 'netlab', user_id: 'u1', checked_in_at: '2026-11-17T05:05:00Z' }];  // 1:05 PM Manila
     expect(usedHours(entries, checkIns, now)).toEqual({ lab1: 4.5, netlab: 1.5 });
+  });
+});
+
+describe('sectionIncludes', () => {
+  it('matches the same section, or a whole-year class to every section of that year', () => {
+    expect(sectionIncludes('BSIT 2B', 'BSIT 2B')).toBe(true);
+    expect(sectionIncludes('BSIT 4', 'BSIT 4A')).toBe(true);
+    expect(sectionIncludes('BSIT 2B', 'BSIT 2A')).toBe(false);
+    expect(sectionIncludes('BSIT 4', 'BSBA 4A')).toBe(false);
+    expect(sectionIncludes(null, 'BSIT 4A')).toBe(false);
   });
 });
