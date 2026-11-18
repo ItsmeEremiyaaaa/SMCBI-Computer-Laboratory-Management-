@@ -57,3 +57,8 @@ body {
 
 /* Soft card used across the dashboard (rounded, airy shadow, no heavy border). */
 .card { background: #fff; border-radius: 1rem; box-shadow: 0 1px 2px rgb(23 43 77 / .05), 0 8px 24px -12px rgb(27 70 134 / .18); }
+
+/* Twinkling stars on the sign-in background. */
+@keyframes auth-twinkle { 0%, 100% { opacity: .25; } 50% { opacity: 1; } }
+.auth-twinkle { animation: auth-twinkle 3.2s ease-in-out infinite; }
+@media (prefers-reduced-motion: reduce) { .auth-twinkle { animation: none; } }

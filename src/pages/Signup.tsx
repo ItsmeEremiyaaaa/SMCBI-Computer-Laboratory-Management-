@@ -25,7 +25,7 @@ export default function Signup() {
 
   return (
     <AuthShell>
-      <h1 className="font-serif text-3xl font-semibold tracking-tight text-rail">Create an account</h1>
+      <h1 className="text-4xl font-extrabold tracking-tight text-[#1e2a6e]">Create Account</h1>
       <div className="mt-4 grid grid-cols-2 gap-1 rounded-lg border border-line bg-panel p-1" role="group" aria-label="I am a">
         {(['student', 'teacher'] as const).map((t) => (
           <button key={t} type="button" onClick={() => setF({ ...f, account_type: t })} aria-pressed={f.account_type === t}
