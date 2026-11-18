@@ -1,4 +1,4 @@
-import { bookingProblems, checkInProblem } from './rules';
+import { bookingProblems, checkInProblem, effectiveStatuses } from './rules';
 import type { ClassSchedule, Pc, Reservation, ReservationInput } from './types';
 
 const pc = (id: string, status: Pc['status'] = 'free', lab_id = 'netlab'): Pc =>
@@ -42,5 +42,33 @@ describe('checkInProblem', () => {
     expect(checkInProblem(pc('n2', 'broken'), { ...base, now })).toMatch(/broken/);
     expect(checkInProblem(pc('n1'), { ...base, now, checkIns: [{ id: 'k', pc_id: 'n1', lab_id: 'netlab', user_id: 'u2', user_name: 'B', checked_in_at: '', checked_out_at: null }] })).toMatch(/already/);
     expect(checkInProblem(pc('n1'), { ...base, now, role: 'teacher' })).toMatch(/Only student/);
+  });
+});
+
+describe('effectiveStatuses', () => {
+  const pcs = ['a', 'b', 'c', 'd'].map((id) => ({ id, status: id === 'b' ? 'broken' : 'free', shown: id === 'b' ? 'broken' : 'free' }));
+  const shown = (r: { shown: string }[]) => r.map((p) => p.shown);
+  it('marks only seats with a student as in use during class', () =>
+    expect(shown(effectiveStatuses(pcs, 'in_session', 2, new Set()))).toEqual(['in_use', 'broken', 'in_use', 'free']));
+  it('reserves assigned seats while students arrive', () =>
+    expect(shown(effectiveStatuses(pcs, 'walk_in', 1, new Set()))).toEqual(['reserved', 'broken', 'free', 'free']));
+  it('uses every working PC when the class size is unknown', () =>
+    expect(shown(effectiveStatuses(pcs, 'in_session', null, new Set()))).toEqual(['in_use', 'broken', 'in_use', 'in_use']));
+  it('a QR check-in is in use even outside class, and broken always wins', () => {
+    expect(shown(effectiveStatuses(pcs, 'empty', null, new Set(['d', 'b'])))).toEqual(['free', 'broken', 'free', 'in_use']);
+    expect(shown(effectiveStatuses(pcs, 'in_session', 1, new Set(['d'])))).toEqual(['in_use', 'broken', 'free', 'in_use']);
+  });
+});
+
+describe('studentsInSection', () => {
+  it('matches course, year and section; a section without a letter means the whole year', async () => {
+    const { studentsInSection } = await import('./rules');
+    const { bsitRoster } = await import('./seed');
+    const all = bsitRoster();
+    expect(studentsInSection(all, 'BSIT 1A').every((s) => s.year_level === '1st Year' && s.section === 'A')).toBe(true);
+    expect(studentsInSection(all, 'BSIT 1A').length + studentsInSection(all, 'BSIT 1B').length + studentsInSection(all, 'BSIT 1C').length).toBe(91);
+    expect(studentsInSection(all, 'BSIT 4')).toHaveLength(25);
+    expect(studentsInSection(all, 'BSHM 2A')).toEqual([]);
+    expect(studentsInSection(all, null)).toEqual([]);
   });
 });

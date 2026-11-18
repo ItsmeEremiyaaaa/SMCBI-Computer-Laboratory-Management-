@@ -65,13 +65,19 @@ export default function PcPanel({ pc, lab, canEdit, onClose }: { pc: LivePc; lab
             <p className="mb-2 text-sm font-medium">Set status</p>
             <div className="grid grid-cols-3 gap-2">
               {MANUAL.map((s) => (
-                <Button key={s} size="sm" variant={pc.status === s ? 'primary' : 'ghost'} disabled={busy}
-                  aria-pressed={pc.status === s} onClick={() => set(s)}>
+                <Button key={s} size="sm" variant={pc.shown === s ? 'primary' : 'ghost'} disabled={busy}
+                  aria-pressed={pc.shown === s} onClick={() => set(s)}>
                   <Led status={s} />{STATUS_LABEL[s]}
                 </Button>
               ))}
             </div>
-            {pc.shown === 'reserved' && <p className="mt-2 text-xs text-muted">Shown as Reserved while the booking is active.</p>}
+            {pc.shown === 'reserved' && <p className="mt-2 text-xs text-muted">Reserved for a student who is arriving or booked it.</p>}
+            {pc.shown !== pc.status && pc.shown !== 'reserved' && pc.status !== 'broken' && (
+              <p className="mt-2 text-xs text-muted">
+                {pc.shown === 'in_use' ? 'Set automatically: a student is sitting here now.' : 'Set automatically: nobody is sitting here now.'}
+                {' '}Use Broken if it stops working.
+              </p>
+            )}
           </div>
         </div>
       ) : null}

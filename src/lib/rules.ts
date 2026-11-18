@@ -1,7 +1,7 @@
 // Business rules for bookings and check-ins. The UI and demo backend use these directly;
 // the live database enforces the same rules in supabase/migrations/0006_students_checkins.sql.
 import { classesOn, slotsOverlap, type Now } from './seat';
-import type { CheckIn, ClassSchedule, Pc, Reservation, ReservationInput, Role } from './types';
+import type { CheckIn, ClassSchedule, Pc, Reservation, ReservationInput, Role, Student } from './types';
 
 export const STUDENT_LAB = 'netlab'; // the only lab students may book
 const ARRIVAL_MIN = 10; // students may check in this many minutes before class
@@ -48,4 +48,41 @@ export function checkInProblem(
   if (ctx.checkIns.some((c) => c.pc_id === pc.id && !c.checked_out_at && c.user_id !== ctx.userId))
     return `${pc.label} is already checked in by another student.`;
   return null;
+}
+
+type Phase = 'walk_in' | 'in_session' | 'walk_out' | 'empty';
+
+/**
+ * What each PC shows right now. One rule for every view:
+ *   broken → Broken; someone seated (class seat or QR check-in) → In use;
+ *   seat assigned to an arriving student → Reserved; otherwise Free.
+ * `seats` = how many students the class has (null = unknown, then every working PC is a class seat).
+ * Seats are handed out in PC order, the same order the 3D students sit in.
+ */
+export function effectiveStatuses<T extends { id: string; status: string; shown: string }>(
+  pcs: T[], phase: Phase, seats: number | null, checkedInPcIds: Set<string>,
+): T[] {
+  if (phase === 'empty') {
+    return pcs.map((p) => (p.shown === 'broken' || p.status === 'broken' ? { ...p, shown: 'broken' }
+      : checkedInPcIds.has(p.id) ? { ...p, shown: 'in_use' } : p));
+  }
+  let n = 0;
+  return pcs.map((p) => {
+    if (p.status === 'broken' || p.shown === 'broken') return { ...p, shown: 'broken' };
+    const classSeat = seats == null || n++ < seats;
+    if (checkedInPcIds.has(p.id)) return { ...p, shown: 'in_use' };
+    if (!classSeat) return { ...p, shown: 'free' };
+    return { ...p, shown: phase === 'walk_in' ? 'reserved' : 'in_use' };
+  });
+}
+
+/** Enrolled students of a timetable section, by student ID: "BSIT 1A" → BSIT, 1st Year, section A; "BSIT 4" → every 4th-year section. */
+export function studentsInSection(students: Student[], section: string | null | undefined): Student[] {
+  const m = section?.match(/^([A-Z]+)\s*(\d)\s*([A-Z])?$/i);
+  if (!m) return [];
+  const year = `${m[2]}${['', 'st', 'nd', 'rd'][Number(m[2])] ?? 'th'} Year`;
+  return students
+    .filter((s) => s.course === m[1].toUpperCase() && s.year_level === year && (!m[3] || s.section.toUpperCase() === m[3].toUpperCase())
+      && (s.status ?? 'Enrolled') === 'Enrolled')
+    .sort((a, b) => a.student_id.localeCompare(b.student_id));
 }

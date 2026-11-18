@@ -21,6 +21,7 @@ import SceneBoundary from '../components/SceneBoundary';
 import { Alert, Button, Led, Modal, STATUS_LABEL, STATUSES } from '../components/ui';
 import type { SimMode } from '../components/LabCharacters3D';
 import type { Student } from '../lib/types';
+import { effectiveStatuses, studentsInSection } from '../lib/rules';
 
 const LabScene = lazy(() => import('../components/LabScene'));
 
@@ -208,12 +209,7 @@ export default function Labs3D() {
   // Enrolled students of the class in this lab, e.g. "BSIT 1A" → BSIT · 1st Year · section A.
   const classSection = (activeClassSchedule ?? upcomingClassSchedule)?.section ?? null;
   const classStudents = useMemo(() => {
-    const m = classSection?.match(/^([A-Z]+)\s*(\d)\s*([A-Z])?$/i);
-    if (!m) return undefined;
-    const year = `${m[2]}${['', 'st', 'nd', 'rd'][Number(m[2])] ?? 'th'} Year`;
-    const list = (students.data ?? [])
-      .filter((s) => s.course === m[1].toUpperCase() && s.year_level === year && (!m[3] || s.section.toUpperCase() === m[3].toUpperCase()) && (s.status ?? 'Enrolled') === 'Enrolled')
-      .sort((a, b) => a.student_id.localeCompare(b.student_id));
+    const list = studentsInSection(students.data ?? [], classSection);
     return list.length ? list : undefined;
   }, [classSection, students.data]);
   const isClassInSession = effectiveSimMode === 'walk_in' || effectiveSimMode === 'in_session';
@@ -241,15 +237,16 @@ export default function Labs3D() {
   const teacherName = activeClassDetails?.instructor ?? null;
 
   // When class is in session, the comlab workstations are actively In Use!
-  const displayedPcs = useMemo(() => {
-    if (isClassInSession) {
-      return pcs.map((p) => (p.shown === 'broken' ? p : { ...p, shown: 'in_use' as const }));
-    }
-    if (effectiveSimMode === 'empty' || effectiveSimMode === 'walk_out') {
-      return pcs.map((p) => (p.shown === 'broken' ? p : { ...p, shown: 'free' as const }));
-    }
-    return pcs;
-  }, [pcs, isClassInSession, effectiveSimMode]);
+  // Students checked in by QR count as using their PC; refreshed every 30 s.
+  const checkIns = useLoad(() => (lab ? api.listCheckIns(lab.id).catch(() => []) : Promise.resolve([])), [lab?.id]);
+  useEffect(() => { const t = setInterval(checkIns.reload, 30_000); return () => clearInterval(t); }, [checkIns.reload]);
+  const checkedIn = useMemo(() => new Set((checkIns.data ?? []).map((c) => c.pc_id)), [checkIns.data]);
+
+  // One rule for every view (see effectiveStatuses): a PC is In use only when someone sits at it.
+  const displayedPcs = useMemo(
+    () => effectiveStatuses(pcs, effectiveSimMode, classStudents?.length ?? null, checkedIn),
+    [pcs, effectiveSimMode, classStudents, checkedIn],
+  );
 
   const selected = displayedPcs.find((p) => p.id === selectedId);
   const counts = Object.fromEntries(STATUSES.map((s) => [s, displayedPcs.filter((p) => p.shown === s).length]));
