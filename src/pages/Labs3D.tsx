@@ -7,6 +7,7 @@ import {
   MousePointerClick,
   Move3d,
   RotateCcw,
+  Wrench,
   X,
   ZoomIn,
 } from 'lucide-react';
@@ -18,7 +19,7 @@ import { isoWeekday, manilaNow } from '../lib/seat';
 import PcPanel from '../components/PcPanel';
 import SeatGrid from '../components/SeatGrid';
 import SceneBoundary from '../components/SceneBoundary';
-import { Alert, Button, Led, Modal, STATUS_LABEL, STATUSES, useExclusive } from '../components/ui';
+import { Alert, Button, Led, Modal, STATUS_LABEL, STATUSES, askConfirm, useExclusive } from '../components/ui';
 import type { SimMode } from '../components/LabCharacters3D';
 import type { Student } from '../lib/types';
 import { effectiveStatuses, studentsInSection } from '../lib/rules';
@@ -139,6 +140,8 @@ export default function Labs3D() {
   const { pcs, error } = useLabLive(lab?.id ?? '__none__');
   const [params, setParams] = useSearchParams();
   const [selectedId, setSelectedId] = useState<string | null>(params.get('pc'));
+  const [maintBusy, setMaintBusy] = useState(false);
+  const [maintError, setMaintError] = useState<string | null>(null);
   // links from notifications: /labs/lab1?pc=<id> opens that PC's card
   useEffect(() => {
     const pc = params.get('pc');
@@ -366,8 +369,32 @@ export default function Labs3D() {
 
           <div className="hidden h-7 w-px bg-line sm:block" />
 
-          {/* 3D Controls Guide */}
+          {/* 3D Controls Guide (+ whole-lab maintenance for admin/staff) */}
           <div className="flex flex-wrap items-center gap-1">
+            {(profile?.role === 'admin' || profile?.role === 'staff') && lab && (() => {
+              const inMaint = pcs.filter((p) => p.status === 'maintenance');
+              const on = inMaint.length > 0;
+              const toggle = () => askConfirm(on
+                ? { title: `End maintenance in ${lab.name}?`, message: `${inMaint.length} PCs go back to Free and can be used again.`, confirmLabel: 'End maintenance' }
+                : { title: `Put ${lab.name} under maintenance?`, message: 'Every PC (except broken ones) is set to Maintenance, so nobody can use or book it until you end maintenance.', confirmLabel: 'Start maintenance' })
+                .then(async (ok) => {
+                  if (!ok) return;
+                  setMaintBusy(true); setMaintError(null);
+                  try {
+                    await Promise.all(on
+                      ? inMaint.map((p) => api.setPcStatus(p.id, 'free', null))
+                      : pcs.filter((p) => p.status !== 'broken' && p.status !== 'maintenance').map((p) => api.setPcStatus(p.id, 'maintenance', 'Lab maintenance')));
+                  } catch (e) { setMaintError((e as Error).message); } finally { setMaintBusy(false); }
+                });
+              return (
+                <button onClick={toggle} disabled={maintBusy} aria-pressed={on}
+                  title={on ? 'Put every PC in this lab back to Free' : 'Set every PC in this lab to Maintenance'}
+                  className={`flex items-center gap-1.5 rounded-xl px-2.5 py-1 text-xs font-semibold shadow-sm transition-all active:scale-95 disabled:opacity-60 ${
+                    on ? 'bg-emerald-600 text-white hover:bg-emerald-700' : 'border border-violet-200 bg-violet-50 text-violet-800 hover:bg-violet-100'}`}>
+                  <Wrench size={14} />{maintBusy ? 'Updating…' : on ? `End maintenance (${inMaint.length})` : 'Lab maintenance'}
+                </button>
+              );
+            })()}
             <button
               onClick={() => setShowGuideModal(true)}
               aria-label="3D Controls Guide"
@@ -381,6 +408,7 @@ export default function Labs3D() {
         </div>
       </div>
 
+      {maintError && <div className="absolute left-1/2 top-40 z-30 w-[min(90vw,28rem)] -translate-x-1/2"><Alert>{maintError}</Alert></div>}
       {(error || labs.error) && (
         <div className="absolute left-[3.75rem] md:left-[var(--labs-left,1rem)] top-36 z-20 max-w-md">
           <Alert>{error || labs.error}</Alert>
