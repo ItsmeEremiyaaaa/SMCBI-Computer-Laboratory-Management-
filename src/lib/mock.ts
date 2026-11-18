@@ -253,6 +253,11 @@ export function createMock(storage: Store | null = browserStorage()): Api {
         note: note?.trim() || null, created_at: new Date().toISOString(), resolved_at: null, resolution: null });
       changedRes();
     },
+    async deleteReports(ids) {
+      need('admin');
+      state.reports = state.reports.filter((r) => !(ids.includes(r.id) && r.resolved_at));
+      changedRes();
+    },
     async resolveReport(id, action) {
       need('admin', 'staff');
       const r = state.reports.find((x) => x.id === id);

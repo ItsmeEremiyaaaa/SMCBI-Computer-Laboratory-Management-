@@ -203,6 +203,10 @@ export function createSupabaseApi(url: string, key: string): Api {
       // lab, reporter and time are filled in by the database trigger
       ok(await sb.from('pc_reports').insert({ pc_id: pcId, problem, note: note?.trim() || null }));
     },
+    async deleteReports(ids) {
+      const rows = ok(await sb.from('pc_reports').delete().in('id', ids).select('id'));
+      if (rows.length < ids.length) throw new Error('Some reports could not be deleted (only handled reports, admins only).');
+    },
     async resolveReport(id, action) {
       const r = ok(await sb.from('pc_reports').select('*').eq('id', id).single()) as PcReport;
       if (action === 'broken') {

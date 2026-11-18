@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState, type ReactNode } from 'react';
 import { ArchiveRestore, Trash2 } from 'lucide-react';
 import { useLoad } from '../hooks/useLoad';
 import { api } from '../lib/api';
@@ -13,96 +13,130 @@ const KINDS: { kind: ArchiveKind | 'account' | 'report'; label: string }[] = [
   { kind: 'class', label: 'Classes' },
   { kind: 'report', label: 'Handled reports' },
 ];
+type Tab = (typeof KINDS)[number]['kind'];
 const when = (iso: string) => new Date(iso).toLocaleString('en-PH', { month: 'short', day: 'numeric', year: 'numeric', hour: 'numeric', minute: '2-digit' });
 
-// Everything "deleted" lands here. Admins restore it, or erase it for good.
+// One row shape for every tab: what it is, when/why it's here.
+type Row = { id: string; title: ReactNode; sub: ReactNode; label: string };
+
+// Everything "deleted" lands here. Admins restore it, or erase it for good, one at a time or in bulk.
 export default function Archive() {
-  const [tab, setTab] = useState<(typeof KINDS)[number]['kind']>('student');
+  const [tab, setTab] = useState<Tab>('student');
   const items = useLoad(() => api.listArchive());
   const accounts = useLoad(() => api.listProfiles().then((ps) => ps.filter((p) => p.archived_at)));
   const reports = useLoad(() => api.listReports({ all: true }).then((rs) => rs.filter((r) => r.resolved_at)).catch(() => []));
   const pcs = useLoad(() => api.listPcs());
   const [error, setError] = useState<string | null>(null);
-  const [busy, setBusy] = useState<string | null>(null);
+  const [busy, setBusy] = useState(false);
+  const [picked, setPicked] = useState<Set<string>>(new Set());
+  useEffect(() => setPicked(new Set()), [tab]);
 
-  async function act(id: string, fn: () => Promise<void>, reload: () => Promise<void>) {
-    setBusy(id); setError(null);
-    try { await fn(); await reload(); } catch (e) { setError((e as Error).message); } finally { setBusy(null); }
-  }
-  const count = (k: (typeof KINDS)[number]['kind']) =>
-    k === 'account' ? accounts.data?.length ?? 0 : k === 'report' ? reports.data?.length ?? 0 : (items.data ?? []).filter((i) => i.kind === k).length;
   const pcLabel = (id: string) => pcs.data?.find((p) => p.id === id)?.label ?? id;
+  const rowsFor = (k: Tab): Row[] => {
+    if (k === 'account') return (accounts.data ?? []).map((p) => ({
+      id: p.id, label: p.full_name,
+      title: <>{p.full_name} <span className="text-sm font-normal capitalize text-muted">· {p.role}</span></>,
+      sub: <>{p.email} · archived {when(p.archived_at!)}</>,
+    }));
+    if (k === 'report') return (reports.data ?? []).map((r) => ({
+      id: r.id, label: `${pcLabel(r.pc_id)}: ${r.problem}`,
+      title: <>{pcLabel(r.pc_id)}: {r.problem}{r.note && <span className="font-normal text-muted"> — {r.note}</span>}</>,
+      sub: <>Reported by {r.user_name}, {when(r.created_at)} ·{' '}
+        <span className={r.resolution === 'broken' ? 'font-medium text-red-700' : ''}>{r.resolution === 'broken' ? 'Marked broken' : 'Dismissed'}</span> {when(r.resolved_at!)}</>,
+    }));
+    return (items.data ?? []).filter((i) => i.kind === k).map((i) => ({
+      id: i.id, label: i.label, title: i.label,
+      sub: <>Deleted {when(i.archived_at)}{i.archived_by_name && ` by ${i.archived_by_name}`}</>,
+    }));
+  };
+  const rows = rowsFor(tab);
+  const loading = tab === 'account' ? accounts.loading : tab === 'report' ? reports.loading : items.loading;
+  // what each tab can do: accounts are restored only (deleting a login needs the admin tools); reports are only deleted
+  const canRestore = tab !== 'report';
+  const canDelete = tab !== 'account';
+
+  async function run(ids: string[], what: 'restore' | 'delete') {
+    setBusy(true); setError(null);
+    try {
+      if (tab === 'account') for (const id of ids) await api.setAccountArchived(id, false);
+      else if (tab === 'report') await api.deleteReports(ids);
+      else for (const id of ids) await (what === 'restore' ? api.restoreArchived(id) : api.purgeArchived(id));
+      setPicked(new Set());
+    } catch (e) { setError((e as Error).message); }
+    finally {
+      setBusy(false);
+      await (tab === 'account' ? accounts.reload() : tab === 'report' ? reports.reload() : items.reload());
+    }
+  }
+  const restore = (ids: string[]) => run(ids, 'restore');
+  const erase = (ids: string[], name: string) => askConfirm({
+    title: ids.length > 1 ? `Delete ${ids.length} items forever?` : 'Delete forever?',
+    message: `${ids.length > 1 ? `${ids.length} items` : `"${name}"`} will be deleted for good. This can't be undone.`,
+    confirmLabel: 'Delete forever', danger: true,
+  }).then((ok) => { if (ok) void run(ids, 'delete'); });
+
+  const allPicked = rows.length > 0 && rows.every((r) => picked.has(r.id));
+  const toggle = (id: string) => setPicked((s) => { const n = new Set(s); if (n.has(id)) n.delete(id); else n.add(id); return n; });
+  const chosen = rows.filter((r) => picked.has(r.id));
 
   return (
     <>
-      <PageHeader title="Archive" sub="Deleted records and archived accounts. Restore anything, or delete it for good." />
+      <PageHeader title="Archive" sub="Deleted records, archived accounts and handled reports. Restore them, or delete them for good." />
       <nav className="mb-4 flex flex-wrap gap-1 rounded-lg border border-line bg-panel p-1" aria-label="Archive type">
         {KINDS.map((k) => (
           <button key={k.kind} onClick={() => setTab(k.kind)} aria-pressed={tab === k.kind}
             className={`flex items-center gap-1.5 rounded-md px-3 py-1.5 text-sm font-medium ${tab === k.kind ? 'bg-accent text-white' : 'text-muted hover:text-ink'}`}>
-            {k.label}<span className={`rounded-full px-1.5 text-xs ${tab === k.kind ? 'bg-white/25' : 'bg-chalk'}`}>{count(k.kind)}</span>
+            {k.label}<span className={`rounded-full px-1.5 text-xs ${tab === k.kind ? 'bg-white/25' : 'bg-chalk'}`}>{rowsFor(k.kind).length}</span>
           </button>
         ))}
       </nav>
       {error && <div className="mb-4"><Alert>{error}</Alert></div>}
 
       <Panel>
-        {tab === 'account' ? (
-          !accounts.data?.length ? <Empty>{accounts.loading ? 'Loading…' : 'No archived accounts.'}</Empty> : (
+        {!rows.length ? <Empty>{loading ? 'Loading…' : 'Nothing here.'}</Empty> : (
+          <>
+            {/* toolbar: select all + bulk actions */}
+            <div className="flex flex-wrap items-center gap-3 border-b border-line bg-chalk/50 px-4 py-2.5 text-sm">
+              <label className="flex items-center gap-2 font-medium">
+                <input type="checkbox" className="h-4 w-4 accent-[var(--color-accent)]" checked={allPicked}
+                  onChange={() => setPicked(allPicked ? new Set() : new Set(rows.map((r) => r.id)))} />
+                {chosen.length ? `${chosen.length} selected` : `Select all (${rows.length})`}
+              </label>
+              {!chosen.length && canDelete && (
+                <Button size="sm" variant="quiet" className="ml-auto text-red-700" disabled={busy} onClick={() => erase(rows.map((r) => r.id), rows[0].label)}>
+                  <Trash2 size={14} />Delete all ({rows.length})
+                </Button>
+              )}
+              {chosen.length > 0 && (
+                <div className="ml-auto flex gap-2">
+                  {canRestore && <Button size="sm" disabled={busy} onClick={() => restore(chosen.map((r) => r.id))}><ArchiveRestore size={14} />Restore</Button>}
+                  {canDelete && <Button size="sm" variant="danger" disabled={busy} onClick={() => erase(chosen.map((r) => r.id), chosen[0].label)}><Trash2 size={14} />Delete forever</Button>}
+                  <Button size="sm" variant="ghost" onClick={() => setPicked(new Set())}>Clear</Button>
+                </div>
+              )}
+            </div>
             <ul className="divide-y divide-line">
-              {accounts.data.map((p) => (
-                <li key={p.id} className="flex flex-wrap items-center gap-3 px-4 py-3">
-                  <div className="min-w-0 flex-1">
-                    <p className="font-medium">{p.full_name} <span className="text-sm font-normal capitalize text-muted">· {p.role}</span></p>
-                    <p className="truncate text-sm text-muted">{p.email} · archived {when(p.archived_at!)}</p>
-                  </div>
-                  <Button size="sm" disabled={busy === p.id} onClick={() => act(p.id, () => api.setAccountArchived(p.id, false), accounts.reload)}>
-                    <ArchiveRestore size={14} />Restore access
-                  </Button>
-                </li>
-              ))}
-            </ul>
-          )
-        ) : tab === 'report' ? (
-          !reports.data?.length ? <Empty>{reports.loading ? 'Loading…' : 'No handled reports yet.'}</Empty> : (
-            <ul className="divide-y divide-line">
-              {reports.data.map((r) => (
-                <li key={r.id} className="px-4 py-3 text-sm">
-                  <p className="font-medium">{pcLabel(r.pc_id)}: {r.problem}{r.note && <span className="font-normal text-muted"> — {r.note}</span>}</p>
-                  <p className="text-muted">
-                    Reported by {r.user_name}, {when(r.created_at)} ·{' '}
-                    <span className={r.resolution === 'broken' ? 'font-medium text-red-700' : ''}>{r.resolution === 'broken' ? 'Marked broken' : 'Dismissed'}</span>{' '}
-                    {when(r.resolved_at!)}
-                  </p>
-                </li>
-              ))}
-            </ul>
-          )
-        ) : (() => {
-          const list = (items.data ?? []).filter((i) => i.kind === tab);
-          return !list.length ? <Empty>{items.loading ? 'Loading…' : 'Nothing here.'}</Empty> : (
-            <ul className="divide-y divide-line">
-              {list.map((i) => (
-                <li key={i.id} className="flex flex-wrap items-center gap-3 px-4 py-3">
-                  <div className="min-w-0 flex-1">
-                    <p className="truncate font-medium">{i.label}</p>
-                    <p className="text-sm text-muted">Deleted {when(i.archived_at)}{i.archived_by_name && ` by ${i.archived_by_name}`}</p>
+              {rows.map((r) => (
+                <li key={r.id} className={`flex flex-wrap items-center gap-3 px-4 py-3 ${picked.has(r.id) ? 'bg-accent/5' : ''}`}>
+                  <input type="checkbox" aria-label={`Select ${r.label}`} className="h-4 w-4 shrink-0 accent-[var(--color-accent)]"
+                    checked={picked.has(r.id)} onChange={() => toggle(r.id)} />
+                  <div className="min-w-0 flex-1 text-sm">
+                    <p className="truncate font-medium">{r.title}</p>
+                    <p className="text-muted">{r.sub}</p>
                   </div>
                   <div className="flex gap-2">
-                    <Button size="sm" disabled={busy === i.id} onClick={() => act(i.id, () => api.restoreArchived(i.id), items.reload)}>
-                      <ArchiveRestore size={14} />Restore
-                    </Button>
-                    <Button size="sm" variant="quiet" disabled={busy === i.id}
-                      onClick={() => askConfirm({ title: 'Delete forever?', message: `"${i.label}" will be deleted for good. This can't be undone.`, confirmLabel: 'Delete forever', danger: true })
-                        .then((ok) => { if (ok) void act(i.id, () => api.purgeArchived(i.id), items.reload); })}>
+                    {canRestore && <Button size="sm" disabled={busy} onClick={() => restore([r.id])}>
+                      <ArchiveRestore size={14} />{tab === 'account' ? 'Restore access' : 'Restore'}
+                    </Button>}
+                    {canDelete && <Button size="sm" variant="quiet" disabled={busy} onClick={() => erase([r.id], r.label)}>
                       <Trash2 size={14} />Delete forever
-                    </Button>
+                    </Button>}
                   </div>
                 </li>
               ))}
             </ul>
-          );
-        })()}
+          </>
+        )}
       </Panel>
     </>
   );

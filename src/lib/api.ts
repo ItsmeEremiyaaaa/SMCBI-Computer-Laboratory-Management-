@@ -73,6 +73,8 @@ export interface Api {
   reportProblem(pcId: string, problem: string, note?: string | null): Promise<void>;
   /** Staff: mark the PC broken (with the report as its note) or dismiss the report. */
   resolveReport(id: string, action: 'broken' | 'dismissed'): Promise<void>;
+  /** Admin: erase handled reports for good. */
+  deleteReports(ids: string[]): Promise<void>;
 
   // Archive: deleteStudent/deleteReservation/deleteEvent/deleteSchedule move rows here instead of erasing them.
   listArchive(): Promise<ArchivedItem[]>;
