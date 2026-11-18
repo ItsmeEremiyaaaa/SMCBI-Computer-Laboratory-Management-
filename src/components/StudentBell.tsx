@@ -1,8 +1,9 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { Bell, CalendarClock, ClipboardCheck, Wrench } from 'lucide-react';
+import { Bell, CalendarClock, ClipboardCheck, Wrench, X } from 'lucide-react';
 import { useAuth } from '../auth';
 import { api } from '../lib/api';
+import { useCleared } from '../lib/cleared';
 import { classesOn, manilaNow } from '../lib/seat';
 import { sectionOf } from '../pages/StudentHome';
 import { fmtDate, fmtTime, useExclusive } from './ui';
@@ -38,7 +39,7 @@ export function studentNotes(input: {
     if (!section) continue; // no linked record: we don't know which classes are theirs
     const s = minutes(c.start_time), e = minutes(c.end_time);
     if (t >= e || t < s - 60) continue;
-    notes.push({ id: `cls-${c.id}`, at: manilaIso(now.date, c.start_time), group: 'today', to: '/',
+    notes.push({ id: `cls-${c.id}-${now.date}`, at: manilaIso(now.date, c.start_time), group: 'today', to: '/',
       title: `${t >= s ? 'Class now' : 'Class soon'}: ${c.title.split(': ').slice(1).join(': ')}`,
       sub: `${fmtTime(c.start_time)}–${fmtTime(c.end_time)} · ${LAB_SHORT[c.lab_id] ?? c.lab_id} · scan your PC's QR code to check in` });
   }
@@ -73,14 +74,17 @@ export function studentNotes(input: {
   return notes.sort((a, b) => b.at.localeCompare(a.at));
 }
 
-export default function StudentBell() {
-  const { profile } = useAuth();
-  const [open, setOpen] = useState(false);
-  const [notes, setNotes] = useState<Note[]>([]);
-  const [seen, setSeen] = useState(lastSeen);
-  useExclusive(open, () => setOpen(false));
-  const box = useRef<HTMLDivElement>(null);
+const GROUPS: { g: Note['group']; title: string; icon: React.ReactNode }[] = [
+  { g: 'today', title: 'Today', icon: <CalendarClock size={15} /> },
+  { g: 'booking', title: 'Your bookings', icon: <ClipboardCheck size={15} /> },
+  { g: 'report', title: 'Your problem reports', icon: <Wrench size={15} /> },
+];
 
+// A student's notifications, kept live; cleared ones are left out.
+function useStudentNotes() {
+  const { profile } = useAuth();
+  const [notes, setNotes] = useState<Note[]>([]);
+  const { cleared, clear } = useCleared(profile?.id);
   const load = useCallback(async () => {
     if (!profile) return;
     const [bookings, reports, schedules, pcs] = await Promise.all([
@@ -94,10 +98,60 @@ export default function StudentBell() {
       classes: classesOn(now.date, schedules), pcLabel: (id) => pcs.find((p) => p.id === id)?.label ?? id,
       brokenPcs: pcs.filter((p) => p.status === 'broken') }));
   }, [profile]);
-
   useEffect(() => { load(); const t = setInterval(load, 60_000); return () => clearInterval(t); }, [load]);
   useEffect(() => api.subscribeReservations(() => { load(); }), [load]);
   useEffect(() => api.subscribePcs(null, (pc) => { if (pc.status === 'broken') load(); }), [load]);
+  return { notes: notes.filter((n) => !cleared.has(n.id)), clear };
+}
+
+/** The list itself: used in the bell's dropdown and on the Notifications page. */
+export function StudentNotesList({ page = false, seen = '', onNavigate }: { page?: boolean; seen?: string; onNavigate?: () => void }) {
+  const { notes, clear } = useStudentNotes();
+  return (
+    <>
+      <div className="flex items-center gap-2 border-b border-line px-4 py-3">
+        <p className="font-semibold">Notifications</p>
+        {notes.length > 0 && (
+          <button type="button" onClick={() => clear(notes.map((n) => n.id))} className="ml-auto rounded-md px-2 py-1 text-xs font-medium text-muted hover:bg-chalk hover:text-ink">Clear all</button>
+        )}
+      </div>
+      <div className={page ? '' : 'max-h-[60vh] overflow-y-auto'}>
+        {notes.length === 0 && <p className="px-4 py-6 text-center text-sm text-muted">Nothing new. Booking decisions and reminders show up here.</p>}
+        {GROUPS.map(({ g, title, icon }) => {
+          const list = notes.filter((n) => n.group === g);
+          return list.length > 0 && (
+            <section key={g} className="border-b border-line last:border-b-0">
+              <p className="flex items-center gap-2 bg-chalk/60 px-4 py-2 text-xs font-semibold uppercase tracking-wide text-muted">{icon}{title}</p>
+              <ul>
+                {list.map((n) => (
+                  <li key={n.id} className="relative">
+                    <Link to={n.to} onClick={onNavigate} className="flex gap-2.5 py-2.5 pl-4 pr-10 hover:bg-chalk">
+                      <span className={`mt-1.5 h-2 w-2 shrink-0 rounded-full ${n.at > seen || g === 'today' ? (n.tone === 'bad' ? 'bg-red-500' : n.tone === 'good' ? 'bg-emerald-500' : 'bg-accent') : 'bg-transparent'}`} />
+                      <span className="min-w-0">
+                        <span className="block text-sm font-medium">{n.title}</span>
+                        <span className="block text-xs text-muted">{n.sub}</span>
+                      </span>
+                    </Link>
+                    <button type="button" onClick={() => clear([n.id])} aria-label={`Clear notification: ${n.title}`} title="Clear"
+                      className="absolute right-2 top-2 rounded p-1 text-muted hover:bg-panel hover:text-ink"><X size={14} /></button>
+                  </li>
+                ))}
+              </ul>
+            </section>
+          );
+        })}
+      </div>
+      {!page && <Link to="/inbox" onClick={onNavigate} className="block border-t border-line px-4 py-2.5 text-center text-sm font-medium text-accent hover:bg-chalk">Open all notifications</Link>}
+    </>
+  );
+}
+
+export default function StudentBell() {
+  const [open, setOpen] = useState(false);
+  const { notes } = useStudentNotes();
+  const [seen, setSeen] = useState(lastSeen);
+  useExclusive(open, () => setOpen(false));
+  const box = useRef<HTMLDivElement>(null);
   useEffect(() => {
     if (!open) return;
     const close = (e: MouseEvent | KeyboardEvent) => {
@@ -119,12 +173,6 @@ export default function StudentBell() {
     setOpen(!open);
   }
 
-  const GROUPS: { g: Note['group']; title: string; icon: React.ReactNode }[] = [
-    { g: 'today', title: 'Today', icon: <CalendarClock size={15} /> },
-    { g: 'booking', title: 'Your bookings', icon: <ClipboardCheck size={15} /> },
-    { g: 'report', title: 'Your problem reports', icon: <Wrench size={15} /> },
-  ];
-
   return (
     <div ref={box} className="pointer-events-auto relative">
       <button onClick={toggle} aria-expanded={open} aria-label={`Notifications, ${unread} new`}
@@ -135,31 +183,7 @@ export default function StudentBell() {
       {open && (
         <div role="dialog" aria-label="Notifications"
           className="fixed inset-x-3 top-16 z-50 overflow-hidden rounded-2xl border border-line bg-panel shadow-2xl sm:absolute sm:inset-x-auto sm:right-0 sm:top-12 sm:w-[22rem]">
-          <p className="border-b border-line px-4 py-3 font-semibold">Notifications</p>
-          <div className="max-h-[70vh] overflow-y-auto">
-            {notes.length === 0 && <p className="px-4 py-6 text-center text-sm text-muted">Nothing new. Booking decisions and reminders show up here.</p>}
-            {GROUPS.map(({ g, title, icon }) => {
-              const list = notes.filter((n) => n.group === g);
-              return list.length > 0 && (
-                <section key={g} className="border-b border-line last:border-b-0">
-                  <p className="flex items-center gap-2 bg-chalk/60 px-4 py-2 text-xs font-semibold uppercase tracking-wide text-muted">{icon}{title}</p>
-                  <ul>
-                    {list.map((n) => (
-                      <li key={n.id}>
-                        <Link to={n.to} onClick={() => setOpen(false)} className="flex gap-2.5 px-4 py-2.5 hover:bg-chalk">
-                          <span className={`mt-1.5 h-2 w-2 shrink-0 rounded-full ${n.at > seen || g === 'today' ? (n.tone === 'bad' ? 'bg-red-500' : n.tone === 'good' ? 'bg-emerald-500' : 'bg-accent') : 'bg-transparent'}`} />
-                          <span className="min-w-0">
-                            <span className="block text-sm font-medium">{n.title}</span>
-                            <span className="block text-xs text-muted">{n.sub}</span>
-                          </span>
-                        </Link>
-                      </li>
-                    ))}
-                  </ul>
-                </section>
-              );
-            })}
-          </div>
+          <StudentNotesList seen={seen} onNavigate={() => setOpen(false)} />
         </div>
       )}
     </div>

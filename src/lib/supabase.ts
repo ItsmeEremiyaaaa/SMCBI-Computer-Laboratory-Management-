@@ -97,6 +97,8 @@ export function createSupabaseApi(url: string, key: string): Api {
       const ch = sb.channel(`res:${Math.random().toString(36).slice(2)}`)
         .on('postgres_changes', { event: '*', schema: 'public', table: 'reservations' }, () => cb())
         .on('postgres_changes', { event: '*', schema: 'public', table: 'class_schedules' }, () => cb())
+        .on('postgres_changes', { event: '*', schema: 'public', table: 'pc_reports' }, () => cb())
+        .on('postgres_changes', { event: '*', schema: 'public', table: 'profiles' }, () => cb())
         .subscribe();
       return () => { sb.removeChannel(ch); };
     },

@@ -1,5 +1,5 @@
 import { lazy, Suspense, useEffect, useMemo, useRef, useState } from 'react';
-import { NavLink, useParams } from 'react-router-dom';
+import { NavLink, useParams, useSearchParams } from 'react-router-dom';
 import {
   Box,
   CircleHelp,
@@ -137,7 +137,15 @@ export default function Labs3D() {
   const labs = useLoad(() => api.listLabs());
   const lab = labs.data?.find((l) => l.id === labId) ?? labs.data?.[0];
   const { pcs, error } = useLabLive(lab?.id ?? '__none__');
-  const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [params, setParams] = useSearchParams();
+  const [selectedId, setSelectedId] = useState<string | null>(params.get('pc'));
+  // links from notifications: /labs/lab1?pc=<id> opens that PC's card
+  useEffect(() => {
+    const pc = params.get('pc');
+    if (!pc) return;
+    setSelectedId(pc);
+    setParams((p) => { p.delete('pc'); return p; }, { replace: true });
+  }, [params, setParams]);
   const [mode, setMode] = useState<'3d' | '2d'>('2d'); // floor plan by default; 3D is one click away
   const [sceneReady, setSceneReady] = useState(false);
   const select = (id: string) => { setSelectedId(id || null); setStudentPick(null); };

@@ -2,11 +2,11 @@ import { useEffect, useState } from 'react';
 import { NavLink, Outlet, useLocation } from 'react-router-dom';
 import NotificationBell from './NotificationBell';
 import StudentBell from './StudentBell';
-import { Archive, Box, CalendarClock, CalendarDays, ClipboardList, LayoutGrid, LogOut, Menu, PanelLeftClose, PanelLeftOpen, QrCode, Users, X } from 'lucide-react';
+import { Archive, Bell, Box, CalendarClock, CalendarDays, ClipboardList, LayoutGrid, LogOut, Menu, PanelLeftClose, PanelLeftOpen, QrCode, Users, X } from 'lucide-react';
 import { Crest, useExclusive } from './ui';
 import IntroSplash from './IntroSplash';
 import { useAuth } from '../auth';
-import { api, type Stats } from '../lib/api';
+import { api } from '../lib/api';
 import type { Role } from '../lib/types';
 
 const COLLAPSED_KEY = 'comlab-sidebar-collapsed';
@@ -18,6 +18,7 @@ const NAV: { to: string; label: string; icon: typeof Box; roles: Role[] }[] = [
   { to: '/schedule', label: 'Class schedule', icon: CalendarClock, roles: ['admin', 'staff', 'teacher', 'student'] },
   { to: '/calendar', label: 'Calendar', icon: CalendarDays, roles: ['admin', 'staff', 'teacher', 'student'] },
   { to: '/people/teachers', label: 'People', icon: Users, roles: ['admin'] },
+  { to: '/inbox', label: 'Notifications', icon: Bell, roles: ['admin', 'staff', 'student'] },
   { to: '/qr', label: 'PC QR codes', icon: QrCode, roles: ['admin', 'staff'] },
   { to: '/archive', label: 'Archive', icon: Archive, roles: ['admin'] },
 ];
@@ -37,7 +38,6 @@ function Brand({ compact = false }: { compact?: boolean }) {
 export default function Layout() {
   const { profile } = useAuth();
   const [open, setOpen] = useState(false);
-  const [stats, setStats] = useState<Stats | null>(null);
   // Desktop sidebar can collapse to an icon rail (remembered per device).
   const [collapsed, setCollapsed] = useState(() => { try { return localStorage.getItem(COLLAPSED_KEY) === '1'; } catch { return false; } });
   const toggleCollapsed = () => {
@@ -49,15 +49,8 @@ export default function Layout() {
 
   useEffect(() => setOpen(false), [pathname]);
   useExclusive(open, () => setOpen(false));
-  useEffect(() => {
-    if (profile?.role !== 'admin' && profile?.role !== 'staff') return;
-    const load = () => api.stats().then(setStats).catch(() => {});
-    load();
-    return api.subscribeReservations(load);
-  }, [profile?.role, pathname]);
 
   if (!profile) return null;
-  const count = (stats?.pending ?? 0) + (stats?.openReports ?? 0) + (profile.role === 'admin' ? stats?.pendingTeachers ?? 0 : 0);
 
   // Left sidebar menu (all pages, Labs included); `compact` = the collapsed icon rail
   const nav = (compact: boolean) => (
@@ -97,7 +90,7 @@ export default function Layout() {
     </div>
   );
   const bells = <>
-    {(profile.role === 'admin' || profile.role === 'staff') && <NotificationBell count={count} />}
+    {(profile.role === 'admin' || profile.role === 'staff') && <NotificationBell />}
     {profile.role === 'student' && <StudentBell />}
   </>;
 

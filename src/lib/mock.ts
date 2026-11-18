@@ -87,7 +87,7 @@ export function createMock(storage: Store | null = browserStorage()): Api {
             department: s.course, course: `${s.year_level} ${s.section}`, phone: null, address: null }
         : { id: uid(), full_name: i.full_name, email: i.email.trim(), role: i.account_type === 'student' ? 'student' : 'teacher', approved: false,
             department: i.department, course: i.course, phone: null, address: null };
-      state.profiles.push(p); sessionId = p.id; save(); authListeners.forEach((f) => f());
+      state.profiles.push(p); sessionId = p.id; changedRes(); authListeners.forEach((f) => f());
     },
     async signOut() { sessionId = null; save(); authListeners.forEach((f) => f()); },
     // demo mode has no email; these just succeed
@@ -148,7 +148,7 @@ export function createMock(storage: Store | null = browserStorage()): Api {
       if (p.role !== 'admin' && (p.id !== id || 'role' in patch || 'approved' in patch)) throw new Error('Not allowed for your role.');
       const t = state.profiles.find((x) => x.id === id);
       if (!t) throw new Error('Profile not found.');
-      Object.assign(t, patch); save();
+      Object.assign(t, patch); changedRes();
     },
 
     async listStudents() { me(); return clone(state.students); },
@@ -280,7 +280,7 @@ export function createMock(storage: Store | null = browserStorage()): Api {
       if (p.id === profileId) throw new Error('You cannot archive your own account.');
       const t = state.profiles.find((x) => x.id === profileId);
       if (!t) throw new Error('Profile not found.');
-      t.archived_at = archived ? new Date().toISOString() : null; save();
+      t.archived_at = archived ? new Date().toISOString() : null; changedRes();
     },
     async checkOut() {
       const p = me();

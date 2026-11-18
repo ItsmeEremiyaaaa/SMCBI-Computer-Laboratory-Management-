@@ -34,6 +34,7 @@ export interface Api {
   listPcs(labId?: string): Promise<Pc[]>;
   setPcStatus(pcId: string, status: PcStatus, note?: string | null): Promise<void>;
   subscribePcs(labId: string | null, cb: (pc: Pc) => void): () => void;
+  /** Fires on any change to bookings, classes, problem reports or accounts. */
   subscribeReservations(cb: () => void): () => void;
 
   listReservations(f?: ReservationFilter): Promise<Reservation[]>;

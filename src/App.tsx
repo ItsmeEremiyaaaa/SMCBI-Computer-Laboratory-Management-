@@ -16,6 +16,7 @@ import CheckIn from './pages/CheckIn';
 const ArchivePage = lazy(() => import('./pages/Archive'));
 const QrCodes = lazy(() => import('./pages/QrCodes')); // qrcode library only loads for staff printing stickers
 import type { Role } from './lib/types';
+import Inbox from './pages/Inbox';
 
 // three.js is big; only load it when someone opens the Labs page.
 const Labs3D = lazy(() => import('./pages/Labs3D'));
@@ -47,6 +48,7 @@ export default function App() {
         <Route index element={profile.role === 'student' ? <StudentHome /> : <Dashboard />} />
         <Route path="checkin/:pcId" element={<CheckIn />} />
         <Route path="reset-password" element={<ResetPassword />} />
+        <Route path="inbox" element={<Only roles={['admin', 'staff', 'student']}><Inbox /></Only>} />
         <Route path="archive" element={<Only roles={['admin']}><Suspense fallback={<Loading />}><ArchivePage /></Suspense></Only>} />
         <Route path="qr/:labId?" element={<Only roles={['admin', 'staff']}><Suspense fallback={<Loading />}><QrCodes /></Suspense></Only>} />
         <Route path="labs/:labId?" element={<Suspense fallback={<Loading />}><Labs3D /></Suspense>} />
