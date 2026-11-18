@@ -51,8 +51,8 @@ export function studentNotes(input: {
         title: `Your NetLab booking today: ${r.title}`,
         sub: `${fmtTime(r.start_time)}–${fmtTime(r.end_time)} · ${r.pc_id ? pcLabel(r.pc_id) : LAB_SHORT[r.lab_id]} · check in when you sit down` });
     }
-    if ((r.status === 'approved' || r.status === 'rejected') && r.reviewed_at && r.reviewed_at >= since) {
-      notes.push({ id: `bk-${r.id}`, at: r.reviewed_at, group: 'booking', to: '/reservations', tone: r.status === 'approved' ? 'good' : 'bad',
+    if ((r.status === 'approved' || r.status === 'rejected' || r.status === 'cancelled') && r.reviewed_at && r.reviewed_at >= since) {
+      notes.push({ id: `bk-${r.id}-${r.status}`, at: r.reviewed_at, group: 'booking', to: '/reservations', tone: r.status === 'approved' ? 'good' : 'bad',
         title: `Booking ${r.status}: ${r.title}`,
         sub: `${fmtDate(r.date)}, ${fmtTime(r.start_time)} · ${r.pc_id ? pcLabel(r.pc_id) : LAB_SHORT[r.lab_id]}${r.admin_notes ? ` · “${r.admin_notes}”` : ''}` });
     }
@@ -69,6 +69,9 @@ export function studentNotes(input: {
     } else if (r.status === 'approved') {
       notes.push({ id: `sec-${r.id}-approved`, at: r.reviewed_at ?? r.created_at ?? manilaIso(r.date, r.start_time), group: 'booking', to: '/calendar', tone: 'good',
         title: `${who} booked a lab for your class`, sub: `${r.title} · ${when}` });
+    } else if (r.status === 'cancelled') {
+      notes.push({ id: `sec-${r.id}-cancelled`, at: r.reviewed_at ?? r.created_at ?? manilaIso(now.date, now.time), group: 'booking', to: '/calendar', tone: 'bad',
+        title: `Lab booking for your class was cancelled`, sub: `${r.title} · ${when} · by ${who}${r.admin_notes ? ` · “${r.admin_notes}”` : ''}` });
     } else if (r.status === 'rejected') {
       notes.push({ id: `sec-${r.id}-rejected`, at: r.reviewed_at ?? r.created_at ?? manilaIso(now.date, now.time), group: 'booking', to: '/calendar', tone: 'bad',
         title: `Lab booking for your class was not approved`, sub: `${r.title} · ${when} · by ${who}${r.admin_notes ? ` · “${r.admin_notes}”` : ''}` });

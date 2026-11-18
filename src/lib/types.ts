@@ -1,7 +1,7 @@
 export type Role = 'admin' | 'staff' | 'teacher' | 'student';
 export type PcStatus = 'free' | 'in_use' | 'broken';
 export type ShownStatus = PcStatus | 'reserved';
-export type ResStatus = 'pending' | 'approved' | 'rejected' | 'completed';
+export type ResStatus = 'pending' | 'approved' | 'rejected' | 'completed' | 'cancelled';
 export type EventType = 'academic' | 'personal' | 'holiday' | 'meeting';
 
 export const DEPARTMENTS = ['BSIT', 'BSBA', 'BSHM', 'BEED', 'BSED'] as const;

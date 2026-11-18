@@ -58,6 +58,7 @@ const RES_STYLE: Record<ResStatus, string> = {
   approved: 'bg-emerald-50 text-emerald-800 ring-emerald-200',
   rejected: 'bg-red-50 text-red-800 ring-red-200',
   completed: 'bg-slate-100 text-slate-700 ring-slate-200',
+  cancelled: 'bg-zinc-100 text-zinc-600 ring-zinc-300 line-through decoration-zinc-400',
 };
 export function ResBadge({ status }: { status: ResStatus }) {
   return <span className={cx('inline-flex rounded px-2 py-0.5 text-xs font-medium capitalize ring-1 ring-inset', RES_STYLE[status])}>{status}</span>;

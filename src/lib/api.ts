@@ -40,7 +40,7 @@ export interface Api {
 
   listReservations(f?: ReservationFilter): Promise<Reservation[]>;
   createReservation(input: ReservationInput): Promise<Reservation>;
-  reviewReservation(id: string, status: 'approved' | 'rejected' | 'completed', notes?: string | null): Promise<void>;
+  reviewReservation(id: string, status: 'approved' | 'rejected' | 'completed' | 'cancelled', notes?: string | null): Promise<void>;
   deleteReservation(id: string): Promise<void>;
 
   listProfiles(role?: Role): Promise<Profile[]>;

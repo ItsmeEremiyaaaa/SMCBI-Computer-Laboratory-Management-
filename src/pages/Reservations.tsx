@@ -10,7 +10,7 @@ import type { Reservation, ResStatus } from '../lib/types';
 import ReservationForm from '../components/ReservationForm';
 import { Alert, Button, Empty, Field, fmtDate, fmtTime, Input, Modal, PageHeader, Panel, ResBadge, Select, Textarea, askConfirm } from '../components/ui';
 
-const STATUSES: ResStatus[] = ['pending', 'approved', 'rejected', 'completed'];
+const STATUSES: ResStatus[] = ['pending', 'approved', 'rejected', 'completed', 'cancelled'];
 
 export default function Reservations() {
   const { profile } = useAuth();
@@ -20,7 +20,8 @@ export default function Reservations() {
   const status = (params.get('status') ?? '') as ResStatus | '';
   const [labId, setLabId] = useState('');
   const [date, setDate] = useState('');
-  const [review, setReview] = useState<{ r: Reservation; to: 'approved' | 'rejected' } | null>(null);
+  const [details, setDetails] = useState<Reservation | null>(null);
+  const [review, setReview] = useState<{ r: Reservation; to: 'approved' | 'rejected' | 'cancelled' } | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   const labs = useLoad(() => api.listLabs());
@@ -65,7 +66,7 @@ export default function Reservations() {
         actions={<Button onClick={() => { params.set('new', '1'); setParams(params); }}><Plus size={16} />{isStudent ? 'Book a NetLab PC' : 'Request a lab'}</Button>} />
 
       <Panel className="mb-4">
-        <div className="grid gap-px overflow-hidden rounded-lg bg-line sm:grid-cols-4">
+        <div className="grid grid-cols-2 gap-px overflow-hidden rounded-lg bg-line sm:grid-cols-5">
           {STATUSES.map((s) => {
             const n = (list.data ?? []).filter((r) => r.status === s).length;
             return (
@@ -104,11 +105,12 @@ export default function Reservations() {
                   <p className="text-muted">{fmtTime(r.start_time)} to {fmtTime(r.end_time)}</p>
                 </div>
                 <div className="min-w-0">
-                  <p className="truncate font-medium">{r.title}</p>
+                  <button type="button" onClick={() => setDetails(r)} className="max-w-full truncate text-left font-medium text-ink hover:text-accent hover:underline">{r.title}</button>
                   <p className="truncate text-sm text-muted">
                     {!isTeacher && <>{r.requester_name}. </>}{r.purpose}{r.participants ? `, ${r.participants} people` : ''}
                   </p>
-                  {r.admin_notes && <p className="text-sm text-muted">Admin note: {r.admin_notes}</p>}
+                  {(r.section || r.requirements) && <p className="truncate text-xs text-muted">{[r.section && `For ${r.section}`, r.requirements].filter(Boolean).join(' · ')}</p>}
+                  {r.admin_notes && <p className="truncate text-sm text-muted">Admin note: {r.admin_notes.replace(/\s+/g, ' ')}</p>}
                 </div>
                 <p className="text-sm">{labName(r.lab_id)}<span className="block text-muted">{pcLabel(r.pc_id)}</span>
                   {r.status === 'pending' && brokenPc(r.pc_id) && <span className="block text-xs font-semibold text-red-700">PC is broken — can't approve</span>}</p>
@@ -118,6 +120,8 @@ export default function Reservations() {
                     <Button size="sm" onClick={() => setReview({ r, to: 'approved' })}>Approve</Button>
                     <Button size="sm" variant="ghost" onClick={() => setReview({ r, to: 'rejected' })}>Reject</Button>
                   </>}
+                  {isAdmin && r.status === 'approved' && !ended(r) &&
+                    <Button size="sm" variant="ghost" onClick={() => setReview({ r, to: 'cancelled' })}>Cancel booking</Button>}
                   {isAdmin && r.status === 'approved' && ended(r) &&
                     <Button size="sm" variant="ghost" onClick={() => act(() => api.reviewReservation(r.id, 'completed'))}>Mark completed</Button>}
                   {/* admin: archive. requester: cancel a pending request, or hide a decided one from their own list */}
@@ -151,6 +155,11 @@ export default function Reservations() {
         )}
       </Modal>
 
+      {details && (
+        <Modal open title={details.title} onClose={() => setDetails(null)}>
+          <BookingDetails r={details} where={`${labName(details.lab_id)}, ${pcLabel(details.pc_id)}`} />
+        </Modal>
+      )}
       {review && (
         <ReviewModal r={review.r} to={review.to} where={`${labName(review.r.lab_id)}, ${pcLabel(review.r.pc_id)}`}
           onClose={() => setReview(null)}
@@ -160,26 +169,55 @@ export default function Reservations() {
   );
 }
 
+// Everything about one booking, for the admin (and the requester) to read before deciding.
+function BookingDetails({ r, where }: { r: Reservation; where: string }) {
+  const rows: [string, React.ReactNode][] = [
+    ['Status', <ResBadge status={r.status} />],
+    ['Requested by', r.requester_name],
+    ['When', `${fmtDate(r.date)}, ${fmtTime(r.start_time)} to ${fmtTime(r.end_time)}`],
+    ['Where', where],
+    ['For class', r.section || '—'],
+    ['Participants', r.participants ?? '—'],
+    ['Requirements', r.requirements || '—'],
+    ['Purpose', r.purpose],
+    ...(r.created_at ? [['Sent', new Date(r.created_at).toLocaleString('en-PH', { dateStyle: 'medium', timeStyle: 'short' })] as [string, string]] : []),
+    ...(r.admin_notes ? [['Admin note', <span className="whitespace-pre-line">{r.admin_notes}</span>] as [string, React.ReactNode]] : []),
+  ];
+  return (
+    <dl className="grid gap-x-4 gap-y-2.5 text-sm sm:grid-cols-[9rem_1fr]">
+      {rows.map(([k, v]) => (
+        <div key={k} className="contents">
+          <dt className="text-xs font-semibold uppercase tracking-wide text-muted sm:pt-0.5">{k}</dt>
+          <dd className="break-words">{v}</dd>
+        </div>
+      ))}
+    </dl>
+  );
+}
+
+// The school greeting every note starts with; a note left as just the greeting is sent as no note.
+const GREETING = 'Good Day!\nPraised Be Jesus and Mary!\n\n';
+
 function ReviewModal({ r, to, where, onClose, onDone }:
-  { r: Reservation; to: 'approved' | 'rejected'; where: string; onClose: () => void; onDone: () => void }) {
-  const [notes, setNotes] = useState('');
+  { r: Reservation; to: 'approved' | 'rejected' | 'cancelled'; where: string; onClose: () => void; onDone: () => void }) {
+  const [notes, setNotes] = useState(GREETING);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
-  const verb = to === 'approved' ? 'Approve' : 'Reject';
+  const verb = to === 'approved' ? 'Approve' : to === 'rejected' ? 'Reject' : 'Cancel booking';
   async function go() {
     setBusy(true); setError(null);
-    try { await api.reviewReservation(r.id, to, notes.trim() || null); onDone(); } catch (e) { setError((e as Error).message); } finally { setBusy(false); }
+    try { await api.reviewReservation(r.id, to, notes.trim() === GREETING.trim() ? null : notes.trim() || null); onDone(); } catch (e) { setError((e as Error).message); } finally { setBusy(false); }
   }
   return (
-    <Modal open title={`${verb} request`} onClose={onClose}>
+    <Modal open title={to === 'cancelled' ? 'Cancel this approved booking?' : `${verb} request`} onClose={onClose}>
       <div className="grid gap-4">
         {error && <Alert>{error}</Alert>}
-        <div className="text-sm">
-          <p className="font-medium">{r.title}</p>
-          <p className="text-muted">{r.requester_name}, {where}</p>
-          <p className="text-muted">{fmtDate(r.date)}, {fmtTime(r.start_time)} to {fmtTime(r.end_time)}</p>
+        <div className="rounded-lg border border-line bg-chalk/50 p-3">
+          <p className="mb-2 font-semibold">{r.title}</p>
+          <BookingDetails r={r} where={where} />
         </div>
-        <Field label="Note to the requester (optional)"><Textarea value={notes} onChange={(e) => setNotes(e.target.value)} rows={3} /></Field>
+        <Field label="Note to the requester (optional)" hint="Starts with the school greeting. Type your message below it, or leave it as is to send no note."><Textarea value={notes} onChange={(e) => setNotes(e.target.value)} rows={5} autoFocus
+          onFocus={(e) => { const end = e.currentTarget.value.length; e.currentTarget.setSelectionRange(end, end); }} /></Field>
         <div className="flex justify-end gap-2">
           <Button variant="ghost" onClick={onClose}>Cancel</Button>
           <Button variant={to === 'approved' ? 'primary' : 'danger'} disabled={busy} onClick={go}>{verb}</Button>
