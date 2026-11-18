@@ -41,7 +41,7 @@ function StatCard({ icon: Icon, label, value, note, to }: { icon: LucideIcon; la
     : <div className="card p-5">{body}</div>;
 }
 
-function LabTile({ lab, pcs }: { lab: Lab; pcs: LivePc[] }) {
+function LabTile({ lab, pcs, later = 0 }: { lab: Lab; pcs: LivePc[]; later?: number }) {
   const mine = pcs.filter((p) => p.lab_id === lab.id).sort((a, b) => a.row - b.row || a.col - b.col);
   const free = mine.filter((p) => p.shown === 'free').length;
   const inUse = mine.filter((p) => p.shown === 'in_use').length;
@@ -91,6 +91,11 @@ function LabTile({ lab, pcs }: { lab: Lab; pcs: LivePc[] }) {
           <div className="h-2 overflow-hidden rounded-full bg-accent-soft" aria-label={`${pct}% free`}>
             <div className="h-full rounded-full bg-accent transition-all duration-500" style={{ width: `${pct}%` }} />
           </div>
+          {later > 0 && (
+            <p className="mt-2 flex items-center gap-1.5 text-xs font-medium text-amber-700">
+              <CalendarClock size={13} />{later} upcoming booking{later > 1 ? 's' : ''}
+            </p>
+          )}
         </div>
       </div>
 
@@ -180,6 +185,11 @@ export default function Dashboard() {
   const labName = (id: string) => labDisplayName(labs.data?.find((l) => l.id === id)?.name ?? id);
   const pcLabel = (id: string | null) => (id ? pcs.find((p) => p.id === id)?.label : 'whole lab');
   const all = res.data ?? [];
+  // Approved bookings still to come (later today or any later day), soonest first.
+  const nowT = manilaNow();
+  const upcoming = (allApproved.data ?? []).filter((r) => r.date > today || (r.date === today && nowT.time < r.start_time))
+    .sort((a, b) => a.date.localeCompare(b.date) || a.start_time.localeCompare(b.start_time));
+
   const todays = [...(allApproved.data ?? []).filter((r) => r.date === today), ...classesOn(today, classes.data ?? [])]
     .filter((r) => !isTeacher || r.requester_id === profile?.id || r.id.startsWith('class-'))
     .sort((a, b) => a.start_time.localeCompare(b.start_time));
@@ -223,7 +233,7 @@ export default function Dashboard() {
         Labs right now
       </h2>
       <div className="mb-6 grid grid-cols-1 gap-4 md:grid-cols-3">
-        {labs.data?.map((l) => <LabTile key={l.id} lab={l} pcs={pcs} />)}
+        {labs.data?.map((l) => <LabTile key={l.id} lab={l} pcs={pcs} later={upcoming.filter((r) => r.lab_id === l.id).length} />)}
       </div>
 
       <div className="mb-6 grid grid-cols-1 gap-4 lg:grid-cols-2">
@@ -267,6 +277,27 @@ export default function Dashboard() {
               ))}
             </ul>
           )}
+        </Panel>
+
+        <Panel title="Upcoming bookings" icon={CalendarClock} className="lg:col-span-2"
+          actions={<Link to="/reservations?status=approved" className="text-sm font-medium text-accent hover:underline">All bookings</Link>}>
+          {upcoming.length === 0 ? <Empty>No approved bookings coming up.</Empty> : (
+            <ul className="grid grid-cols-1 gap-3 px-5 pb-5 sm:grid-cols-2 xl:grid-cols-4">
+              {upcoming.slice(0, 8).map((r) => (
+                <li key={r.id} className="flex gap-3 rounded-xl bg-chalk/70 p-3 text-sm">
+                  <span className="grid h-12 w-12 shrink-0 place-items-center rounded-xl bg-amber-500 text-center leading-none text-white">
+                    <span><span className="block text-[10px] uppercase opacity-90">{fmtDate(r.date).split(' ')[1]}</span><span className="text-lg font-bold">{r.date.slice(8)}</span></span>
+                  </span>
+                  <div className="min-w-0">
+                    <p className="truncate font-medium">{r.title}</p>
+                    <p className="truncate text-muted">{fmtTime(r.start_time)}–{fmtTime(r.end_time)} · {labName(r.lab_id)}, {pcLabel(r.pc_id)}</p>
+                    <p className="truncate text-xs text-muted">{r.requester_name}</p>
+                  </div>
+                </li>
+              ))}
+            </ul>
+          )}
+          {upcoming.length > 8 && <p className="px-5 pb-4 text-sm text-muted">+{upcoming.length - 8} more in Reservations.</p>}
         </Panel>
 
         <Panel title="Coming up" icon={CalendarDays} className="lg:col-span-2"

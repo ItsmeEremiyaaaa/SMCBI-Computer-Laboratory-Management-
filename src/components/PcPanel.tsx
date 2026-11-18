@@ -8,7 +8,8 @@ import { api } from '../lib/api';
 import { STUDENT_LAB } from '../lib/rules';
 import ReportProblem from './ReportProblem';
 import type { Lab, PcStatus } from '../lib/types';
-import { Alert, Button, Field, fmtTime, Input, Led, STATUS_LABEL } from './ui';
+import { Alert, Button, Field, fmtDate, fmtTime, Input, Led, STATUS_LABEL } from './ui';
+import { manilaNow } from '../lib/seat';
 
 const MANUAL: PcStatus[] = ['free', 'in_use', 'broken'];
 
@@ -22,6 +23,11 @@ export default function PcPanel({ pc, lab, canEdit, onClose }: { pc: LivePc; lab
   const here = checkIns.data?.find((c) => c.pc_id === pc.id);
   const canReserve = pc.status !== 'broken' && (profile?.role !== 'student' || lab.id === STUDENT_LAB);
   const isStaff = profile?.role === 'admin' || profile?.role === 'staff';
+  const upcoming = useLoad(() => api.listReservations({ status: 'approved', labId: lab.id }).catch(() => []), [lab.id, pc.id]);
+  const nowM = manilaNow();
+  const next = (upcoming.data ?? []).filter((r) => (r.pc_id === pc.id || r.pc_id === null) && r.id !== pc.current?.id
+    && (r.date > nowM.date || (r.date === nowM.date && nowM.time < r.start_time)))
+    .sort((a, b) => a.date.localeCompare(b.date) || a.start_time.localeCompare(b.start_time)).slice(0, 4);
   const reports = useLoad(() => (profile?.role === 'student' ? Promise.resolve([]) : api.listReports({ labId: lab.id }).catch(() => [])), [lab.id, pc.id, pc.status]);
   const open = (reports.data ?? []).filter((r) => r.pc_id === pc.id);
   async function resolve(id: string, action: 'broken' | 'dismissed') {
@@ -53,6 +59,20 @@ export default function PcPanel({ pc, lab, canEdit, onClose }: { pc: LivePc; lab
           <p className="font-medium">{pc.current.title}</p>
           <p className="text-muted">{pc.current.requester_name}, {fmtTime(pc.current.start_time)} to {fmtTime(pc.current.end_time)}</p>
           <p className="text-muted">{pc.current.pc_id ? 'This PC is booked' : 'Whole lab is booked'}</p>
+        </div>
+      )}
+      {next.length > 0 && (
+        <div className="rounded-md border border-line p-3 text-sm">
+          <p className="mb-1 font-semibold">Upcoming bookings</p>
+          <ul className="grid gap-1">
+            {next.map((r) => (
+              <li key={r.id} className="flex gap-2">
+                <span className="mt-1.5 h-2 w-2 shrink-0 rounded-full bg-amber-500" />
+                <span><b className="font-medium">{fmtDate(r.date)}, {fmtTime(r.start_time)}–{fmtTime(r.end_time)}</b>
+                  <span className="block text-muted">{r.requester_name}{r.pc_id ? '' : ' · whole lab'} · {r.title}</span></span>
+              </li>
+            ))}
+          </ul>
         </div>
       )}
       {here && profile?.role !== 'student' && (

@@ -19,6 +19,8 @@ export interface SceneProps {
   phaseLength?: number;
   students?: Student[];
   onStudentSelect?: (s: Student, pcId: string) => void;
+  /** PC ids with an approved booking later (next days), marked "booked later" on the floor plan */
+  bookedLater?: Set<string>;
 }
 
 const WOOD = '#dcb385';
@@ -50,7 +52,7 @@ function Door({ wall, at, label, w, d }: { wall: 'left' | 'front' | 'back'; at: 
 
 // 2D floor plan: a to-scale top-down drawing of the room (same positions as the 3D view),
 // used when WebGL is unavailable or the viewer picks "Floor plan". Front (whiteboard) at the top.
-export default function SeatGrid({ lab, pcs, selectedId, onSelect, onReady }: SceneProps) {
+export default function SeatGrid({ lab, pcs, selectedId, onSelect, onReady, bookedLater }: SceneProps) {
   useEffect(() => {
     onReady?.();
   }, [onReady]);
@@ -112,6 +114,9 @@ export default function SeatGrid({ lab, pcs, selectedId, onSelect, onReady }: Sc
                   {pc.shown === 'broken' && <path d="M-0.12 -0.3 L0.12 -0.15 M0.12 -0.3 L-0.12 -0.15" stroke="#7f1d1d" strokeWidth={0.03} />}
                   <circle cx={0} cy={0.62} r={0.21} fill="#e4e4e7" stroke="#71717a" strokeWidth={0.03} />
                   {pc.shown === 'in_use' && <circle cx={0} cy={0.6} r={0.13} fill="#2b1d14" />}
+                  {bookedLater?.has(pc.id) && pc.shown !== 'reserved' && (
+                    <g transform="translate(0.42 -0.3)"><circle r={0.17} fill="#f59e0b" stroke="#fff" strokeWidth={0.04} /><path d="M0 -0.09 V0 L0.07 0.05" stroke="#fff" strokeWidth={0.035} fill="none" strokeLinecap="round" /></g>
+                  )}
                 </g>
                 <text x={x} y={z - 0.02} textAnchor="middle" dominantBaseline="middle" fontSize={0.19} fontWeight={700} className="pointer-events-none fill-amber-950">
                   {pc.label.replace('PC-', '')}
@@ -131,6 +136,7 @@ export default function SeatGrid({ lab, pcs, selectedId, onSelect, onReady }: Sc
           ))}
           <span className="hidden h-3 w-px bg-line sm:block" />
           <span className="flex items-center gap-1.5"><span className="grid h-3.5 w-3.5 place-items-center rounded-full bg-zinc-200 ring-1 ring-zinc-500"><span className="h-2 w-2 rounded-full bg-[#2b1d14]" /></span>Student seated</span>
+          <span className="flex items-center gap-1.5"><span className="grid h-3.5 w-3.5 place-items-center rounded-full bg-amber-500 text-[8px] text-white">◷</span>Booked later</span>
           <span className="flex items-center gap-1.5"><span className="h-1.5 w-5 rounded-full bg-blue-300" />Windows</span>
           <span>Click a desk for details</span>
         </figcaption>

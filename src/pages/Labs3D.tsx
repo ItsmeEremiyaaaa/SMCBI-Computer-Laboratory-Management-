@@ -242,6 +242,15 @@ export default function Labs3D() {
   useEffect(() => { const t = setInterval(checkIns.reload, 30_000); return () => clearInterval(t); }, [checkIns.reload]);
   const checkedIn = useMemo(() => new Set((checkIns.data ?? []).map((c) => c.pc_id)), [checkIns.data]);
 
+  // Approved single-PC bookings still to come (later today or any later day): "booked later" markers.
+  const approvedAll = useLoad(() => api.listReservations({ status: 'approved' }), [lab?.id]);
+  useEffect(() => api.subscribeReservations(approvedAll.reload), [approvedAll.reload]);
+  const bookedLater = useMemo(() => {
+    const now = manilaNow();
+    return new Set((approvedAll.data ?? []).filter((r) => r.pc_id && r.lab_id === lab?.id
+      && (r.date > now.date || (r.date === now.date && now.time < r.start_time))).map((r) => r.pc_id!));
+  }, [approvedAll.data, lab?.id]);
+
   // One rule for every view (see effectiveStatuses): a PC is In use only when someone sits at it.
   const displayedPcs = useMemo(
     () => effectiveStatuses(pcs, effectiveSimMode, classStudents?.length ?? null, checkedIn),
@@ -382,7 +391,7 @@ export default function Labs3D() {
                 />
               </Suspense>
             </SceneBoundary>
-          : <div className="h-full w-full overflow-auto px-3 pb-32 pt-44 sm:p-6 sm:pt-36 sm:pb-32"><SeatGrid lab={lab} pcs={displayedPcs} selectedId={selectedId} onSelect={select} onReady={() => setSceneReady(true)} isOccupied={isClassInSession} classInfo={activeClassSchedule} simMode={effectiveSimMode} teacherName={teacherName} /></div>)}
+          : <div className="h-full w-full overflow-auto px-3 pb-32 pt-44 sm:p-6 sm:pt-36 sm:pb-32"><SeatGrid lab={lab} pcs={displayedPcs} selectedId={selectedId} onSelect={select} onReady={() => setSceneReady(true)} isOccupied={isClassInSession} classInfo={activeClassSchedule} simMode={effectiveSimMode} teacherName={teacherName} bookedLater={bookedLater} /></div>)}
       </div>
 
 
