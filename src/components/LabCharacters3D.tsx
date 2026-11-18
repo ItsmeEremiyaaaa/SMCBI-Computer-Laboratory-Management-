@@ -2,7 +2,7 @@ import { useMemo, useRef, useState, useEffect } from 'react';
 import { useFrame } from '@react-three/fiber';
 import { MathUtils, type Group } from 'three';
 import { LAYOUTS } from '../lib/layouts';
-import type { Lab } from '../lib/types';
+import type { Lab, Student } from '../lib/types';
 import type { LivePc } from '../hooks/useLabLive';
 
 export type SimMode = 'walk_in' | 'in_session' | 'walk_out' | 'empty';
@@ -40,6 +40,13 @@ interface LabCharacters3DProps {
   simMode: SimMode;
   teacherName?: string | null;
   onSimulationComplete?: () => void;
+  /** Seconds already elapsed in the current walk_in / walk_out window (realtime sync). */
+  phaseOffset?: number;
+  /** Length of the current walk_in / walk_out window in seconds; arrivals are spread across it. */
+  phaseLength?: number;
+  /** Enrolled students of the class, one per seat; avatars become clickable when given. */
+  students?: Student[];
+  onStudentSelect?: (s: Student, pcId: string) => void;
 }
 
 interface Waypoint {
@@ -60,6 +67,7 @@ interface StudentAgentData {
   enterDelay: number;
   exitDelay: number;
   walkSpeed: number;
+  student?: Student;
 }
 
 // SMCBI Lab Spacing
@@ -214,10 +222,12 @@ function StudentAgent3D({
   agent,
   simMode,
   elapsedTime,
+  onSelect,
 }: {
   agent: StudentAgentData;
   simMode: SimMode;
   elapsedTime: number;
+  onSelect?: () => void;
 }) {
   const rootRef = useRef<Group>(null);
   const leftHipRef = useRef<Group>(null);
@@ -495,7 +505,10 @@ function StudentAgent3D({
   });
 
   return (
-    <group ref={rootRef} position={agent.chairPos}>
+    <group ref={rootRef} position={agent.chairPos}
+      onClick={onSelect && ((e) => { e.stopPropagation(); onSelect(); })}
+      onPointerOver={onSelect && ((e) => { e.stopPropagation(); document.body.style.cursor = 'pointer'; })}
+      onPointerOut={onSelect && (() => { document.body.style.cursor = ''; })}>
       {/* Articulated Body Hierarchy */}
       <group ref={bodyRootRef}>
         {/* Pelvis / Hips */}
@@ -626,21 +639,22 @@ function StudentAgent3D({
             <boxGeometry args={[0.20, 0.22, 0.19]} />
             {skinMat}
           </mesh>
-          {/* Hair top */}
-          <mesh position={[0, 0.07, 0.01]} castShadow>
-            <boxGeometry args={[0.22, 0.14, 0.21]} />
+          {/* Hair pieces stack without overlapping and always sit clearly outside the face box:
+              coplanar faces of different meshes z-fight and flicker. */}
+          {/* Hair top (y 0 … 0.14, wraps past the back of the face) */}
+          <mesh position={[0, 0.07, -0.0025]} castShadow>
+            <boxGeometry args={[0.22, 0.14, 0.235]} />
             {hairMat}
           </mesh>
-          {/* Hair back */}
-          <mesh position={[0, -0.02, -0.08]} castShadow>
-            {/* hair pieces share one width so their sides never sit a few mm apart (that z-fights / flickers) */}
-            <boxGeometry args={[0.22, 0.18, 0.08]} />
+          {/* Hair back (y -0.11 … 0) */}
+          <mesh position={[0, -0.055, -0.08]} castShadow>
+            <boxGeometry args={[0.22, 0.11, 0.08]} />
             {hairMat}
           </mesh>
-          {/* Female long hair */}
+          {/* Female long hair (y -0.24 … -0.11) */}
           {!isMale && (
-            <mesh position={[0, -0.14, -0.08]} castShadow>
-              <boxGeometry args={[0.22, 0.20, 0.08]} />
+            <mesh position={[0, -0.175, -0.08]} castShadow>
+              <boxGeometry args={[0.22, 0.13, 0.08]} />
               {hairMat}
             </mesh>
           )}
@@ -660,13 +674,21 @@ export default function LabCharacters3D({
   simMode,
   teacherName,
   onSimulationComplete,
+  phaseOffset = 0,
+  phaseLength,
+  students,
+  onStudentSelect,
 }: LabCharacters3DProps) {
-  const [elapsed, setElapsed] = useState(0);
+  const [elapsed, setElapsed] = useState(phaseOffset);
   const startTimeRef = useRef<number | null>(null);
+  const offsetRef = useRef(phaseOffset);
 
+  // Restart the clock when the phase changes, picking up however far into it we already are.
   useEffect(() => {
     startTimeRef.current = null;
-    setElapsed(0);
+    offsetRef.current = phaseOffset;
+    setElapsed(phaseOffset);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [simMode, lab.id]);
 
   const front = -d / 2;
@@ -786,24 +808,31 @@ export default function LabCharacters3D({
       };
     });
 
+    // Seat the enrolled students of the class in seat order (only as many avatars as students).
+    const seated = students?.length
+      ? rawList.slice(0, students.length).map((a, i) => ({ ...a, student: students[i], isMale: students[i].sex ? students[i].sex === 'Male' : a.isMale }))
+      : rawList;
+
     // 2. Compute 1-by-1 ranking:
     // For arrival (walk_in): Farthest seat enters door first so pathway is always open ahead of every student!
-    const inOrder = [...rawList].sort((a, b) => b.totalWalkDist - a.totalWalkDist || a.id.localeCompare(b.id));
+    const inOrder = [...seated].sort((a, b) => b.totalWalkDist - a.totalWalkDist || a.id.localeCompare(b.id));
     const inRankMap = new Map<string, number>();
     inOrder.forEach((item, idx) => inRankMap.set(item.id, idx));
 
     // For dismissal (walk_out): Closest seat stands up and exits door first so exit corridor is clear!
-    const outOrder = [...rawList].sort((a, b) => a.totalWalkDist - b.totalWalkDist || a.id.localeCompare(b.id));
+    const outOrder = [...seated].sort((a, b) => a.totalWalkDist - b.totalWalkDist || a.id.localeCompare(b.id));
     const outRankMap = new Map<string, number>();
     outOrder.forEach((item, idx) => outRankMap.set(item.id, idx));
 
-    return rawList.map((item) => {
+    // Strictly one at a time through the same door and corridor. In realtime the arrivals are spread
+    // over 80% of the window (10 min before class / last 5 min), never closer than 2.5 s apart.
+    const gap = phaseLength ? Math.min(12, Math.max(2.5, (phaseLength * 0.8) / Math.max(1, seated.length))) : 2.5;
+    return seated.map((item) => {
       const rankIn = inRankMap.get(item.id) ?? 0;
       const rankOut = outRankMap.get(item.id) ?? 0;
 
-      // Strictly 1-by-1 spacing: 1.6s between consecutive students entering or exiting the door
-      const enterDelay = 0.4 + rankIn * 1.6;
-      const exitDelay = 0.4 + rankOut * 1.6;
+      const enterDelay = 0.4 + rankIn * gap;
+      const exitDelay = 0.4 + rankOut * gap;
 
       return {
         ...item,
@@ -811,7 +840,7 @@ export default function LabCharacters3D({
         exitDelay,
       };
     });
-  }, [workingPcs, lab, style, doorPoint.x, doorPoint.z, frontHallZ]);
+  }, [workingPcs, lab, style, doorPoint.x, doorPoint.z, frontHallZ, students, phaseLength]);
 
   // Max simulation time calculation
   const maxSimTime = useMemo(() => {
@@ -833,7 +862,7 @@ export default function LabCharacters3D({
     if (startTimeRef.current === null) {
       startTimeRef.current = clock.elapsedTime;
     }
-    const curElapsed = clock.elapsedTime - startTimeRef.current;
+    const curElapsed = offsetRef.current + clock.elapsedTime - startTimeRef.current;
     setElapsed(curElapsed);
 
     if (curElapsed >= maxSimTime + 0.5 && onSimulationComplete) {
@@ -859,6 +888,7 @@ export default function LabCharacters3D({
           agent={agent}
           simMode={simMode}
           elapsedTime={elapsed}
+          onSelect={agent.student && onStudentSelect ? () => onStudentSelect(agent.student!, agent.pcId) : undefined}
         />
       ))}
     </group>

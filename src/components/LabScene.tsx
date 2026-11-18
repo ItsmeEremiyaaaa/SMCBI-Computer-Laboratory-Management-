@@ -7,7 +7,7 @@ import type { Lab } from '../lib/types';
 import type { SceneProps } from './SeatGrid';
 import { LAYOUTS } from '../lib/layouts';
 import { STATUS_COLOR } from './ui';
-import LabCharacters3D, { type SimMode } from './LabCharacters3D';
+import LabCharacters3D from './LabCharacters3D';
 
 // Modeled on the SMCBI labs: Lab 1/2 have long white benches with white partitions;
 // Netlab has separate dark-top tables on metal legs. Both use white monobloc chairs.
@@ -166,6 +166,16 @@ function ErgonomicMeshChair({ position, rotationY = 0 }: { position: [number, nu
     </group>
   );
 }
+
+// Where each lab's right-wall door leads.
+const SIDE_DOOR: Record<string, string> = { lab1: 'ADMIN OFFICE', lab2: 'COMLAB 1', netlab: 'COMLAB 2' };
+
+// Door sign: white text on a navy plate.
+const signTex = (text: string) => paintTex([512, 120], (ctx, w, h) => {
+  ctx.fillStyle = '#1e3a8a'; ctx.fillRect(0, 0, w, h);
+  ctx.fillStyle = '#ffffff'; ctx.font = 'bold 56px Arial, sans-serif'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+  ctx.fillText(text, w / 2, h / 2 + 2);
+});
 
 // Painted canvas texture (tiles, wood, wall graphic). Falls back to a blank texture where canvas 2D is unavailable (tests).
 function paintTex(size: [number, number], draw: (ctx: CanvasRenderingContext2D, w: number, h: number) => void, repeat: [number, number] = [1, 1]) {
@@ -697,39 +707,6 @@ function FireExtinguisher({ position, rotationY = 0 }: { position: [number, numb
   );
 }
 
-// Large Flat-Screen Wall-Mounted Presentation Display (matching reference photo)
-function WallMountedDisplay({ position, rotationY = 0 }: { position: [number, number, number]; rotationY?: number }) {
-  return (
-    <group position={position} rotation-y={rotationY}>
-      {/* Wall mounting bracket */}
-      <mesh position={[0, 0, -0.03]} castShadow>
-        <boxGeometry args={[0.9, 0.5, 0.03]} />
-        <meshStandardMaterial color="#0f172a" />
-      </mesh>
-      {/* Slim black bezel casing */}
-      <mesh castShadow>
-        <boxGeometry args={[2.3, 1.32, 0.035]} />
-        <meshStandardMaterial color="#111827" roughness={0.3} metalness={0.7} />
-      </mesh>
-      {/* Vibrant presentation screen (as in reference photo) */}
-      <mesh position={[0, 0, 0.019]}>
-        <planeGeometry args={[2.24, 1.26]} />
-        <meshStandardMaterial
-          color="#0f172a"
-          emissive="#1e3a8a"
-          emissiveIntensity={0.65}
-          roughness={0.1}
-        />
-      </mesh>
-      {/* Power LED */}
-      <mesh position={[1.05, -0.62, 0.02]}>
-        <sphereGeometry args={[0.005, 8, 8]} />
-        <meshStandardMaterial color="#38bdf8" emissive="#38bdf8" emissiveIntensity={2} />
-      </mesh>
-    </group>
-  );
-}
-
 // Front Wall Features: Clean Whiteboard with pen tray & eraser, and Centered Teacher Station
 function FrontWallDecor({
   w,
@@ -828,8 +805,11 @@ function Room({ lab, w, d, style }: { lab: Lab; w: number; d: number; style: Sty
 
   // Left wall has the exit door for all labs at the cactus location
   const leftDoorZs = [exitDoorZ];
-  // Right wall has continuous full windows
-  const rightDoorZs: number[] = [];
+  // Right wall: one connecting door in the middle bay
+  const sideDoorZ = front + bayLength * (Math.floor(bayCount / 2) + 0.5);
+  const sideDoorTo = SIDE_DOOR[lab.id];
+  const rightDoorZs = sideDoorTo ? [sideDoorZ] : [];
+  const sign = useMemo(() => sideDoorTo && signTex(sideDoorTo), [sideDoorTo]);
 
   const floor = useMemo(() => floorTex(w / 0.6, d / 0.6), [w, d]);
   const ceiling = useMemo(() => ceilingTex(w / 0.6, d / 0.6), [w, d]);
@@ -890,8 +870,16 @@ function Room({ lab, w, d, style }: { lab: Lab; w: number; d: number; style: Sty
       <GlassWindowWall side={-1} w={w} d={d} front={front} doorZList={leftDoorZs} />
       <GlassWindowWall side={1} w={w} d={d} front={front} doorZList={rightDoorZs} />
 
-      {/* Wall-Mounted Big-Screen Presentation Display on Right Wall (matching reference photo) */}
-      <WallMountedDisplay position={[w / 2 - 0.06, 1.85, 0]} rotationY={-Math.PI / 2} />
+      {/* Connecting door on the right wall, with a sign saying where it leads */}
+      {sideDoorTo && (
+        <>
+          <Doorway position={[w / 2, 0, sideDoorZ]} rotationY={-Math.PI / 2} />
+          <mesh position={[w / 2 - 0.07, 2.5, sideDoorZ]} rotation-y={-Math.PI / 2}>
+            <planeGeometry args={[1.1, 0.26]} />
+            <meshStandardMaterial map={sign || undefined} roughness={0.5} />
+          </mesh>
+        </>
+      )}
 
       {/* Exit Door in the window at the cactus location (left wall) for all labs */}
       <Doorway position={[-w / 2, 0, exitDoorZ]} rotationY={Math.PI / 2} />
@@ -972,15 +960,8 @@ function SceneContent({
   isOccupied,
   simMode,
   teacherName,
-}: {
-  lab: Lab;
-  pcs: LivePc[];
-  selectedId: string | null;
-  onSelect: (id: string) => void;
-  isOccupied?: boolean;
-  simMode?: SimMode;
-  teacherName?: string | null;
-}) {
+  ...live
+}: Pick<SceneProps, 'lab' | 'pcs' | 'selectedId' | 'onSelect' | 'isOccupied' | 'simMode' | 'teacherName' | 'phaseOffset' | 'phaseLength' | 'students' | 'onStudentSelect'>) {
   const style = styleOf(lab);
   const { w, d } = roomSize(lab);
 
@@ -1012,6 +993,10 @@ function SceneContent({
         style={style}
         simMode={simMode ?? (isOccupied ? 'in_session' : 'empty')}
         teacherName={teacherName}
+        phaseOffset={live.phaseOffset}
+        phaseLength={live.phaseLength}
+        students={live.students}
+        onStudentSelect={live.onStudentSelect}
       />
 
       <ContactShadows position={[0, 0.003, 0]} scale={Math.max(w, d)} opacity={0.2} blur={2.5} far={2} />
@@ -1028,6 +1013,7 @@ export default function LabScene({
   isOccupied = false,
   simMode,
   teacherName,
+  ...live
 }: SceneProps) {
   const { w, d } = roomSize(lab);
 
@@ -1061,6 +1047,7 @@ export default function LabScene({
         isOccupied={isOccupied}
         simMode={simMode}
         teacherName={teacherName}
+        {...live}
       />
       <OrbitControls makeDefault maxPolarAngle={1.45} minDistance={1.5} maxDistance={Math.hypot(w, d)} enableDamping />
     </Canvas>

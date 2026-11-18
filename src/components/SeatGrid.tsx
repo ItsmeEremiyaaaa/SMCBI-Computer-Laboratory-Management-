@@ -1,6 +1,6 @@
 import { useEffect } from 'react';
 import type { LivePc } from '../hooks/useLabLive';
-import type { ClassSchedule, Lab } from '../lib/types';
+import type { ClassSchedule, Lab, Student } from '../lib/types';
 import type { SimMode } from './LabCharacters3D';
 import { Led, STATUS_LABEL } from './ui';
 
@@ -14,6 +14,10 @@ export interface SceneProps {
   classInfo?: ClassSchedule | null;
   simMode?: SimMode;
   teacherName?: string | null;
+  phaseOffset?: number;
+  phaseLength?: number;
+  students?: Student[];
+  onStudentSelect?: (s: Student, pcId: string) => void;
 }
 
 // 2D floor plan: used when WebGL is unavailable or the viewer prefers it.

@@ -2,16 +2,12 @@ import { lazy, Suspense, useEffect, useMemo, useRef, useState } from 'react';
 import { NavLink, useParams } from 'react-router-dom';
 import {
   Box,
-  CircleDashed,
   CircleHelp,
-  DoorOpen,
-  Footprints,
   Grid3x3,
-  MonitorPlay,
   MousePointerClick,
   Move3d,
   RotateCcw,
-  Timer,
+  X,
   ZoomIn,
 } from 'lucide-react';
 import { useAuth } from '../auth';
@@ -24,6 +20,7 @@ import SeatGrid from '../components/SeatGrid';
 import SceneBoundary from '../components/SceneBoundary';
 import { Alert, Button, Led, Modal, STATUS_LABEL, STATUSES } from '../components/ui';
 import type { SimMode } from '../components/LabCharacters3D';
+import type { Student } from '../lib/types';
 
 const LabScene = lazy(() => import('../components/LabScene'));
 
@@ -40,13 +37,6 @@ function labDisplayName(name?: string, id?: string) {
 
 const labShortName = (name?: string, id?: string) =>
   ({ 'Computer Laboratory 1': 'ComLab 1', 'Computer Laboratory 2': 'ComLab 2', 'Networking Laboratory': 'NetLab' } as Record<string, string>)[labDisplayName(name, id)] ?? name ?? '';
-
-const SIM_BUTTONS = [
-  ['walk_in', Footprints, 'Walk in', 'Simulate students entering 1 by 1 and sitting at workstations'],
-  ['in_session', MonitorPlay, 'In session', 'Simulate active class with all students seated working'],
-  ['walk_out', DoorOpen, 'Dismiss', 'Simulate class dismissal: students leave 1 by 1'],
-  ['empty', CircleDashed, 'Empty', 'Simulate an empty laboratory'],
-] as const satisfies readonly (readonly [SimMode, unknown, string, string])[];
 
 // Centered SMCBI Loading Animation with smooth circular reveal transition matching the web intro
 function LabLoadingOverlay({ labName, ready }: { labName?: string; ready: boolean }) {
@@ -149,12 +139,13 @@ export default function Labs3D() {
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [mode, setMode] = useState<'3d' | '2d'>(hasWebGL ? '3d' : '2d');
   const [sceneReady, setSceneReady] = useState(false);
-  const select = (id: string) => setSelectedId(id || null);
+  const select = (id: string) => { setSelectedId(id || null); setStudentPick(null); };
   const [showGuideModal, setShowGuideModal] = useState(false);
 
   // Realtime Laboratory Schedule & Classroom Monitoring
   const schedules = useLoad(() => api.listSchedules());
-  const [userSimOverride, setUserSimOverride] = useState<SimMode | null>(null);
+  const students = useLoad(() => api.listStudents().catch(() => [] as Student[])); // teachers can't read students; avatars stay anonymous
+  const [studentPick, setStudentPick] = useState<{ s: Student; pcId: string } | null>(null);
 
   const today = manilaNow();
   const dow = isoWeekday(today.date);
@@ -203,7 +194,28 @@ export default function Labs3D() {
     return 'empty';
   }, [upcomingClassSchedule, activeClassSchedule, activeBooking, nowMin]);
 
-  const effectiveSimMode: SimMode = userSimOverride ?? liveSimMode;
+  const effectiveSimMode = liveSimMode;
+
+  // Realtime position inside the arrival window (10 min before class) or dismissal window (last 5 min),
+  // so opening the page mid-way shows exactly who has already arrived / left.
+  const phase = effectiveSimMode === 'walk_in' && upcomingClassSchedule
+    ? { start: toMin(upcomingClassSchedule.start_time) - 10, length: 600 }
+    : effectiveSimMode === 'walk_out' && activeClassSchedule
+      ? { start: toMin(activeClassSchedule.end_time) - 5, length: 300 }
+      : null;
+  const phaseOffset = phase ? Math.max(0, (nowMin - phase.start) * 60 + new Date().getSeconds()) : 0;
+
+  // Enrolled students of the class in this lab, e.g. "BSIT 1A" → BSIT · 1st Year · section A.
+  const classSection = (activeClassSchedule ?? upcomingClassSchedule)?.section ?? null;
+  const classStudents = useMemo(() => {
+    const m = classSection?.match(/^([A-Z]+)s*(d)s*([A-Z])?$/i);
+    if (!m) return undefined;
+    const year = `${m[2]}${['', 'st', 'nd', 'rd'][Number(m[2])] ?? 'th'} Year`;
+    const list = (students.data ?? [])
+      .filter((s) => s.course === m[1].toUpperCase() && s.year_level === year && (!m[3] || s.section.toUpperCase() === m[3].toUpperCase()) && (s.status ?? 'Enrolled') === 'Enrolled')
+      .sort((a, b) => a.student_id.localeCompare(b.student_id));
+    return list.length ? list : undefined;
+  }, [classSection, students.data]);
   const isClassInSession = effectiveSimMode === 'walk_in' || effectiveSimMode === 'in_session';
 
   const activeClassDetails = activeClassSchedule
@@ -335,27 +347,8 @@ export default function Labs3D() {
 
           <div className="hidden h-7 w-px bg-line sm:block" />
 
-          {/* Simulation controls */}
+          {/* Help */}
           <div className="flex flex-wrap items-center gap-1">
-            <div className="flex gap-0.5 rounded-xl bg-chalk p-0.5" role="group" aria-label="Simulate">
-              {SIM_BUTTONS.map(([m, Icon, label, hint]) => (
-                <button key={m} onClick={() => setUserSimOverride(m)} title={hint}
-                  aria-pressed={effectiveSimMode === m && userSimOverride !== null}
-                  className={`flex items-center gap-1 rounded-lg px-2 py-1 text-[11px] font-medium transition-all ${
-                    effectiveSimMode === m && userSimOverride !== null ? 'bg-accent text-white shadow-sm' : 'text-muted hover:bg-panel hover:text-ink'
-                  }`}>
-                  <Icon size={13} />
-                  <span className="hidden lg:inline">{label}</span>
-                </button>
-              ))}
-            </div>
-            {userSimOverride !== null && (
-              <button onClick={() => setUserSimOverride(null)}
-                className="flex items-center gap-1 rounded-lg border border-accent/40 bg-accent-soft px-2 py-1 text-[11px] font-semibold text-accent transition-all hover:bg-accent hover:text-white"
-                title="Reset to real Philippine Manila timetable (auto-syncs students and single teacher)">
-                <Timer size={13} />Live
-              </button>
-            )}
             <button onClick={() => setShowGuideModal(true)} aria-label="3D Controls Guide" title="Open 3D Navigation & Controls Guide"
               className="grid h-7 w-7 place-items-center rounded-lg text-muted transition-all hover:bg-chalk hover:text-accent active:scale-95">
               <CircleHelp size={16} />
@@ -376,7 +369,7 @@ export default function Labs3D() {
           ? <SceneBoundary onError={() => setMode('2d')} fallback={<SeatGrid lab={lab} pcs={displayedPcs} selectedId={selectedId} onSelect={select} onReady={() => setSceneReady(true)} isOccupied={isClassInSession} classInfo={activeClassSchedule} simMode={effectiveSimMode} teacherName={teacherName} />}>
               <Suspense fallback={<LabLoadingOverlay labName={lab.name} ready={false} />}>
                 <LabScene
-                  key={userSimOverride ? `${lab.id}-${userSimOverride}` : lab.id}
+                  key={lab.id}
                   lab={lab}
                   pcs={displayedPcs}
                   selectedId={selectedId}
@@ -385,6 +378,10 @@ export default function Labs3D() {
                   isOccupied={isClassInSession}
                   simMode={effectiveSimMode}
                   teacherName={teacherName}
+                  phaseOffset={phaseOffset}
+                  phaseLength={phase?.length}
+                  students={classStudents}
+                  onStudentSelect={(s, pcId) => { setSelectedId(null); setStudentPick({ s, pcId }); }}
                 />
               </Suspense>
             </SceneBoundary>
@@ -392,6 +389,37 @@ export default function Labs3D() {
       </div>
 
 
+
+      {/* Student card when an avatar is clicked */}
+      {studentPick && !selected && (
+        <aside className="absolute right-4 top-20 z-30 w-80 max-w-[calc(100%-2rem)] rounded-2xl border border-line bg-panel/95 p-4 shadow-2xl backdrop-blur">
+          <div className="flex items-start justify-between gap-2">
+            <div className="flex items-center gap-3">
+              <span className="grid h-11 w-11 shrink-0 place-items-center rounded-full bg-accent text-sm font-bold text-white">
+                {studentPick.s.full_name.split(/s+/).map((w) => w[0]).slice(0, 2).join('').toUpperCase()}
+              </span>
+              <div className="min-w-0">
+                <p className="truncate font-semibold text-ink">{studentPick.s.full_name}</p>
+                <p className="font-cond text-sm text-muted">{studentPick.s.student_id}</p>
+              </div>
+            </div>
+            <button onClick={() => setStudentPick(null)} aria-label="Close" className="rounded-lg p-1 text-muted hover:bg-chalk hover:text-ink"><X size={16} /></button>
+          </div>
+          <dl className="mt-4 grid grid-cols-2 gap-x-3 gap-y-2.5 text-sm">
+            {([
+              ['Course', studentPick.s.course],
+              ['Year', studentPick.s.year_level],
+              ['Section', studentPick.s.section],
+              ['Sex', studentPick.s.sex ?? '—'],
+              ['Status', studentPick.s.status ?? 'Enrolled'],
+              ['Seat', displayedPcs.find((p) => p.id === studentPick.pcId)?.label ?? studentPick.pcId],
+            ] as const).map(([k, v]) => (
+              <div key={k}><dt className="text-[11px] font-semibold uppercase tracking-wide text-muted">{k}</dt><dd className="font-medium text-ink">{v}</dd></div>
+            ))}
+            <div className="col-span-2"><dt className="text-[11px] font-semibold uppercase tracking-wide text-muted">Email</dt><dd className="truncate font-medium text-ink">{studentPick.s.email}</dd></div>
+          </dl>
+        </aside>
+      )}
 
       {/* Floating PC inspection drawer in top-right when a workstation is selected */}
       {selected && lab && (
