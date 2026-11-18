@@ -3,7 +3,7 @@ from datetime import date, datetime
 
 import pandas as pd
 
-from accounts import not_signed_up, status_changes
+from accounts import not_signed_up, status_changes, teacher_plan
 from attendance import attendance
 from comlab import MANILA, class_days, in_section
 from usage_report import broken, lab_hours, no_shows, pc_usage
@@ -94,3 +94,18 @@ def test_roster_import_reports_missing_columns():
     from import_roster import parse
     rows, problems = parse(pd.DataFrame({"Name": ["A"]}))
     assert rows == [] and "Missing column" in problems[0]
+
+
+def test_teacher_plan_skips_existing_accounts_and_dedupes():
+    schedules = [
+        {"instructor": "S. April Mariae Libradilla, RVM", "section": "BSED 1"},
+        {"instructor": "Jhon Bryan J. Cantil, MIT", "section": "BSIT 1B"},
+        {"instructor": "Jhon Bryan J. Cantil, MIT", "section": "BSIT 3A"},
+        {"instructor": "Maria Santos", "section": "BSIT 2A"},
+    ]
+    profiles = [{"full_name": "Maria Santos", "email": "maria@smcbi.edu.ph"}, {"full_name": "X", "email": "jhon.cantil@smcbi.edu.ph"}]
+    plan = teacher_plan(schedules, profiles)
+    assert [(t["name"], t["email"], t["department"]) for t in plan] == [
+        ("S. April Mariae Libradilla, RVM", "april.libradilla@smcbi.edu.ph", "BSED"),
+        ("Jhon Bryan J. Cantil, MIT", "jhon.cantil2@smcbi.edu.ph", "BSIT"),
+    ]
