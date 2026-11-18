@@ -677,33 +677,6 @@ function FireExtinguisher({ position, rotationY = 0 }: { position: [number, numb
 }
 
 // Front Wall Features: Clean Whiteboard with pen tray & eraser, and Centered Teacher Station
-function WallPresentationDisplay({ position, rotationY = 0 }: { position: [number, number, number]; rotationY?: number }) {
-  return (
-    <group position={position} rotation-y={rotationY}>
-      {/* Wall mounting bracket */}
-      <mesh position={[0, 0, -0.04]} castShadow>
-        <boxGeometry args={[0.8, 0.5, 0.04]} />
-        <meshStandardMaterial color="#18181b" roughness={0.4} />
-      </mesh>
-      {/* Slim 75" presentation monitor frame */}
-      <mesh castShadow>
-        <boxGeometry args={[1.7, 0.98, 0.04]} />
-        <meshStandardMaterial color="#09090b" roughness={0.3} />
-      </mesh>
-      {/* Active display presentation screen */}
-      <mesh position={[0, 0, 0.021]}>
-        <planeGeometry args={[1.66, 0.94]} />
-        <meshStandardMaterial color="#0284c7" emissive="#0369a1" emissiveIntensity={0.65} toneMapped={false} />
-      </mesh>
-      {/* Power status indicator LED */}
-      <mesh position={[0.78, -0.46, 0.022]}>
-        <circleGeometry args={[0.006, 12]} />
-        <meshStandardMaterial color="#22c55e" emissive="#22c55e" emissiveIntensity={1.5} toneMapped={false} />
-      </mesh>
-    </group>
-  );
-}
-
 function FrontWallDecor({
   w,
   front,
@@ -758,10 +731,7 @@ function FrontWallDecor({
         </mesh>
       </group>
 
-      {/* Wall-mounted Presentation Screen (matching modern lab reference render) */}
-      <WallPresentationDisplay position={[w > 8 ? w / 2 - 2.2 : 2.6, 1.65, front + 0.08]} />
-
-      {/* Teacher's Station: Centered in front of the whiteboard */}
+            {/* Teacher's Station: Centered in front of the whiteboard */}
       <group position={[0, 0, front + 1.4]}>
         {/* Wooden teacher desk: top, side panels and front modesty panel */}
         <mesh position={[0, DESK_H, 0]} castShadow receiveShadow>

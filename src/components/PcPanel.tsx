@@ -156,7 +156,7 @@ export default function PcPanel({ pc, lab, canEdit, onClose }: { pc: LivePc; lab
           </Field>
           <div>
             <p className="mb-2 text-sm font-medium">Set status</p>
-            <div className="grid grid-cols-2 sm:grid-cols-4 gap-1.5">
+            <div className="grid grid-cols-2 gap-1.5">
               {MANUAL.map((s) => (
                 <Button key={s} size="sm" variant={pc.shown === s ? 'primary' : 'ghost'} disabled={busy}
                   aria-pressed={pc.shown === s} onClick={() => set(s)} className="text-xs">

@@ -4,6 +4,7 @@ import { useAuth } from '../auth';
 import { useLoad } from '../hooks/useLoad';
 import { api } from '../lib/api';
 import { isoWeekday, manilaNow } from '../lib/seat';
+import { termOf } from '../lib/rules';
 import type { ClassSchedule, Lab, ScheduleInput } from '../lib/types';
 import { validateSchedule } from '../lib/validate';
 import { Alert, Button, Empty, Field, fmtDate, fmtTime, Input, Modal, PageHeader, Panel, Select, askConfirm } from '../components/ui';
@@ -28,7 +29,15 @@ export default function Schedule() {
 
   const today = manilaNow();
   const todayDow = isoWeekday(today.date);
-  const rows = list.data ?? [];
+  // semester filter: the terms that have classes, newest first; starts on the current term
+  const all = list.data ?? [];
+  const terms = [...new Map(all.map((r) => { const t = termOf(r.starts_on); return [t.key, t] as const; })).values()]
+    .sort((a, b) => b.key.localeCompare(a.key));
+  const [term, setTerm] = useState('');
+  const current = termOf(today.date).key;
+  const shown = term || (terms.some((t) => t.key === current) ? current : terms[0]?.key ?? '');
+  const termLabel = terms.find((t) => t.key === shown)?.label ?? termOf(today.date).label;
+  const rows = shown === 'all' ? all : all.filter((r) => termOf(r.starts_on).key === shown);
   const days = DAYS.map((name, i) => ({ name, dow: i + 1 })).filter((d) => d.dow <= 5 || rows.some((r) => r.day_of_week === d.dow));
   const first = rows.reduce((a, r) => (r.starts_on < a ? r.starts_on : a), rows[0]?.starts_on ?? '');
   const last = rows.reduce((a, r) => (r.ends_on > a ? r.ends_on : a), rows[0]?.ends_on ?? '');
@@ -48,11 +57,22 @@ export default function Schedule() {
   return (
     <>
       <PageHeader title="Class schedule"
-        sub={<>Regular weekly lab classes for AY 2026–2027, second semester{first && <> ({fmtDate(first)} to {fmtDate(last)})</>}.
+        sub={<>Regular weekly lab classes{shown === 'all' ? ', all terms' : <> for the {termLabel}</>}{first && <> ({fmtDate(first)} to {fmtDate(last)})</>}.
           Labs show as In use during these hours and can’t be booked over them.</>}
         actions={isAdmin && labs.data && <Button onClick={() => setEdit(blank())}><Plus size={16} />Add class</Button>} />
 
       {(error || list.error) && <div className="mb-4"><Alert>{error || list.error}</Alert></div>}
+
+      {terms.length > 0 && (
+        <nav className="mb-4 flex flex-wrap gap-1 rounded-lg border border-line bg-panel p-1" aria-label="Semester">
+          {[...terms, ...(terms.length > 1 ? [{ key: 'all', label: 'All terms' }] : [])].map((t) => (
+            <button key={t.key} type="button" onClick={() => setTerm(t.key)} aria-pressed={shown === t.key}
+              className={`rounded-md px-3 py-1.5 text-sm font-medium ${shown === t.key ? 'bg-accent text-white' : 'text-muted hover:text-ink'}`}>
+              {t.label}{t.key === current && <span className={`ml-1.5 rounded-full px-1.5 text-[10px] ${shown === t.key ? 'bg-white/25' : 'bg-chalk'}`}>now</span>}
+            </button>
+          ))}
+        </nav>
+      )}
 
       {rows.length === 0 ? <Panel><Empty>{list.loading ? 'Loading…' : 'No classes yet.'}</Empty></Panel> : (
         <div className="grid gap-4">

@@ -1,4 +1,4 @@
-import { bookingProblems, checkInProblem, effectiveStatuses, sectionIncludes, sectionSize } from './rules';
+import { bookingProblems, checkInProblem, effectiveStatuses, sectionIncludes, sectionSize, termOf } from './rules';
 import type { ClassSchedule, Pc, Reservation, ReservationInput } from './types';
 
 const pc = (id: string, status: Pc['status'] = 'free', lab_id = 'netlab'): Pc =>
@@ -111,5 +111,14 @@ describe('sectionSize', () => {
     expect(sectionSize(sizes, 'BSIT 2B')).toBe(24);
     expect(sectionSize(sizes, 'BSIT 4')).toBe(25);
     expect(sectionSize(sizes, 'BSBA 1A')).toBe(0);
+  });
+});
+
+describe('termOf', () => {
+  it('maps a class start date to SMCBI terms (school year June to May)', () => {
+    expect(termOf('2026-11-02').label).toBe('2nd semester, AY 2026–2027');
+    expect(termOf('2027-03-31').label).toBe('2nd semester, AY 2026–2027');
+    expect(termOf('2026-06-15').label).toBe('1st semester, AY 2026–2027');
+    expect(termOf('2027-04-10').label).toBe('Summer, AY 2026–2027');
   });
 });
