@@ -3,12 +3,12 @@ import { X, type LucideIcon } from 'lucide-react';
 import type { ResStatus, ShownStatus } from '../lib/types';
 
 export const STATUS_COLOR: Record<ShownStatus, string> = {
-  free: '#22c55e', in_use: '#3b82f6', reserved: '#f59e0b', broken: '#ef4444',
+  free: '#22c55e', in_use: '#3b82f6', reserved: '#f59e0b', maintenance: '#8b5cf6', broken: '#ef4444',
 };
 export const STATUS_LABEL: Record<ShownStatus, string> = {
-  free: 'Free', in_use: 'In use', reserved: 'Reserved', broken: 'Broken',
+  free: 'Free', in_use: 'In use', reserved: 'Reserved', maintenance: 'Maintenance', broken: 'Broken',
 };
-export const STATUSES: ShownStatus[] = ['free', 'in_use', 'reserved', 'broken'];
+export const STATUSES: ShownStatus[] = ['free', 'in_use', 'reserved', 'maintenance', 'broken'];
 
 const cx = (...c: (string | false | null | undefined)[]) => c.filter(Boolean).join(' ');
 

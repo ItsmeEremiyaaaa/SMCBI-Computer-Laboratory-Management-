@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { X } from 'lucide-react';
+import { CheckCircle2, Wrench, X } from 'lucide-react';
 import type { LivePc } from '../hooks/useLabLive';
 import { useAuth } from '../auth';
 import { useLoad } from '../hooks/useLoad';
@@ -11,7 +11,7 @@ import type { Lab, PcStatus } from '../lib/types';
 import { Alert, Button, Field, fmtDate, fmtTime, Input, Led, STATUS_LABEL } from './ui';
 import { manilaNow } from '../lib/seat';
 
-const MANUAL: PcStatus[] = ['free', 'in_use', 'broken'];
+const MANUAL: PcStatus[] = ['free', 'in_use', 'maintenance', 'broken'];
 
 export default function PcPanel({ pc, lab, canEdit, onClose }: { pc: LivePc; lab: Lab; canEdit: boolean; onClose: () => void }) {
   const [note, setNote] = useState(pc.note ?? '');
@@ -103,26 +103,73 @@ export default function PcPanel({ pc, lab, canEdit, onClose }: { pc: LivePc; lab
       {pc.note && !canEdit && <p className="text-sm"><span className="text-muted">Note:</span> {pc.note}</p>}
 
       {canEdit ? (
-        <div className="grid gap-3">
+        <div className="grid gap-3.5">
           {error && <Alert>{error}</Alert>}
+
+          {/* One-Click Maintenance Quick Action Button */}
+          <div className="rounded-xl border border-violet-200 bg-violet-50/70 p-3 shadow-xs">
+            <div className="flex items-center justify-between gap-2">
+              <div className="flex items-center gap-2">
+                <Wrench size={16} className="text-violet-600" />
+                <span className="text-xs font-bold uppercase tracking-wider text-violet-900">
+                  {pc.status === 'maintenance' ? 'Under Maintenance' : 'Quick Maintenance'}
+                </span>
+              </div>
+              {pc.status === 'maintenance' && (
+                <span className="rounded-full bg-violet-200/80 px-2 py-0.5 text-[10px] font-semibold text-violet-800">
+                  Active
+                </span>
+              )}
+            </div>
+            <p className="mt-1 text-xs text-violet-800/80 leading-relaxed">
+              {pc.status === 'maintenance'
+                ? 'This workstation is undergoing scheduled servicing. Click below to complete maintenance and restore it to Free.'
+                : 'Quickly take this computer offline for hardware diagnostics, software updates, or desk cleaning with one click.'}
+            </p>
+            <div className="mt-2.5">
+              {pc.status === 'maintenance' ? (
+                <Button
+                  variant="primary"
+                  size="sm"
+                  disabled={busy}
+                  onClick={() => set('free')}
+                  className="w-full justify-center !bg-emerald-600 hover:!bg-emerald-700 !text-white font-semibold py-2 shadow-xs transition-all active:scale-[0.98]"
+                >
+                  <CheckCircle2 size={15} /> Complete Maintenance (Set Free)
+                </Button>
+              ) : (
+                <Button
+                  variant="primary"
+                  size="sm"
+                  disabled={busy}
+                  onClick={() => set('maintenance')}
+                  className="w-full justify-center !bg-violet-600 hover:!bg-violet-700 !text-white font-semibold py-2 shadow-xs transition-all active:scale-[0.98]"
+                >
+                  <Wrench size={15} /> One-Click Maintenance
+                </Button>
+              )}
+            </div>
+          </div>
+
           <Field label="Note" hint="Shown to everyone, e.g. “No display”">
             <Input value={note} onChange={(e) => setNote(e.target.value)} maxLength={120} />
           </Field>
           <div>
             <p className="mb-2 text-sm font-medium">Set status</p>
-            <div className="grid grid-cols-3 gap-2">
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-1.5">
               {MANUAL.map((s) => (
                 <Button key={s} size="sm" variant={pc.shown === s ? 'primary' : 'ghost'} disabled={busy}
-                  aria-pressed={pc.shown === s} onClick={() => set(s)}>
+                  aria-pressed={pc.shown === s} onClick={() => set(s)} className="text-xs">
                   <Led status={s} />{STATUS_LABEL[s]}
                 </Button>
               ))}
             </div>
             {pc.shown === 'reserved' && <p className="mt-2 text-xs text-muted">Reserved for a student who is arriving or booked it.</p>}
-            {pc.shown !== pc.status && pc.shown !== 'reserved' && pc.status !== 'broken' && (
+            {pc.shown === 'maintenance' && <p className="mt-2 text-xs text-violet-700 font-medium">Workstation is flagged under maintenance.</p>}
+            {pc.shown !== pc.status && pc.shown !== 'reserved' && pc.status !== 'broken' && pc.status !== 'maintenance' && (
               <p className="mt-2 text-xs text-muted">
                 {pc.shown === 'in_use' ? 'Set automatically: a student is sitting here now.' : 'Set automatically: nobody is sitting here now.'}
-                {' '}Use Broken if it stops working.
+                {' '}Use Broken or Maintenance if it stops working.
               </p>
             )}
           </div>

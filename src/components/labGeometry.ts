@@ -61,17 +61,29 @@ export function chairGeometry() {
   return chairCache;
 }
 
-// ---- the fixed parts of one desk (everything except the clickable top and the animated monitor) ----
-const deskCache = new Map<string, { wood: BufferGeometry; dark: BufferGeometry; keys: BufferGeometry; screen: BufferGeometry | null }>();
+// ---- the fixed parts of one desk (sleek brushed silver metal frame legs matching reference photo) ----
+const deskCache = new Map<string, { metal: BufferGeometry; wood: BufferGeometry; dark: BufferGeometry; keys: BufferGeometry; screen: BufferGeometry | null }>();
 export function deskGeometry(deskWidth: number, deskH: number, deskD: number, island: boolean) {
   const key = `${deskWidth}|${island}`;
   const hit = deskCache.get(key);
   if (hit) return hit;
-  const wood = place([
-    { g: new BoxGeometry(0.03, deskH, deskD - 0.04), pos: [-(deskWidth / 2 - 0.02), deskH / 2, -0.01] },
-    { g: new BoxGeometry(0.03, deskH, deskD - 0.04), pos: [deskWidth / 2 - 0.02, deskH / 2, -0.01] },
-    { g: new BoxGeometry(deskWidth - 0.06, deskH - 0.2, 0.02), pos: [0, deskH / 2 + 0.1, -deskD / 2 + 0.04] },
+
+  // Modern brushed silver metal frame legs with floor runners and under-desk crossbeams
+  const metal = place([
+    // Left side vertical post legs (front and back) and floor/top runners
+    { g: new BoxGeometry(0.04, deskH - 0.038, 0.04), pos: [-(deskWidth / 2 - 0.04), (deskH - 0.038) / 2, -deskD / 2 + 0.08] },
+    { g: new BoxGeometry(0.04, deskH - 0.038, 0.04), pos: [-(deskWidth / 2 - 0.04), (deskH - 0.038) / 2, deskD / 2 - 0.08] },
+    { g: new BoxGeometry(0.045, 0.025, deskD - 0.08), pos: [-(deskWidth / 2 - 0.04), 0.013, 0] },
+    { g: new BoxGeometry(0.045, 0.025, deskD - 0.08), pos: [-(deskWidth / 2 - 0.04), deskH - 0.038 - 0.012, 0] },
+    // Right side vertical post legs (front and back) and floor/top runners
+    { g: new BoxGeometry(0.04, deskH - 0.038, 0.04), pos: [deskWidth / 2 - 0.04, (deskH - 0.038) / 2, -deskD / 2 + 0.08] },
+    { g: new BoxGeometry(0.04, deskH - 0.038, 0.04), pos: [deskWidth / 2 - 0.04, (deskH - 0.038) / 2, deskD / 2 - 0.08] },
+    { g: new BoxGeometry(0.045, 0.025, deskD - 0.08), pos: [deskWidth / 2 - 0.04, 0.013, 0] },
+    { g: new BoxGeometry(0.045, 0.025, deskD - 0.08), pos: [deskWidth / 2 - 0.04, deskH - 0.038 - 0.012, 0] },
+    // Under-desktop longitudinal support crossbar
+    { g: new BoxGeometry(deskWidth - 0.08, 0.035, 0.035), pos: [0, deskH - 0.038 - 0.018, 0] },
   ]);
+
   const dark = place([
     { g: new BoxGeometry(0.18, 0.42, 0.4), pos: [deskWidth / 2 - 0.16, 0.22, -0.12] },                 // PC tower
     { g: new BoxGeometry(0.42, 0.012, 0.13), pos: [0, deskH + 0.022, 0.1] },                             // keyboard
@@ -81,8 +93,10 @@ export function deskGeometry(deskWidth: number, deskH: number, deskD: number, is
     ...(island ? [-deskWidth * 0.32, deskWidth * 0.32].map((bx) => ({ g: new BoxGeometry(0.028, 0.05, 0.038), pos: [bx, deskH + 0.02, -deskD / 2] as [number, number, number] })) : []),
   ]);
   const keys = place([{ g: new BoxGeometry(0.39, 0.005, 0.11), pos: [0, deskH + 0.028, 0.1] }]);
-  const screen = island ? merge(place([{ g: new BoxGeometry(deskWidth, 0.28, 0.022), pos: [0, deskH + 0.16, -deskD / 2] }])) : null;
-  const out = { wood: merge(wood), dark: merge(dark), keys: merge(keys), screen };
+  // Frosted acoustic privacy partition screen
+  const screen = island ? merge(place([{ g: new BoxGeometry(deskWidth - 0.04, 0.32, 0.022), pos: [0, deskH + 0.18, -deskD / 2] }])) : null;
+  const mergedMetal = merge(metal);
+  const out = { metal: mergedMetal, wood: mergedMetal, dark: merge(dark), keys: merge(keys), screen };
   deskCache.set(key, out);
   return out;
 }

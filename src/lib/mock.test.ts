@@ -182,6 +182,26 @@ describe('mock archive', () => {
     await api.signIn('teacher@smcbi.edu.ph', 'x');
     await expect(api.listLabs()).resolves.toHaveLength(3);
   });
+
+  it('supports maintenance status and marks reports fixed when restored to free', async () => {
+    const api = createMock(null);
+    await api.signIn('c230001@smcbi.edu.ph', 'x');
+    await api.reportProblem('lab1-pc04', 'Broken keyboard');
+
+    await api.signIn('admin@smcbi.edu.ph', 'x');
+    await api.setPcStatus('lab1-pc04', 'maintenance', 'Scheduled check');
+    let pcs = await api.listPcs('lab1');
+    expect(pcs.find((p) => p.id === 'lab1-pc04')?.status).toBe('maintenance');
+
+    await api.setPcStatus('lab1-pc04', 'free');
+    pcs = await api.listPcs('lab1');
+    expect(pcs.find((p) => p.id === 'lab1-pc04')?.status).toBe('free');
+
+    const reports = await api.listReports({ all: true });
+    const rep = reports.find((r) => r.pc_id === 'lab1-pc04');
+    expect(rep?.resolution).toBe('fixed');
+    expect(rep?.resolved_at).toBeTruthy();
+  });
 });
 
 describe('mock account email', () => {

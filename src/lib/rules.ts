@@ -22,7 +22,7 @@ export function bookingProblems(
     if (!r.pc_id) e.push('Choose the PC you will use.');
   }
   const pc = r.pc_id ? ctx.pcs.find((p) => p.id === r.pc_id) : undefined;
-  if (pc?.status === 'broken') e.push(`${pc.label} is broken and can't be booked. Pick another PC.`);
+  if (pc?.status === 'broken' || pc?.status === 'maintenance') e.push(`${pc.label} is ${pc.status === 'maintenance' ? 'under maintenance' : 'broken'} and can't be booked. Pick another PC.`);
   if (r.date && r.start_time && r.end_time) {
     const cls = classesOn(r.date, ctx.schedules)
       .find((c) => c.lab_id === r.lab_id && c.start_time < r.end_time && r.start_time < c.end_time);
@@ -38,7 +38,7 @@ export function checkInProblem(
   ctx: { role: Role; userId: string; now: Now; schedules: ClassSchedule[]; reservations: Reservation[]; checkIns: CheckIn[] },
 ): string | null {
   if (ctx.role !== 'student') return 'Only student accounts check in to a PC.';
-  if (pc.status === 'broken') return `${pc.label} is broken. Please use another PC and tell the lab staff.`;
+  if (pc.status === 'broken' || pc.status === 'maintenance') return `${pc.label} is ${pc.status === 'maintenance' ? 'under maintenance' : 'broken'}. Please use another PC and tell the lab staff.`;
   const t = ctx.now.time;
   const inClass = classesOn(ctx.now.date, ctx.schedules)
     .some((c) => c.lab_id === pc.lab_id && minus(c.start_time, ARRIVAL_MIN) <= t && t < c.end_time);
@@ -64,11 +64,13 @@ export function effectiveStatuses<T extends { id: string; status: string; shown:
 ): T[] {
   if (phase === 'empty') {
     return pcs.map((p) => (p.shown === 'broken' || p.status === 'broken' ? { ...p, shown: 'broken' }
+      : p.shown === 'maintenance' || p.status === 'maintenance' ? { ...p, shown: 'maintenance' }
       : checkedInPcIds.has(p.id) ? { ...p, shown: 'in_use' } : p));
   }
   let n = 0;
   return pcs.map((p) => {
     if (p.status === 'broken' || p.shown === 'broken') return { ...p, shown: 'broken' };
+    if (p.status === 'maintenance' || p.shown === 'maintenance') return { ...p, shown: 'maintenance' };
     const classSeat = seats == null || n++ < seats;
     if (checkedInPcIds.has(p.id)) return { ...p, shown: 'in_use' };
     if (!classSeat) return { ...p, shown: 'free' };
@@ -97,6 +99,17 @@ export function nameKey(name: string) {
 /** Enrolled students in a class section ('BSIT 2B', or 'BSIT 4' = the whole year), from per-section counts. */
 export function sectionSize(sizes: { course: string; year_level: string; section: string; n: number }[], classSection: string) {
   return sizes.filter((x) => sectionIncludes(classSection, `${x.course} ${x.year_level.charAt(0)}${x.section}`)).reduce((t, x) => t + x.n, 0);
+}
+
+/**
+ * SMCBI's terms, by the month a class starts: June–October = 1st semester, November–March = 2nd semester,
+ * April–May = summer. The school year runs June to May (Nov 2026 → "2nd semester, AY 2026–2027").
+ */
+export function termOf(date: string) {
+  const y = Number(date.slice(0, 4)), m = Number(date.slice(5, 7));
+  const ay = m >= 6 ? y : y - 1;
+  const sem = m >= 6 && m <= 10 ? 1 : m >= 11 || m <= 3 ? 2 : 3;
+  return { key: `${ay}-${sem}`, label: `${['', '1st semester', '2nd semester', 'Summer'][sem]}, AY ${ay}–${ay + 1}` };
 }
 
 /** Whether a class section ('BSIT 2B', or 'BSIT 4' = the whole year) includes a student's section ('BSIT 4A'). */

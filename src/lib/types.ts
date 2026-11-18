@@ -1,5 +1,5 @@
 export type Role = 'admin' | 'staff' | 'teacher' | 'student';
-export type PcStatus = 'free' | 'in_use' | 'broken';
+export type PcStatus = 'free' | 'in_use' | 'broken' | 'maintenance';
 export type ShownStatus = PcStatus | 'reserved';
 export type ResStatus = 'pending' | 'approved' | 'rejected' | 'completed' | 'cancelled';
 export type EventType = 'academic' | 'personal' | 'holiday' | 'meeting';
@@ -140,7 +140,8 @@ export interface PcReport {
   note: string | null;
   created_at: string;
   resolved_at: string | null;
-  resolution: 'broken' | 'dismissed' | null;
+  resolution: 'broken' | 'dismissed' | 'fixed' | null;
+  admin_deleted?: boolean;
 }
 
 // Rows moved to the Archive by "Delete" (restorable).

@@ -83,8 +83,16 @@ export function createSupabaseApi(url: string, key: string): Api {
       return ok(await q) as Pc[];
     },
     async setPcStatus(pcId, status, note = null) {
-      const rows = ok(await sb.from('pcs').update({ status, note }).eq('id', pcId).select('id'));
+      const rows = ok(await sb.from('pcs').update({ status, note, updated_at: new Date().toISOString() }).eq('id', pcId).select('id'));
       if (!rows.length) throw new Error('Not allowed for your role.');
+      if (status === 'free') {
+        try {
+          await sb.from('pc_reports')
+            .update({ resolved_at: new Date().toISOString(), resolution: 'fixed' })
+            .eq('pc_id', pcId)
+            .or('resolution.is.null,resolution.eq.broken');
+        } catch { /* best effort update */ }
+      }
     },
     subscribePcs(labId, cb) {
       const ch = sb.channel(`pcs:${labId ?? 'all'}:${Math.random().toString(36).slice(2)}`)

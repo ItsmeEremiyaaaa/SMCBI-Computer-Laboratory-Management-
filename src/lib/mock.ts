@@ -2,7 +2,7 @@
 import type { Api } from './api';
 import { classesOn, manilaNow, slotsOverlap } from './seat';
 import { seed, seedSchedules, type MockState } from './seed';
-import type { ArchiveKind, Pc, Profile, Role } from './types';
+import type { ArchivedItem, ArchiveKind, Pc, Profile, Reservation, Role } from './types';
 import { isSchoolEmail, schedulesOverlap, validateReservation, validateSchedule, validateStudent } from './validate';
 import { bookingProblems, checkInProblem } from './rules';
 
@@ -101,7 +101,22 @@ export function createMock(storage: Store | null = browserStorage()): Api {
       need('admin', 'staff');
       const pc = state.pcs.find((p) => p.id === pcId);
       if (!pc) throw new Error('PC not found.');
+      const oldStatus = pc.status;
       Object.assign(pc, { status, note, updated_at: new Date().toISOString() });
+
+      // When a PC is restored/updated to 'free' (e.g. from broken or maintenance):
+      // Resolve any open or broken reports for this PC as 'fixed' so the reporting student receives a fix notification!
+      if (status === 'free' && (oldStatus === 'broken' || oldStatus === 'maintenance' || state.reports.some((r) => r.pc_id === pcId && !r.resolved_at))) {
+        const at = new Date().toISOString();
+        state.reports.forEach((r) => {
+          if (r.pc_id === pcId && (!r.resolved_at || r.resolution === 'broken')) {
+            r.resolved_at = at;
+            r.resolution = 'fixed';
+          }
+        });
+        changedRes();
+      }
+
       save();
       pcListeners.forEach((f) => f(clone(pc)));
     },
@@ -114,7 +129,12 @@ export function createMock(storage: Store | null = browserStorage()): Api {
 
     async listReservations(f = {}) {
       const p = me();
-      return clone(state.reservations
+      const active = state.reservations;
+      const archivedRes = (state.archive ?? [])
+        .filter((a) => a.kind === 'reservation' && a.data)
+        .map((a) => a.data as unknown as Reservation);
+      const all = p.role === 'admin' || p.role === 'staff' ? active : [...active, ...archivedRes];
+      return clone(all
         .filter((r) => (!f.labId || r.lab_id === f.labId) && (!f.date || r.date === f.date) &&
           (!f.status || r.status === f.status) && (!f.mine || r.requester_id === p.id))
         .sort((a, b) => (b.date + b.start_time).localeCompare(a.date + a.start_time)));
@@ -238,9 +258,12 @@ export function createMock(storage: Store | null = browserStorage()): Api {
       return clone(c);
     },
     async listReports(o = {}) {
-      me();
-      return clone(state.reports.filter((r) => (o.all || !r.resolved_at) && (!o.labId || r.lab_id === o.labId))
-        .sort((a, b) => b.created_at.localeCompare(a.created_at)));
+      const p = me();
+      const isAdmin = p.role === 'admin' || p.role === 'staff';
+      return clone(state.reports.filter((r) => {
+        if (isAdmin && r.admin_deleted) return false;
+        return (o.all || !r.resolved_at) && (!o.labId || r.lab_id === o.labId);
+      }).sort((a, b) => b.created_at.localeCompare(a.created_at)));
     },
     async reportProblem(pcId, problem, note = null) {
       const p = me();
@@ -255,7 +278,11 @@ export function createMock(storage: Store | null = browserStorage()): Api {
     },
     async deleteReports(ids) {
       need('admin');
-      state.reports = state.reports.filter((r) => !(ids.includes(r.id) && r.resolved_at));
+      state.reports.forEach((r) => {
+        if (ids.includes(r.id) && r.resolved_at) {
+          r.admin_deleted = true;
+        }
+      });
       changedRes();
     },
     async resolveReport(id, action) {
@@ -271,7 +298,21 @@ export function createMock(storage: Store | null = browserStorage()): Api {
       state.reports.forEach((x) => { if (x.pc_id === r.pc_id && !x.resolved_at) Object.assign(x, { resolved_at: at, resolution: action }); });
       changedRes();
     },
-    async listArchive() { need('admin'); return clone(state.archive); },
+    async listArchive() {
+      need('admin');
+      const reportItems: ArchivedItem[] = state.reports
+        .filter((r) => r.resolved_at && !r.admin_deleted)
+        .map((r) => ({
+          id: `rep-${r.id}`,
+          kind: 'report' as any,
+          row_id: r.id,
+          label: `${r.pc_id}: ${r.problem}`,
+          data: r as any,
+          archived_by_name: null,
+          archived_at: r.resolved_at!,
+        }));
+      return clone([...state.archive, ...reportItems]);
+    },
     async restoreArchived(id) {
       need('admin');
       const a = state.archive.find((x) => x.id === id);

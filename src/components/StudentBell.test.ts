@@ -49,4 +49,15 @@ describe('studentNotes', () => {
     expect(notes.map((n) => n.title)).toEqual(['Your report on PC02 was handled']);
     expect(notes[0].sub).toMatch(/marked broken/);
   });
+
+  it('notifies the student when their reported PC is fixed and ready to use', () => {
+    const reports = [{ id: 'r1', pc_id: 'netlab-pc02', problem: 'Keyboard / mouse', resolved_at: recent, resolution: 'fixed', user_id: 'me' }];
+    const notes = studentNotes({ ...base, reports });
+    expect(notes[0]).toMatchObject({
+      title: 'Fixed: PC02 is ready to use!',
+      tone: 'good',
+      group: 'report',
+    });
+    expect(notes[0].sub).toMatch(/repaired and is now available/);
+  });
 });

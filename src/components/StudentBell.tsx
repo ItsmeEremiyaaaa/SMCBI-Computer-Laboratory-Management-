@@ -91,9 +91,27 @@ export function studentNotes(input: {
   }
   for (const r of input.reports) {
     if (r.user_id !== userId || !r.resolved_at || r.resolved_at < since) continue;
-    notes.push({ id: `rp-${r.id}`, at: r.resolved_at, group: 'report', to: '/', tone: r.resolution === 'broken' ? 'good' : undefined,
-      title: `Your report on ${pcLabel(r.pc_id)} was handled`,
-      sub: r.resolution === 'broken' ? `${r.problem}: marked broken for repair. Thanks!` : `${r.problem}: checked, no problem found.` });
+    if (r.resolution === 'fixed') {
+      notes.push({
+        id: `rp-fixed-${r.id}-${r.resolved_at}`,
+        at: r.resolved_at,
+        group: 'report',
+        to: '/',
+        tone: 'good',
+        title: `Fixed: ${pcLabel(r.pc_id)} is ready to use!`,
+        sub: `${r.problem}: The computer has been repaired and is now available for use.`,
+      });
+    } else {
+      notes.push({
+        id: `rp-${r.id}`,
+        at: r.resolved_at,
+        group: 'report',
+        to: '/',
+        tone: r.resolution === 'broken' ? 'good' : undefined,
+        title: `Your report on ${pcLabel(r.pc_id)} was handled`,
+        sub: r.resolution === 'broken' ? `${r.problem}: marked broken for repair. Thanks!` : `${r.problem}: checked, no problem found.`,
+      });
+    }
   }
   return notes.sort((a, b) => b.at.localeCompare(a.at));
 }
@@ -124,7 +142,7 @@ function useStudentNotes() {
   }, [profile]);
   useEffect(() => { load(); const t = setInterval(load, 60_000); return () => clearInterval(t); }, [load]);
   useEffect(() => api.subscribeReservations(() => { load(); }), [load]);
-  useEffect(() => api.subscribePcs(null, (pc) => { if (pc.status === 'broken') load(); }), [load]);
+  useEffect(() => api.subscribePcs(null, () => { load(); }), [load]);
   return { notes: notes.filter((n) => !cleared.has(n.id)), clear };
 }
 

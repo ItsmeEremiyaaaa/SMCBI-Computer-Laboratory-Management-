@@ -101,7 +101,7 @@ export function AttentionList({ page = false, onNavigate }: { page?: boolean; on
                 sub={`${r.user_name}${r.note ? ' · ' + r.note : ''} · ${fmtDate(r.created_at.slice(0, 10))}`}
                 actions={<>
                   <Act busy={busy === r.id} danger onClick={() => act(r.id, () => api.resolveReport(r.id, 'broken'))}>Mark broken</Act>
-                  <Act busy={busy === r.id} quiet onClick={() => act(r.id, () => api.resolveReport(r.id, 'dismissed'))}>Dismiss</Act>
+                  <Act quiet onClick={() => clear([`rep-${r.id}`])}>Dismiss notice</Act>
                 </>} />
             ))}
           </Section>

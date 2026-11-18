@@ -690,8 +690,8 @@ export default function LabCharacters3D({
   // Front corridor in front of all desk islands
   const frontHallZ = front + 2.3;
 
-  // Precompute waypoint routes and student agent data
-  const workingPcs = useMemo(() => pcs.filter((p) => p.shown !== 'broken'), [pcs]);
+  // Precompute waypoint routes and student agent data (skip broken & maintenance computers)
+  const workingPcs = useMemo(() => pcs.filter((p) => p.shown !== 'broken' && p.shown !== 'maintenance'), [pcs]);
 
   const agents = useMemo<StudentAgentData[]>(() => {
     // 1. First pass: compute collision-free waypoint paths and walk distances for all students
