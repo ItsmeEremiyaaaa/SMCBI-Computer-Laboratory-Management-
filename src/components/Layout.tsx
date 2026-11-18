@@ -2,12 +2,14 @@ import { useEffect, useState } from 'react';
 import { NavLink, Outlet, useLocation } from 'react-router-dom';
 import NotificationBell from './NotificationBell';
 import StudentBell from './StudentBell';
-import { Archive, Box, CalendarClock, CalendarDays, ClipboardList, LayoutGrid, LogOut, Menu, QrCode, Users, X } from 'lucide-react';
+import { Archive, Box, CalendarClock, ChevronDown, CalendarDays, ClipboardList, LayoutGrid, LogOut, Menu, QrCode, Users, X } from 'lucide-react';
 import { Crest } from './ui';
 import IntroSplash from './IntroSplash';
 import { useAuth } from '../auth';
 import { api, type Stats } from '../lib/api';
 import type { Role } from '../lib/types';
+
+const NAV_HIDDEN_KEY = 'comlab-labs-nav-hidden';
 
 const NAV: { to: string; label: string; icon: typeof Box; roles: Role[] }[] = [
   { to: '/', label: 'Overview', icon: LayoutGrid, roles: ['admin', 'staff', 'teacher', 'student'] },
@@ -36,6 +38,12 @@ export default function Layout() {
   const { profile } = useAuth();
   const [open, setOpen] = useState(false);
   const [stats, setStats] = useState<Stats | null>(null);
+  // Labs view: the floating menu can be tucked away so it doesn't cover the floor plan (remembered per device).
+  const [navHidden, setNavHidden] = useState(() => { try { return localStorage.getItem(NAV_HIDDEN_KEY) === '1'; } catch { return false; } });
+  const toggleNav = (hidden: boolean) => {
+    setNavHidden(hidden);
+    try { localStorage.setItem(NAV_HIDDEN_KEY, hidden ? '1' : '0'); } catch { /* private mode */ }
+  };
   const { pathname } = useLocation();
   const isLabs = pathname.startsWith('/labs');
 
@@ -50,8 +58,13 @@ export default function Layout() {
   if (!profile) return null;
   const count = (stats?.pending ?? 0) + (stats?.openReports ?? 0) + (profile.role === 'admin' ? stats?.pendingTeachers ?? 0 : 0);
 
-  // Floating bottom navigation (active only on Labs view)
-  const floatingNav = isLabs && (
+  // Floating bottom navigation (active only on Labs view); hidden → a small round Menu button
+  const floatingNav = isLabs && (navHidden ? (
+    <button onClick={() => toggleNav(false)} aria-label="Show menu" title="Show menu"
+      className="fixed bottom-4 left-1/2 z-40 flex -translate-x-1/2 items-center gap-1.5 rounded-full border border-white/20 navy-weave px-4 py-2.5 text-xs font-semibold text-white shadow-2xl hover:brightness-110">
+      <Menu size={16} />Menu
+    </button>
+  ) : (
     <nav
       className="fixed bottom-4 left-1/2 -translate-x-1/2 z-40 flex items-center gap-1 rounded-2xl border border-white/20 navy-weave p-1.5 shadow-2xl backdrop-blur-md animate-in fade-in slide-in-from-bottom-4 duration-200"
       aria-label="Floating navigation"
@@ -73,8 +86,13 @@ export default function Layout() {
           <span className="hidden sm:inline">{label}</span>
         </NavLink>
       ))}
+      <span className="mx-0.5 h-6 w-px bg-white/20" aria-hidden />
+      <button onClick={() => toggleNav(true)} aria-label="Hide menu" title="Hide menu"
+        className="grid h-8 w-8 place-items-center rounded-xl text-blue-100 hover:bg-white/15 hover:text-white">
+        <ChevronDown size={18} />
+      </button>
     </nav>
-  );
+  ));
 
   // When on Labs view: 100% full-window 3D visual with floating navigation below
   if (isLabs) {
