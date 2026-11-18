@@ -17,8 +17,8 @@ const TYPE_DOT: Record<EventType, string> = { academic: 'bg-blue-500', personal:
 // One colour per lab, in lab order (ComLab 1, ComLab 2, NetLab).
 const LAB_COLORS = ['#2563eb', '#ea580c', '#059669', '#7c3aed'];
 
-const DAY_START = 7; // timeline 7:00 AM – 9:00 PM
-const DAY_END = 21;
+const DAY_START = 8; // timeline = lab hours, 8:00 AM – 8:00 PM
+const DAY_END = 20;
 const HOUR_PX = 44;
 
 const iso = (y: number, m: number, d: number) => `${y}-${String(m + 1).padStart(2, '0')}-${String(d).padStart(2, '0')}`;

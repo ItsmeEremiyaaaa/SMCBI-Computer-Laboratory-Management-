@@ -9,6 +9,11 @@ describe('validateReservation', () => {
   const today = '2026-11-16';
   it('accepts a valid reservation', () => expect(validateReservation(ok, today)).toEqual([]));
   it('rejects a past date', () => expect(validateReservation({ ...ok, date: '2026-11-15' }, today)).toHaveLength(1));
+  it('keeps bookings inside lab hours (8 AM – 8 PM)', () => {
+    expect(validateReservation({ ...ok, start_time: '07:30' }, today)).toHaveLength(1);
+    expect(validateReservation({ ...ok, start_time: '18:00', end_time: '20:30' }, today)).toHaveLength(1);
+    expect(validateReservation({ ...ok, start_time: '18:00', end_time: '20:00' }, today)).toEqual([]);
+  });
   it('rejects end not after start', () => expect(validateReservation({ ...ok, end_time: '08:00' }, today)).toHaveLength(1));
   it('rejects zero participants', () => expect(validateReservation({ ...ok, participants: 0 }, today)).toHaveLength(1));
   it('requires title and purpose', () => expect(validateReservation({ ...ok, title: ' ', purpose: '' }, today)).toHaveLength(2));

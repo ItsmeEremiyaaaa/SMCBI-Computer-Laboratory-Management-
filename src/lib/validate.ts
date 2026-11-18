@@ -1,5 +1,11 @@
 import { DEPARTMENTS, SEXES, STUDENT_STATUSES, YEAR_LEVELS, type ClassSchedule, type ReservationInput, type Student } from './types';
 
+/** Lab opening hours: bookings and classes must fit inside them. */
+export const LAB_OPEN = '08:00';
+export const LAB_CLOSE = '20:00';
+const outsideHours = (start: string, end: string) => !!start && !!end && (start < LAB_OPEN || end > LAB_CLOSE);
+const HOURS_MSG = 'The labs are open 8:00 AM to 8:00 PM. Pick a time inside those hours.';
+
 export function validateReservation(r: ReservationInput, today: string): string[] {
   const e: string[] = [];
   if (!r.title?.trim()) e.push('Title is required.');
@@ -7,6 +13,7 @@ export function validateReservation(r: ReservationInput, today: string): string[
   if (!r.lab_id) e.push('Choose a lab.');
   if (!r.date || r.date < today) e.push('Date must be today or later.');
   if (!r.start_time || !r.end_time || r.end_time <= r.start_time) e.push('End time must be after start time.');
+  if (outsideHours(r.start_time, r.end_time)) e.push(HOURS_MSG);
   if (r.participants != null && r.participants < 1) e.push('Participants must be at least 1.');
   return e;
 }
@@ -36,6 +43,7 @@ export function validateSchedule(s: ScheduleCheck): string[] {
   if (!s.section?.trim() || !s.subject?.trim()) e.push('Section and subject are required.');
   if (!(s.day_of_week >= 1 && s.day_of_week <= 7)) e.push('Choose a day.');
   if (!s.start_time || !s.end_time || s.end_time <= s.start_time) e.push('End time must be after start time.');
+  if (outsideHours(s.start_time, s.end_time)) e.push(HOURS_MSG);
   if (!s.starts_on || !s.ends_on || s.ends_on < s.starts_on) e.push('The last day must be on or after the first day.');
   return e;
 }

@@ -156,8 +156,8 @@ export default function ReservationForm({ labs: allLabs, pcs, initial, onSubmit,
           <Field label="Purpose" required><Textarea value={f.purpose} onChange={set('purpose')} rows={2} /></Field>
           <div className="grid gap-3 sm:grid-cols-3">
             <Field label="Date" required><Input type="date" value={f.date} onChange={set('date')} min={manilaNow().date} /></Field>
-            <Field label="Start time" required><Input type="time" value={f.start_time} onChange={set('start_time')} /></Field>
-            <Field label="End time" required><Input type="time" value={f.end_time} onChange={set('end_time')} /></Field>
+            <Field label="Start time" required hint="Labs open 8 AM – 8 PM"><Input type="time" min="08:00" max="20:00" value={f.start_time} onChange={set('start_time')} /></Field>
+            <Field label="End time" required><Input type="time" min="08:00" max="20:00" value={f.end_time} onChange={set('end_time')} /></Field>
           </div>
         </div>
       </div>
