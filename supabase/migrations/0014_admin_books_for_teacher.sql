@@ -1,16 +1,21 @@
--- An admin can create a booking on behalf of a teacher: the booking is filed under that teacher
--- (it shows in their Reservations and students see their name). Anyone else is always the requester.
+-- An admin can create a booking on behalf of a teacher: with an account, the booking is filed under
+-- that teacher (it shows in their Reservations); for an instructor without an account yet, the admin
+-- stays the requester but the instructor's name is shown. Anyone else is always the requester.
 -- Same as 0009's reservation_rules otherwise.
 create or replace function public.reservation_rules() returns trigger
 language plpgsql security definer set search_path = '' as $$
 begin
   if tg_op = 'INSERT' and current_setting('comlab.restoring', true) is distinct from 'on' then
-    if not (public.has_role('admin') and new.requester_id is not null and exists (
+    if public.has_role('admin') and new.requester_id is not null and exists (
       select 1 from public.profiles where id = new.requester_id and role = 'teacher' and approved
-    )) then
+    ) then
+      new.requester_name := (select full_name from public.profiles where id = new.requester_id);
+    else
+      new.requester_name := case when public.has_role('admin') and nullif(trim(new.requester_name), '') is not null
+        then left(trim(new.requester_name), 120)
+        else (select full_name from public.profiles where id = auth.uid()) end;
       new.requester_id := auth.uid();
     end if;
-    new.requester_name := (select full_name from public.profiles where id = new.requester_id);
     new.status := 'pending';
     new.reviewed_by := null; new.reviewed_at := null; new.admin_notes := null;
     if new.date < (now() at time zone 'Asia/Manila')::date then

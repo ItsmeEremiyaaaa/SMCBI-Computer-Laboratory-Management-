@@ -126,7 +126,8 @@ export function createMock(storage: Store | null = browserStorage()): Api {
       if (errs.length) throw new Error(errs.join(' '));
       if (input.section && p.role === 'student') throw new Error('Only teachers can book for a class section.');
       // an admin may file it under an approved teacher (same as the database trigger)
-      const by = (p.role === 'admin' && state.profiles.find((x) => x.id === input.requester_id && x.role === 'teacher' && x.approved)) || p;
+      const acct = p.role === 'admin' && state.profiles.find((x) => x.id === input.requester_id && x.role === 'teacher' && x.approved);
+      const by = acct || { id: p.id, full_name: (p.role === 'admin' && input.requester_name?.trim()) || p.full_name };
       const r = { ...input, section: input.section?.trim() || null, id: uid(), requester_id: by.id, requester_name: by.full_name, status: 'pending' as const,
         admin_notes: null, reviewed_at: null, created_at: new Date().toISOString() };
       state.reservations.push(r); changedRes();

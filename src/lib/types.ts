@@ -61,6 +61,8 @@ export type ReservationInput = Pick<Reservation,
   section?: string | null;
   /** Admin only: file the booking under this teacher instead of the admin. */
   requester_id?: string;
+  /** Admin only: name of a scheduled instructor who has no account yet. */
+  requester_name?: string;
 };
 
 export interface Student {

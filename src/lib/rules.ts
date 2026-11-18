@@ -87,6 +87,13 @@ export function studentsInSection(students: Student[], section: string | null | 
     .sort((a, b) => a.student_id.localeCompare(b.student_id));
 }
 
+// "S. April Mariae Libradilla, RVM" and "April Libradilla" both → "april libradilla":
+// drop titles/degrees after a comma and single-letter initials, keep first and last name.
+export function nameKey(name: string) {
+  const words = name.split(',')[0].toLowerCase().replace(/[^a-z\s]/g, ' ').split(/\s+/).filter((w) => w.length > 1);
+  return words.length ? `${words[0]} ${words[words.length - 1]}` : '';
+}
+
 /** Whether a class section ('BSIT 2B', or 'BSIT 4' = the whole year) includes a student's section ('BSIT 4A'). */
 export function sectionIncludes(classSection: string | null | undefined, studentSection: string | null | undefined) {
   const re = /^([A-Z]+)\s*(\d)\s*([A-Z])?$/i;

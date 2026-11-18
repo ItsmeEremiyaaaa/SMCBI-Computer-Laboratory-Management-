@@ -6,6 +6,7 @@ import { useLoad } from '../hooks/useLoad';
 import { api, type StudentInput } from '../lib/api';
 import { DEPARTMENTS, SEXES, STUDENT_STATUSES, YEAR_LEVELS, type ClassSchedule, type Profile, type Role, type Student, type StudentStatus } from '../lib/types';
 import { validateStudent } from '../lib/validate';
+import { nameKey } from '../lib/rules';
 import { Alert, Button, Empty, Field, Input, Modal, PageHeader, Panel, Select, askConfirm } from '../components/ui';
 
 const TABS = [
@@ -43,12 +44,7 @@ export default function People() {
 
 const match = (q: string, ...fields: (string | null)[]) => !q || fields.some((f) => f?.toLowerCase().includes(q.toLowerCase()));
 
-// "S. April Mariae Libradilla, RVM" and "April Libradilla" both → "april libradilla":
-// drop titles/degrees after a comma and single-letter initials, keep first and last name.
-export function nameKey(name: string) {
-  const words = name.split(',')[0].toLowerCase().replace(/[^a-z\s]/g, ' ').split(/\s+/).filter((w) => w.length > 1);
-  return words.length ? `${words[0]} ${words[words.length - 1]}` : '';
-}
+export { nameKey };
 
 const DAY_SHORT = ['', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
 const LAB_SHORT: Record<string, string> = { lab1: 'ComLab 1', lab2: 'ComLab 2', netlab: 'NetLab' };

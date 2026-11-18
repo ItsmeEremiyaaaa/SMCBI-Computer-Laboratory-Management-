@@ -2,7 +2,7 @@ import { useState, type FormEvent } from 'react';
 import { useLoad } from '../hooks/useLoad';
 import { api } from '../lib/api';
 import { manilaNow } from '../lib/seat';
-import { bookingProblems, STUDENT_LAB } from '../lib/rules';
+import { bookingProblems, nameKey, STUDENT_LAB } from '../lib/rules';
 import type { ClassSchedule, Lab, Pc, Reservation, ReservationInput, Role } from '../lib/types';
 import { validateReservation } from '../lib/validate';
 import { Alert, Button, Field, Input, Select, Textarea } from './ui';
@@ -39,9 +39,11 @@ export default function ReservationForm({ labs: allLabs, pcs, initial, onSubmit,
       date: f.date, start_time: f.start_time, end_time: f.end_time,
       participants: f.participants ? Number(f.participants) : null, requirements: f.requirements.trim() || null,
       ...(f.section ? { section: f.section } : {}),
-      ...(f.teacher ? { requester_id: f.teacher } : {}),
+      // 'id:<account>' = a teacher with an account; 'name:<instructor>' = on the schedule, no account yet
+      ...(f.teacher.startsWith('id:') ? { requester_id: f.teacher.slice(3) } : f.teacher.startsWith('name:') ? { requester_name: f.teacher.slice(5) } : {}),
     };
-    const errs = [...validateReservation(input, manilaNow().date),
+    const errs = [...(role === 'admin' && !f.teacher ? ['Choose the teacher who asked for this booking (or “No teacher”).'] : []),
+      ...validateReservation(input, manilaNow().date),
       ...bookingProblems(input, { role, pcs, reservations: approved, schedules })];
     setErrors(errs); setServerError(null);
     if (errs.length) return;
@@ -50,9 +52,12 @@ export default function ReservationForm({ labs: allLabs, pcs, initial, onSubmit,
   }
 
   const labPcs = pcs.filter((p) => p.lab_id === f.lab_id);
-  // admins book on behalf of a teacher account
+  // admins book on behalf of a teacher: accounts, plus instructors on the class schedule who haven't signed up yet
   const teachers = useLoad(() => (role === 'admin' ? api.listProfiles('teacher').catch(() => []) : Promise.resolve([])), [role]);
-  const teacherList = (teachers.data ?? []).filter((t) => t.approved && !t.archived_at).sort((a, b) => a.full_name.localeCompare(b.full_name));
+  const accounts = (teachers.data ?? []).filter((t) => t.approved && !t.archived_at).sort((a, b) => a.full_name.localeCompare(b.full_name));
+  const known = new Set(accounts.map((t) => nameKey(t.full_name)));
+  const instructors = [...new Map(schedules.filter((c) => c.instructor?.trim() && !known.has(nameKey(c.instructor)))
+    .map((c) => [nameKey(c.instructor), c.instructor.trim()])).values()].sort();
   const sections = [...new Set(schedules.map((c) => c.section.trim()).filter(Boolean))].sort();
   return (
     <form onSubmit={submit} noValidate className="grid gap-4">
@@ -81,10 +86,16 @@ export default function ReservationForm({ labs: allLabs, pcs, initial, onSubmit,
             </Field>
           </div>
           {role === 'admin' && (
-            <Field label="Teacher" hint="Who asked for this booking. It is filed under them and students see their name.">
+            <Field label="Teacher" required hint="Who asked for this booking. Students see this name.">
               <Select value={f.teacher} onChange={set('teacher')}>
-                <option value="">Me (admin)</option>
-                {teacherList.map((t) => <option key={t.id} value={t.id}>{t.full_name}</option>)}
+                <option value="" disabled>Choose the teacher…</option>
+                {accounts.length > 0 && <optgroup label="Teachers with an account">
+                  {accounts.map((t) => <option key={t.id} value={`id:${t.id}`}>{t.full_name}</option>)}
+                </optgroup>}
+                {instructors.length > 0 && <optgroup label="On the class schedule (no account yet)">
+                  {instructors.map((n) => <option key={n} value={`name:${n}`}>{n}</option>)}
+                </optgroup>}
+                <option value="self">No teacher (lab office booking)</option>
               </Select>
             </Field>
           )}
