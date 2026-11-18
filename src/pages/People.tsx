@@ -11,7 +11,8 @@ import { Alert, Button, Empty, Field, Input, Modal, PageHeader, Panel, Select } 
 const TABS = [
   { id: 'teachers', label: 'Teachers' },
   { id: 'staff', label: 'Staff' },
-  { id: 'students', label: 'Students' },
+  { id: 'accounts', label: 'Student accounts' },
+  { id: 'students', label: 'Student records' },
 ] as const;
 
 export default function People() {
@@ -34,7 +35,8 @@ export default function People() {
           <Input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Search name or email" aria-label="Search" className="pl-9" />
         </label>
       </div>
-      {tab === 'students' ? <Students q={q} /> : <Accounts role={tab === 'staff' ? 'staff' : 'teacher'} q={q} />}
+      {tab === 'students' ? <Students q={q} />
+        : <Accounts role={tab === 'staff' ? 'staff' : tab === 'accounts' ? 'student' : 'teacher'} q={q} />}
     </>
   );
 }
@@ -82,6 +84,15 @@ function Accounts({ role, q }: { role: Role; q: string }) {
     e.classes.push(c);
     byInstructor.set(k, e);
   }
+  // Student accounts: the student record with the same email (sign-ups only auto-approve when one exists).
+  const records = useLoad(() => (role === 'student' ? api.listStudents() : Promise.resolve([] as Student[])), [role]);
+  const recordOf = (p: Profile) => records.data?.find((s) => s.email.toLowerCase() === p.email.toLowerCase());
+  const [newRecord, setNewRecord] = useState<StudentInput | null>(null);
+  const draftRecord = (p: Profile): StudentInput => {
+    const id = p.email.split('@')[0].toUpperCase();
+    return { ...blank, student_id: /^C\d{6}$/.test(id) ? id : '', full_name: p.full_name, email: p.email };
+  };
+
   const accountKeys = new Set((list.data ?? []).map((p) => nameKey(p.full_name)));
   const noAccount = [...byInstructor.entries()].filter(([k, v]) => !accountKeys.has(k) && match(q, v.name))
     .map(([, v]) => v).sort((a, b) => a.name.localeCompare(b.name));
@@ -100,7 +111,13 @@ function Accounts({ role, q }: { role: Role; q: string }) {
             To add staff, have them sign up, then open their account under Teachers and change the role to Staff.
           </p>
         )}
-        {rows.length === 0 ? <Empty>{list.loading ? 'Loading…' : `No ${role === 'staff' ? 'staff' : 'teachers'} found.`}</Empty> : (
+        {role === 'student' && (
+          <p className="border-b border-line px-4 py-3 text-sm text-muted">
+            Students who sign up with an email that matches a student record are approved automatically. The ones below waiting for
+            approval have no matching record. Add the record (or fix its email) and approve them.
+          </p>
+        )}
+        {rows.length === 0 ? <Empty>{list.loading ? 'Loading…' : `No ${role === 'staff' ? 'staff' : role === 'student' ? 'student accounts' : 'teachers'} found.`}</Empty> : (
           <ul className="divide-y divide-line">
             {rows.map((p) => (
               <li key={p.id} className="flex flex-wrap items-center gap-3 px-4 py-3">
@@ -111,9 +128,14 @@ function Accounts({ role, q }: { role: Role; q: string }) {
                   <p className="font-medium">{p.full_name}</p>
                   <p className="truncate text-sm text-muted">{p.email}{p.department && `, ${p.department}`}{p.course && `, ${p.course}`}</p>
                   {byInstructor.get(nameKey(p.full_name)) && <ClassList classes={byInstructor.get(nameKey(p.full_name))!.classes} />}
+                  {role === 'student' && !records.loading && (recordOf(p)
+                    ? <p className="mt-1 text-xs text-emerald-700">Record: <b>{recordOf(p)!.student_id}</b> · {recordOf(p)!.course} {recordOf(p)!.year_level} {recordOf(p)!.section}</p>
+                    : <p className="mt-1 text-xs font-medium text-red-700">No student record with this email</p>)}
                 </div>
                 {!p.approved && <span className="rounded bg-amber-50 px-2 py-0.5 text-xs font-medium text-amber-800 ring-1 ring-amber-200 ring-inset">Waiting for approval</span>}
                 <div className="flex gap-2">
+                  {role === 'student' && !records.loading && !recordOf(p) &&
+                    <Button size="sm" variant="ghost" onClick={() => setNewRecord(draftRecord(p))}>Add student record</Button>}
                   {!p.approved && <Button size="sm" onClick={() => patch(p.id, { approved: true })}>Approve</Button>}
                   {p.approved && p.id !== me?.id &&
                     <Button size="sm" variant="quiet" onClick={() => confirm(`Remove ${p.full_name}'s access?`) && patch(p.id, { approved: false })}>Remove access</Button>}
@@ -147,6 +169,8 @@ function Accounts({ role, q }: { role: Role; q: string }) {
           </ul>
         </Panel>
       )}
+      {newRecord && <StudentModal s={newRecord} onClose={() => setNewRecord(null)}
+        onSave={async (x) => { await api.saveStudent(x); setNewRecord(null); await records.reload(); }} />}
       {edit && <ProfileModal p={edit} canChangeRole={edit.id !== me?.id} onClose={() => setEdit(null)}
         onSave={async (x) => { await api.updateProfile(edit.id, x); setEdit(null); await list.reload(); }} />}
     </>
@@ -255,15 +279,15 @@ function Students({ q }: { q: string }) {
       )}
 
       <div className="mb-4 flex flex-wrap items-center gap-3">
-        <Select value={course} onChange={(e) => setCourse(e.target.value)} className="w-36" aria-label="Filter by course">
+        <div className="w-40"><Select value={course} onChange={(e) => setCourse(e.target.value)} aria-label="Filter by course">
           <option value="">All courses</option>{DEPARTMENTS.map((d) => <option key={d}>{d}</option>)}
-        </Select>
-        <Select value={year} onChange={(e) => setYear(e.target.value)} className="w-36" aria-label="Filter by year">
+        </Select></div>
+        <div className="w-40"><Select value={year} onChange={(e) => setYear(e.target.value)} aria-label="Filter by year">
           <option value="">All years</option>{YEAR_LEVELS.map((y) => <option key={y}>{y}</option>)}
-        </Select>
-        <Select value={status} onChange={(e) => setStatus(e.target.value)} className="w-36" aria-label="Filter by status">
+        </Select></div>
+        <div className="w-40"><Select value={status} onChange={(e) => setStatus(e.target.value)} aria-label="Filter by status">
           <option value="">Any status</option>{STUDENT_STATUSES.map((s) => <option key={s}>{s}</option>)}
-        </Select>
+        </Select></div>
         <span className="text-sm text-muted">{rows.length} shown</span>
         <Button className="ml-auto" onClick={() => setEdit(blank)}><Plus size={16} />Add student</Button>
       </div>

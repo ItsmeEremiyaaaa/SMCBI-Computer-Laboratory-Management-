@@ -41,9 +41,11 @@ export function Field({ label, error, children, hint }: { label: string; error?:
   );
 }
 
-const control = 'h-10 w-full rounded-md border border-line bg-panel px-3 text-sm outline-none focus:border-accent focus:ring-2 focus:ring-accent/20';
-export const Input = (p: InputHTMLAttributes<HTMLInputElement>) => <input {...p} className={cx(control, p.className)} />;
-export const Select = (p: SelectHTMLAttributes<HTMLSelectElement>) => <select {...p} className={cx(control, p.className)} />;
+const control = 'h-10 rounded-md border border-line bg-panel px-3 text-sm outline-none focus:border-accent focus:ring-2 focus:ring-accent/20';
+// Full width unless the caller sets a width (two width classes conflict and CSS order, not class order, decides).
+const controlClass = (extra?: string) => cx(control, !/(^|\s)(sm:|md:|lg:)?w-/.test(extra ?? '') && 'w-full', extra);
+export const Input = (p: InputHTMLAttributes<HTMLInputElement>) => <input {...p} className={controlClass(p.className)} />;
+export const Select = (p: SelectHTMLAttributes<HTMLSelectElement>) => <select {...p} className={controlClass(p.className)} />;
 export const Textarea = (p: TextareaHTMLAttributes<HTMLTextAreaElement>) =>
   <textarea {...p} className={cx(control, 'h-auto min-h-20 py-2', p.className)} />;
 

@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { NavLink, Outlet, useLocation } from 'react-router-dom';
-import { Bell, Box, CalendarClock, CalendarDays, ClipboardList, LayoutGrid, LogOut, Menu, QrCode, Users, X } from 'lucide-react';
+import NotificationBell from './NotificationBell';
+import { Box, CalendarClock, CalendarDays, ClipboardList, LayoutGrid, LogOut, Menu, QrCode, Users, X } from 'lucide-react';
 import { Crest } from './ui';
 import IntroSplash from './IntroSplash';
 import { useAuth } from '../auth';
@@ -86,14 +87,7 @@ export default function Layout() {
             </span>
           )}
           {(profile.role === 'admin' || profile.role === 'staff') && (
-            <NavLink
-              to={profile.role === 'admin' && !stats?.pending && stats?.pendingTeachers ? '/people/teachers' : '/reservations?status=pending'}
-              className="pointer-events-auto relative grid h-9 w-9 place-items-center rounded-xl border border-line/60 bg-panel/90 text-muted shadow-md backdrop-blur hover:text-ink"
-              aria-label={`${count} items need attention`}
-            >
-              <Bell size={18} />
-              {count > 0 && <span className="absolute -right-1 -top-1 grid h-4 min-w-4 place-items-center rounded-full bg-broken px-1 text-[10px] font-semibold text-white">{count}</span>}
-            </NavLink>
+            <NotificationBell count={count} />
           )}
           <div className="pointer-events-auto flex items-center gap-2 rounded-xl border border-line/60 bg-panel/90 p-1.5 shadow-md backdrop-blur">
             <span className="grid h-7 w-7 place-items-center rounded-lg bg-rail text-xs font-semibold text-white">
@@ -158,12 +152,7 @@ export default function Layout() {
           )}
           <div className="ml-auto flex items-center gap-2">
             {(profile.role === 'admin' || profile.role === 'staff') && (
-              <NavLink to={profile.role === 'admin' && !stats?.pending && stats?.pendingTeachers ? '/people/teachers' : '/reservations?status=pending'}
-                className="relative grid h-10 w-10 place-items-center rounded-full bg-white text-muted shadow-sm hover:text-ink"
-                aria-label={`${count} items need attention`}>
-                <Bell size={20} />
-                {count > 0 && <span className="absolute -right-0.5 -top-0.5 grid h-5 min-w-5 place-items-center rounded-full bg-broken px-1 text-[11px] font-semibold text-white">{count}</span>}
-              </NavLink>
+              <NotificationBell count={count} />
             )}
           </div>
         </div>
