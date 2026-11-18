@@ -227,7 +227,7 @@ function ReviewModal({ r, to, where, onClose, onDone }:
         </div>
         <div className="flex flex-col gap-4">
           <Field label="Note to the requester (optional)" hint="Starts with the school greeting. Type your message below it, or leave it as is to send no note.">
-            <Textarea value={notes} onChange={(e) => setNotes(e.target.value)} rows={8} autoFocus
+            <Textarea value={notes} onChange={(e) => setNotes(e.target.value)} rows={8} data-autofocus
               onFocus={(e) => { const end = e.currentTarget.value.length; e.currentTarget.setSelectionRange(end, end); }} />
           </Field>
           <div className="mt-auto flex justify-end gap-2">

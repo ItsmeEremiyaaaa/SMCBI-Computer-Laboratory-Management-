@@ -153,6 +153,8 @@ export function Modal({ open, title, onClose, children, wide = false }: { open: 
     if (!d) return;
     // jsdom has no showModal; fall back to a plain open dialog there.
     if (open && !d.open) { if (d.showModal) d.showModal(); else d.setAttribute('open', ''); }
+    // showModal focuses the first button (the X); move focus to the field the dialog asks for, if any
+    if (open) d.querySelector<HTMLElement>('[data-autofocus]')?.focus();
   }, [open]);
   if (!open) return null;
   return (

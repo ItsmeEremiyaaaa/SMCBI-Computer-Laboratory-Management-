@@ -1,4 +1,4 @@
-import { useState, type FormEvent } from 'react';
+import { useState, type FormEvent, useEffect } from 'react';
 import { CalendarDays, ChevronLeft, ChevronRight, Pencil, Plus } from 'lucide-react';
 import { useAuth } from '../auth';
 import { useLoad } from '../hooks/useLoad';
@@ -34,6 +34,9 @@ export default function Calendar() {
   const [edit, setEdit] = useState<EventInput | null>(null);
   const events = useLoad(() => api.listEvents());
   const res = useLoad(() => api.listReservations({ status: 'approved' }));
+  // cancelled bookings stay on the day view, red and crossed out, so nobody shows up for them
+  const cancelled = useLoad(() => api.listReservations({ status: 'cancelled' }).catch(() => []));
+  useEffect(() => api.subscribeReservations(() => { res.reload(); cancelled.reload(); }), [res.reload, cancelled.reload]);
   const labs = useLoad(() => api.listLabs());
   const classes = useLoad(() => api.listSchedules());
 
@@ -61,7 +64,7 @@ export default function Calendar() {
     .sort((a, b) => a.start_time.localeCompare(b.start_time));
 
   const dayEvents = eventsOn(day);
-  const dayBookings = bookingsOn(day);
+  const dayBookings = [...(cancelled.data ?? []).filter((r) => r.date === day), ...bookingsOn(day)]; // cancelled first = drawn underneath
   const dayTitle = new Date(`${day}T00:00:00Z`).toLocaleDateString('en-PH', { weekday: 'long', month: 'long', day: 'numeric', timeZone: 'UTC' });
   const nowH = hours(now.time);
 
@@ -193,14 +196,15 @@ export default function Calendar() {
                         const s = Math.max(DAY_START, hours(r.start_time));
                         const e = Math.min(DAY_END, hours(r.end_time));
                         if (e <= s) return null;
-                        const c = labColor(l.id);
+                        const off = r.status === 'cancelled';
+                        const c = off ? '#dc2626' : labColor(l.id);
                         return (
-                          <div key={r.id} title={`${r.title}\n${fmtTime(r.start_time)} – ${fmtTime(r.end_time)}\n${r.requester_name}`}
-                            className={`absolute inset-x-0 overflow-hidden rounded-md border-l-4 px-1.5 py-1 text-[10px] leading-tight ${isClass(r) ? '' : 'border-dashed'}`}
-                            style={{ top: (s - DAY_START) * HOUR_PX + 1, height: (e - s) * HOUR_PX - 2, borderColor: c, background: `${c}1f`, color: '#0f172a' }}>
+                          <div key={r.id} title={`${off ? 'CANCELLED: ' : ''}${r.title}\n${fmtTime(r.start_time)} – ${fmtTime(r.end_time)}\n${r.requester_name}${off && r.admin_notes ? `\n${r.admin_notes}` : ''}`}
+                            className={`absolute inset-x-0 overflow-hidden rounded-md border-l-4 px-1.5 py-1 text-[10px] leading-tight ${isClass(r) ? '' : 'border-dashed'} ${off ? 'line-through decoration-red-600 decoration-2 opacity-80' : ''}`}
+                            style={{ top: (s - DAY_START) * HOUR_PX + 1, height: (e - s) * HOUR_PX - 2, borderColor: c, background: `${c}1f`, color: off ? '#b91c1c' : '#0f172a' }}>
                             <p className="font-semibold">{fmtTime(r.start_time).replace(':00', '')}–{fmtTime(r.end_time).replace(':00', '')}</p>
                             <p className="truncate">{r.title}</p>
-                            {(e - s) >= 1.2 && <p className="truncate opacity-70">{isClass(r) ? r.requester_name : `Booking · ${r.requester_name}`}</p>}
+                            {(e - s) >= 1.2 && <p className="truncate opacity-70">{isClass(r) ? r.requester_name : `${off ? 'Cancelled' : 'Booking'} · ${r.requester_name}`}</p>}
                           </div>
                         );
                       })}
@@ -217,6 +221,7 @@ export default function Calendar() {
               <p className="mt-3 flex flex-wrap gap-x-3 gap-y-1 text-[10px] text-muted">
                 <span className="flex items-center gap-1"><span className="h-3 w-3 rounded-sm border-l-4 border-slate-500 bg-slate-500/15" />Regular class</span>
                 <span className="flex items-center gap-1"><span className="h-3 w-3 rounded-sm border-l-4 border-dashed border-slate-500 bg-slate-500/15" />Approved booking</span>
+                <span className="flex items-center gap-1"><span className="h-3 w-3 rounded-sm border-l-4 border-dashed border-red-600 bg-red-600/15" /><span className="line-through decoration-red-600">Cancelled</span></span>
                 <span className="flex items-center gap-1"><span className="h-0.5 w-3 bg-red-500" />Now</span>
               </p>
             </div>
