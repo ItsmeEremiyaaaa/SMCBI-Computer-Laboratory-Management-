@@ -1,4 +1,4 @@
-import { classesOn, manilaNow, shownStatus, slotsOverlap } from './seat';
+import { activeReservation, classesOn, manilaNow, shownStatus, slotsOverlap } from './seat';
 import type { Pc, Reservation } from './types';
 
 const slot = (pc_id: string | null, start_time: string, end_time: string, lab_id = 'lab1') => ({
@@ -50,6 +50,14 @@ describe('shownStatus', () => {
   });
   it('pending reservations are ignored', () => {
     expect(shownStatus(pc('in_use'), [res({ status: 'pending' })], now)).toBe('in_use');
+  });
+  it('an approved booking for this PC later today reserves it from approval', () => {
+    const later = res({ pc_id: pc('free').id, start_time: '13:00', end_time: '15:00' });
+    expect(shownStatus(pc('free'), [later], now)).toBe('reserved');
+    expect(activeReservation(pc('free'), [later], now)?.start_time).toBe('13:00');
+  });
+  it('a whole-lab booking later today does not reserve the lab yet', () => {
+    expect(shownStatus(pc('free'), [res({ start_time: '13:00', end_time: '15:00' })], now)).toBe('free');
   });
 });
 

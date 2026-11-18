@@ -20,10 +20,15 @@ export function slotsOverlap(a: Slot, b: Slot): boolean {
   return a.start_time < b.end_time && b.start_time < a.end_time;
 }
 
+// The booking that holds this PC now: one running right now (whole lab or this PC), otherwise this PC's
+// next approved booking later today. A single-PC booking holds its PC from approval until it ends, so
+// the PC shows Reserved straight away; a whole-lab booking only counts while it runs.
 export function activeReservation(pc: Pc, approved: Reservation[], now: Now): Reservation | undefined {
-  return approved.find((r) =>
+  const today = approved.filter((r) =>
     r.status === 'approved' && r.lab_id === pc.lab_id && (r.pc_id === null || r.pc_id === pc.id) &&
-    r.date === now.date && r.start_time <= now.time && now.time < r.end_time);
+    r.date === now.date && now.time < r.end_time);
+  return today.find((r) => r.start_time <= now.time)
+    ?? today.filter((r) => r.pc_id === pc.id).sort((x, y) => x.start_time.localeCompare(y.start_time))[0];
 }
 
 export function shownStatus(pc: Pc, approved: Reservation[], now: Now): ShownStatus {
