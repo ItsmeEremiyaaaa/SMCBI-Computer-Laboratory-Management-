@@ -1,7 +1,7 @@
-import { useMemo, useRef, useState, useEffect } from 'react';
+import { useMemo, useRef, useEffect } from 'react';
 import { useFrame } from '@react-three/fiber';
 import { MathUtils, type Group } from 'three';
-import { LAYOUTS } from '../lib/layouts';
+import { LAYOUTS, seatPlacement } from '../lib/layouts';
 import type { Lab, Student } from '../lib/types';
 import type { LivePc } from '../hooks/useLabLive';
 
@@ -72,24 +72,11 @@ interface StudentAgentData {
 
 // SMCBI Lab Spacing
 const ISLAND_GAP = 3.6;
-const ISLAND_ROW = 1.2;
 const islandCount = (lab: Lab) => Math.ceil(lab.cols / 4);
 const islandX = (i: number, n: number) => (i - (n - 1) / 2) * ISLAND_GAP;
-const sideRows = (lab: Lab) => LAYOUTS[lab.id]?.island?.endRow ?? lab.rows;
-const sideZ = (row: number, lab: Lab) => (row - (sideRows(lab) - 1) / 2) * ISLAND_ROW - 0.4;
-const DX = 1.15;
-const DZ = 1.9;
-const seatX = (col: number, cols: number) => (col - (cols - 1) / 2) * DX;
-const rowZ = (row: number, rows: number) => (row - (rows - 1) / 2) * DZ + 1.2;
 
-function getWorkstationPlacement(pc: LivePc, lab: Lab, style: 'island' | 'table'): { pos: [number, number, number]; rot: number } {
-  if (style !== 'island') return { pos: [seatX(pc.col, lab.cols), 0, rowZ(pc.row, lab.rows)], rot: 0 };
-  const cx = islandX(Math.floor(pc.col / 4), islandCount(lab));
-  const left = pc.col % 4 === 0;
-  if (pc.row !== LAYOUTS[lab.id]?.island?.endRow) {
-    return { pos: [cx + (left ? -0.55 : 0.55), 0, sideZ(pc.row, lab)], rot: left ? -Math.PI / 2 : Math.PI / 2 };
-  }
-  return { pos: [cx + (left ? -0.58 : 0.58), 0, sideZ(sideRows(lab) - 1, lab) + ISLAND_ROW / 2 + 0.65], rot: 0 };
+function getWorkstationPlacement(pc: LivePc, lab: Lab, _style?: 'island' | 'table'): { pos: [number, number, number]; rot: number } {
+  return seatPlacement(lab, pc.row, pc.col);
 }
 
 // 3D Low-Poly Teacher at the whiteboard
@@ -111,11 +98,11 @@ export function Teacher3D({ gender }: { gender: 'male' | 'female' }) {
       {isMale ? (
         [-0.10, 0.10].map((lx) => (
           <group key={lx} position={[lx, 0, 0]}>
-            <mesh position={[0, 0.44, 0]} castShadow>
+            <mesh position={[0, 0.44, 0]}>
               <boxGeometry args={[0.13, 0.84, 0.13]} />
               {pantsMat}
             </mesh>
-            <mesh position={[0, 0.04, 0.04]} castShadow>
+            <mesh position={[0, 0.04, 0.04]}>
               <boxGeometry args={[0.13, 0.08, 0.22]} />
               {shoesMat}
             </mesh>
@@ -123,17 +110,17 @@ export function Teacher3D({ gender }: { gender: 'male' | 'female' }) {
         ))
       ) : (
         <>
-          <mesh position={[0, 0.62, 0]} castShadow>
+          <mesh position={[0, 0.62, 0]}>
             <boxGeometry args={[0.34, 0.42, 0.22]} />
             {skirtMat}
           </mesh>
           {[-0.09, 0.09].map((lx) => (
             <group key={lx} position={[lx, 0, 0]}>
-              <mesh position={[0, 0.24, 0]} castShadow>
+              <mesh position={[0, 0.24, 0]}>
                 <boxGeometry args={[0.09, 0.44, 0.09]} />
                 {skinMat}
               </mesh>
-              <mesh position={[0, 0.04, 0.03]} castShadow>
+              <mesh position={[0, 0.04, 0.03]}>
                 <boxGeometry args={[0.10, 0.07, 0.18]} />
                 {shoesMat}
               </mesh>
@@ -144,7 +131,7 @@ export function Teacher3D({ gender }: { gender: 'male' | 'female' }) {
 
       {/* Torso */}
       <group position={[0, 1.10, 0]}>
-        <mesh castShadow>
+        <mesh>
           <boxGeometry args={[0.36, 0.46, 0.22]} />
           {isMale ? brownVestMat : navyBlazerMat}
         </mesh>
@@ -168,13 +155,13 @@ export function Teacher3D({ gender }: { gender: 'male' | 'female' }) {
       </group>
 
       {/* Arms */}
-      <mesh position={[-0.22, 1.05, 0]} castShadow>
+      <mesh position={[-0.22, 1.05, 0]}>
         <boxGeometry args={[0.09, 0.44, 0.09]} />
         {isMale ? whiteMat : navyBlazerMat}
       </mesh>
       {/* Right arm gesturing toward classroom */}
       <group position={[0.22, 1.25, 0]} rotation-z={-0.6} rotation-y={0.3}>
-        <mesh position={[0, -0.18, 0]} castShadow>
+        <mesh position={[0, -0.18, 0]}>
           <boxGeometry args={[0.09, 0.38, 0.09]} />
           {isMale ? whiteMat : navyBlazerMat}
         </mesh>
@@ -186,16 +173,16 @@ export function Teacher3D({ gender }: { gender: 'male' | 'female' }) {
 
       {/* Head */}
       <group position={[0, 1.48, 0]}>
-        <mesh castShadow>
+        <mesh>
           <boxGeometry args={[0.21, 0.24, 0.20]} />
           {skinMat}
         </mesh>
-        <mesh position={[0, 0.07, 0]} castShadow>
+        <mesh position={[0, 0.07, 0]}>
           <boxGeometry args={[0.23, 0.14, 0.22]} />
           {hairMat}
         </mesh>
         {!isMale && (
-          <mesh position={[0, 0.06, -0.14]} castShadow>
+          <mesh position={[0, 0.06, -0.14]}>
             <sphereGeometry args={[0.07, 8, 8]} />
             {hairMat}
           </mesh>
@@ -221,12 +208,12 @@ function lerpAngle(a: number, b: number, t: number) {
 function StudentAgent3D({
   agent,
   simMode,
-  elapsedTime,
+  elapsedRef,
   onSelect,
 }: {
   agent: StudentAgentData;
   simMode: SimMode;
-  elapsedTime: number;
+  elapsedRef: { current: number };
   onSelect?: () => void;
 }) {
   const rootRef = useRef<Group>(null);
@@ -305,7 +292,7 @@ function StudentAgent3D({
     }
 
     if (simMode === 'walk_in') {
-      const t = elapsedTime - agent.enterDelay;
+      const t = elapsedRef.current - agent.enterDelay;
       if (t < 0) {
         root.visible = false;
         return;
@@ -405,7 +392,7 @@ function StudentAgent3D({
     }
 
     if (simMode === 'walk_out') {
-      const t = elapsedTime - agent.exitDelay;
+      const t = elapsedRef.current - agent.exitDelay;
       if (t < 0) {
         // Still seated
         root.visible = true;
@@ -512,14 +499,14 @@ function StudentAgent3D({
       {/* Articulated Body Hierarchy */}
       <group ref={bodyRootRef}>
         {/* Pelvis / Hips */}
-        <mesh position={[0, 0.78, 0]} castShadow>
+        <mesh position={[0, 0.78, 0]}>
           <boxGeometry args={[0.34, 0.14, 0.22]} />
           {isMale ? malePantsMat : femaleNavyMat}
         </mesh>
 
         {/* Female Navy Skirt */}
         {!isMale && (
-          <mesh position={[0, 0.68, 0]} castShadow>
+          <mesh position={[0, 0.68, 0]}>
             <boxGeometry args={[0.36, 0.26, 0.26]} />
             {femaleNavyMat}
           </mesh>
@@ -527,16 +514,16 @@ function StudentAgent3D({
 
         {/* Left Leg (Thigh + Knee + Calf + Shoe) */}
         <group ref={leftHipRef} position={[-0.09, 0.78, 0]}>
-          <mesh position={[0, -0.20, 0]} castShadow>
+          <mesh position={[0, -0.20, 0]}>
             <boxGeometry args={[0.13, 0.40, 0.13]} />
             {isMale ? malePantsMat : skinMat}
           </mesh>
           <group ref={leftKneeRef} position={[0, -0.40, 0]}>
-            <mesh position={[0, -0.18, 0]} castShadow>
+            <mesh position={[0, -0.18, 0]}>
               <boxGeometry args={[0.11, 0.36, 0.11]} />
               {isMale ? malePantsMat : socksMat}
             </mesh>
-            <mesh position={[0, -0.34, 0.04]} castShadow>
+            <mesh position={[0, -0.34, 0.04]}>
               <boxGeometry args={[0.12, 0.08, 0.20]} />
               {shoesMat}
             </mesh>
@@ -545,16 +532,16 @@ function StudentAgent3D({
 
         {/* Right Leg (Thigh + Knee + Calf + Shoe) */}
         <group ref={rightHipRef} position={[0.09, 0.78, 0]}>
-          <mesh position={[0, -0.20, 0]} castShadow>
+          <mesh position={[0, -0.20, 0]}>
             <boxGeometry args={[0.13, 0.40, 0.13]} />
             {isMale ? malePantsMat : skinMat}
           </mesh>
           <group ref={rightKneeRef} position={[0, -0.40, 0]}>
-            <mesh position={[0, -0.18, 0]} castShadow>
+            <mesh position={[0, -0.18, 0]}>
               <boxGeometry args={[0.11, 0.36, 0.11]} />
               {isMale ? malePantsMat : socksMat}
             </mesh>
-            <mesh position={[0, -0.34, 0.04]} castShadow>
+            <mesh position={[0, -0.34, 0.04]}>
               <boxGeometry args={[0.12, 0.08, 0.20]} />
               {shoesMat}
             </mesh>
@@ -563,7 +550,7 @@ function StudentAgent3D({
 
         {/* Torso */}
         <group position={[0, 1.05, 0]}>
-          <mesh castShadow>
+          <mesh>
             <boxGeometry args={[0.34, 0.38, 0.20]} />
             {isMale ? maleShirtMat : femaleBlouseMat}
           </mesh>
@@ -593,16 +580,16 @@ function StudentAgent3D({
 
         {/* Left Arm (Shoulder + Elbow + Forearm + Hand) */}
         <group ref={leftArmRef} position={[-0.20, 1.20, 0]}>
-          <mesh position={[0, -0.14, 0]} castShadow>
+          <mesh position={[0, -0.14, 0]}>
             <boxGeometry args={[0.09, 0.24, 0.09]} />
             {isMale ? maleShirtMat : femaleBlouseMat}
           </mesh>
           <group ref={leftElbowRef} position={[0, -0.26, 0]}>
-            <mesh position={[0, -0.12, 0]} castShadow>
+            <mesh position={[0, -0.12, 0]}>
               <boxGeometry args={[0.08, 0.22, 0.08]} />
               {skinMat}
             </mesh>
-            <mesh position={[0, -0.24, 0]} castShadow>
+            <mesh position={[0, -0.24, 0]}>
               <boxGeometry args={[0.08, 0.06, 0.08]} />
               {skinMat}
             </mesh>
@@ -611,16 +598,16 @@ function StudentAgent3D({
 
         {/* Right Arm (Shoulder + Elbow + Forearm + Hand) */}
         <group ref={rightArmRef} position={[0.20, 1.20, 0]}>
-          <mesh position={[0, -0.14, 0]} castShadow>
+          <mesh position={[0, -0.14, 0]}>
             <boxGeometry args={[0.09, 0.24, 0.09]} />
             {isMale ? maleShirtMat : femaleBlouseMat}
           </mesh>
           <group ref={rightElbowRef} position={[0, -0.26, 0]}>
-            <mesh position={[0, -0.12, 0]} castShadow>
+            <mesh position={[0, -0.12, 0]}>
               <boxGeometry args={[0.08, 0.22, 0.08]} />
               {skinMat}
             </mesh>
-            <mesh position={[0, -0.24, 0]} castShadow>
+            <mesh position={[0, -0.24, 0]}>
               <boxGeometry args={[0.08, 0.06, 0.08]} />
               {skinMat}
             </mesh>
@@ -635,25 +622,25 @@ function StudentAgent3D({
             {skinMat}
           </mesh>
           {/* Face */}
-          <mesh castShadow>
+          <mesh>
             <boxGeometry args={[0.20, 0.22, 0.19]} />
             {skinMat}
           </mesh>
           {/* Hair pieces stack without overlapping and always sit clearly outside the face box:
               coplanar faces of different meshes z-fight and flicker. */}
           {/* Hair top (y 0 … 0.14, wraps past the back of the face) */}
-          <mesh position={[0, 0.07, -0.0025]} castShadow>
+          <mesh position={[0, 0.07, -0.0025]}>
             <boxGeometry args={[0.22, 0.14, 0.235]} />
             {hairMat}
           </mesh>
           {/* Hair back (y -0.11 … 0) */}
-          <mesh position={[0, -0.055, -0.08]} castShadow>
+          <mesh position={[0, -0.055, -0.08]}>
             <boxGeometry args={[0.22, 0.11, 0.08]} />
             {hairMat}
           </mesh>
           {/* Female long hair (y -0.24 … -0.11) */}
           {!isMale && (
-            <mesh position={[0, -0.175, -0.08]} castShadow>
+            <mesh position={[0, -0.175, -0.08]}>
               <boxGeometry args={[0.22, 0.13, 0.08]} />
               {hairMat}
             </mesh>
@@ -679,7 +666,8 @@ export default function LabCharacters3D({
   students,
   onStudentSelect,
 }: LabCharacters3DProps) {
-  const [elapsed, setElapsed] = useState(phaseOffset);
+  // A ref, not state: updating state every frame re-rendered every avatar ~60 times a second (lag).
+  const elapsedRef = useRef(phaseOffset);
   const startTimeRef = useRef<number | null>(null);
   const offsetRef = useRef(phaseOffset);
 
@@ -687,7 +675,7 @@ export default function LabCharacters3D({
   useEffect(() => {
     startTimeRef.current = null;
     offsetRef.current = phaseOffset;
-    setElapsed(phaseOffset);
+    elapsedRef.current = phaseOffset;
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [simMode, lab.id]);
 
@@ -863,7 +851,7 @@ export default function LabCharacters3D({
       startTimeRef.current = clock.elapsedTime;
     }
     const curElapsed = offsetRef.current + clock.elapsedTime - startTimeRef.current;
-    setElapsed(curElapsed);
+    elapsedRef.current = curElapsed;
 
     if (curElapsed >= maxSimTime + 0.5 && onSimulationComplete) {
       onSimulationComplete();
@@ -887,7 +875,7 @@ export default function LabCharacters3D({
           key={agent.id}
           agent={agent}
           simMode={simMode}
-          elapsedTime={elapsed}
+          elapsedRef={elapsedRef}
           onSelect={agent.student && onStudentSelect ? () => onStudentSelect(agent.student!, agent.pcId) : undefined}
         />
       ))}

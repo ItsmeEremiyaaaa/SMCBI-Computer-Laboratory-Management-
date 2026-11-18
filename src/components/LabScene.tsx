@@ -1,18 +1,17 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { Canvas, useFrame, useThree } from '@react-three/fiber';
-import { ContactShadows, OrbitControls, RoundedBox } from '@react-three/drei';
+import { OrbitControls, RoundedBox } from '@react-three/drei';
 import { CanvasTexture, MathUtils, RepeatWrapping, SRGBColorSpace, type Group, type Vector3, type MeshStandardMaterial } from 'three';
 import type { LivePc } from '../hooks/useLabLive';
 import type { Lab } from '../lib/types';
 import type { SceneProps } from './SeatGrid';
-import { LAYOUTS } from '../lib/layouts';
+import { LAYOUTS, roomSize, seatPlacement } from '../lib/layouts';
 import { STATUS_COLOR } from './ui';
 import LabCharacters3D from './LabCharacters3D';
 
 // Modeled on the SMCBI labs: Lab 1/2 have long white benches with white partitions;
 // Netlab has separate dark-top tables on metal legs. Both use white monobloc chairs.
 const DX = 1.15; // seat width (Netlab tables)
-const DZ = 1.9; // row spacing (Netlab tables)
 const DESK_D = 0.7;
 const DESK_H = 0.75;
 const CEIL = 3.2; // ceiling height; the camera is kept inside the room below it
@@ -32,16 +31,8 @@ const sideRows = (lab: Lab) => LAYOUTS[lab.id]?.island?.endRow ?? lab.rows;
 const sideZ = (row: number, lab: Lab) => (row - (sideRows(lab) - 1) / 2) * ISLAND_ROW - 0.4;
 
 // Where a PC sits and which way it faces (rotation about Y; 0 = monitor toward the front).
-function place(pc: LivePc, lab: Lab, style: Style): { pos: [number, number, number]; rot: number } {
-  if (style !== 'island') return { pos: [seatX(pc.col, lab.cols), 0, rowZ(pc.row, lab.rows)], rot: 0 };
-  const cx = islandX(Math.floor(pc.col / 4), islandCount(lab));
-  const left = pc.col % 4 === 0;
-  if (pc.row !== LAYOUTS[lab.id]?.island?.endRow) {
-    // side seats: monitor against the wood, student sits outside
-    return { pos: [cx + (left ? -0.55 : 0.55), 0, sideZ(pc.row, lab)], rot: left ? -Math.PI / 2 : Math.PI / 2 };
-  }
-  // end seats across the back end of the wood, facing it
-  return { pos: [cx + (left ? -0.58 : 0.58), 0, sideZ(sideRows(lab) - 1, lab) + ISLAND_ROW / 2 + 0.65], rot: 0 };
+function place(pc: LivePc, lab: Lab): { pos: [number, number, number]; rot: number } {
+  return seatPlacement(lab, pc.row, pc.col);
 }
 
 // Modern Central Divider Partition between island rows
@@ -74,9 +65,6 @@ function Spines({ lab, pcs }: { lab: Lab; pcs: LivePc[] }) {
   );
 }
 
-// Aisles are empty grid columns/rows in the layout, so placement is a plain grid.
-const seatX = (col: number, cols: number) => (col - (cols - 1) / 2) * DX;
-const rowZ = (row: number, rows: number) => (row - (rows - 1) / 2) * DZ + 1.2;
 
 // Modern Ergonomic Black Mesh Office Task Chair (matching reference photo)
 function ErgonomicMeshChair({ position, rotationY = 0 }: { position: [number, number, number]; rotationY?: number }) {
@@ -92,12 +80,12 @@ function ErgonomicMeshChair({ position, rotationY = 0 }: { position: [number, nu
           return (
             <group key={deg} rotation-y={rad}>
               {/* Star leg ray */}
-              <mesh position={[0, 0, 0.15]} castShadow>
+              <mesh position={[0, 0, 0.15]}>
                 <boxGeometry args={[0.035, 0.025, 0.26]} />
                 {black}
               </mesh>
               {/* Caster wheel */}
-              <mesh position={[0, -0.02, 0.26]} castShadow>
+              <mesh position={[0, -0.02, 0.26]}>
                 <cylinderGeometry args={[0.022, 0.022, 0.028, 8]} />
                 {black}
               </mesh>
@@ -107,18 +95,18 @@ function ErgonomicMeshChair({ position, rotationY = 0 }: { position: [number, nu
       </group>
 
       {/* Hydraulic pneumatic lift cylinder */}
-      <mesh position={[0, 0.22, 0]} castShadow>
+      <mesh position={[0, 0.22, 0]}>
         <cylinderGeometry args={[0.024, 0.03, 0.34, 12]} />
         {chrome}
       </mesh>
 
       {/* Seat cushion (contoured ergonomic foam, height 0.44m) */}
       <group position={[0, 0.43, 0]}>
-        <mesh castShadow receiveShadow>
+        <mesh receiveShadow>
           <boxGeometry args={[0.46, 0.055, 0.44]} />
           {black}
         </mesh>
-        <mesh position={[0, 0.04, 0]} castShadow>
+        <mesh position={[0, 0.04, 0]}>
           <boxGeometry args={[0.44, 0.05, 0.42]} />
           {meshMat}
         </mesh>
@@ -127,17 +115,17 @@ function ErgonomicMeshChair({ position, rotationY = 0 }: { position: [number, nu
       {/* Ergonomic Curved Mesh Backrest */}
       <group position={[0, 0.70, 0.18]} rotation-x={-0.08}>
         {/* Central spine support */}
-        <mesh position={[0, -0.06, 0.02]} castShadow>
+        <mesh position={[0, -0.06, 0.02]}>
           <boxGeometry args={[0.05, 0.36, 0.025]} />
           {black}
         </mesh>
         {/* Outer backrest frame */}
-        <mesh castShadow>
+        <mesh>
           <boxGeometry args={[0.44, 0.46, 0.024]} />
           {black}
         </mesh>
         {/* Breathable Mesh panel */}
-        <mesh position={[0, 0, -0.03]} castShadow>
+        <mesh position={[0, 0, -0.03]}>
           <boxGeometry args={[0.42, 0.42, 0.05]} />
           {meshMat}
         </mesh>
@@ -152,12 +140,12 @@ function ErgonomicMeshChair({ position, rotationY = 0 }: { position: [number, nu
       {[-0.22, 0.22].map((armX) => (
         <group key={armX} position={[armX, 0.53, 0.03]}>
           {/* Vertical upright arm post */}
-          <mesh castShadow>
+          <mesh>
             <boxGeometry args={[0.028, 0.18, 0.035]} />
             {black}
           </mesh>
           {/* Soft padded armrest pad */}
-          <mesh position={[0, 0.09, -0.04]} castShadow>
+          <mesh position={[0, 0.09, -0.04]}>
             <boxGeometry args={[0.055, 0.022, 0.20]} />
             {black}
           </mesh>
@@ -169,6 +157,7 @@ function ErgonomicMeshChair({ position, rotationY = 0 }: { position: [number, nu
 
 // Where each lab's right-wall door leads.
 const SIDE_DOOR: Record<string, string> = { lab1: 'ADMIN OFFICE', lab2: 'COMLAB 1', netlab: 'COMLAB 2' };
+const BACK_DOOR_INSET = 1.6; // metres from the side wall to the door centre
 
 // Door sign: white text on a navy plate.
 const signTex = (text: string) => paintTex([512, 120], (ctx, w, h) => {
@@ -805,10 +794,11 @@ function Room({ lab, w, d, style }: { lab: Lab; w: number; d: number; style: Sty
 
   // Left wall has the exit door for all labs at the cactus location
   const leftDoorZs = [exitDoorZ];
-  // Right wall: one connecting door in the middle bay
-  const sideDoorZ = front + bayLength * (Math.floor(bayCount / 2) + 0.5);
+  // Right wall: continuous windows. The connecting door is in the back wall, near the corner
+  // on the right when standing at the whiteboard looking toward the back (x = -w/2 side).
+  const rightDoorZs: number[] = [];
   const sideDoorTo = SIDE_DOOR[lab.id];
-  const rightDoorZs = sideDoorTo ? [sideDoorZ] : [];
+  const backDoorX = -w / 2 + BACK_DOOR_INSET;
   const sign = useMemo(() => sideDoorTo && signTex(sideDoorTo), [sideDoorTo]);
 
   const floor = useMemo(() => floorTex(w / 0.6, d / 0.6), [w, d]);
@@ -870,11 +860,11 @@ function Room({ lab, w, d, style }: { lab: Lab; w: number; d: number; style: Sty
       <GlassWindowWall side={-1} w={w} d={d} front={front} doorZList={leftDoorZs} />
       <GlassWindowWall side={1} w={w} d={d} front={front} doorZList={rightDoorZs} />
 
-      {/* Connecting door on the right wall, with a sign saying where it leads */}
+      {/* Connecting door in the back wall, with a sign saying where it leads */}
       {sideDoorTo && (
         <>
-          <Doorway position={[w / 2, 0, sideDoorZ]} rotationY={-Math.PI / 2} />
-          <mesh position={[w / 2 - 0.07, 2.5, sideDoorZ]} rotation-y={-Math.PI / 2}>
+          <Doorway position={[backDoorX, 0, back - 0.06]} rotationY={Math.PI} />
+          <mesh position={[backDoorX, 2.5, back - 0.07]} rotation-y={Math.PI}>
             <planeGeometry args={[1.1, 0.26]} />
             <meshStandardMaterial map={sign || undefined} roughness={0.5} />
           </mesh>
@@ -922,13 +912,6 @@ function ReadySignal({ onReady }: { onReady?: () => void }) {
   return null;
 }
 
-function roomSize(lab: Lab) {
-  const style = styleOf(lab);
-  const w = style === 'island' ? islandCount(lab) * ISLAND_GAP + 2.4 : lab.cols * DX + 3;
-  const d = style === 'island' ? (sideRows(lab) + (lab.rows > sideRows(lab) ? 1 : 0)) * ISLAND_ROW + 7.5 : lab.rows * DZ + 4.5;
-  return { w, d };
-}
-
 // Starts the camera in a back corner under the ceiling (like a photo of the room) and keeps it,
 // and the orbit target, inside the walls so nothing outside the lab is ever visible.
 function RoomCamera({ w, d }: { w: number; d: number }) {
@@ -970,7 +953,7 @@ function SceneContent({
       <Room lab={lab} w={w} d={d} style={style} />
       {style === 'island' && <Spines lab={lab} pcs={pcs} />}
       {pcs.map((pc) => {
-        const { pos, rot } = place(pc, lab, style);
+        const { pos, rot } = place(pc, lab);
         return (
           <Workstation
             key={pc.id}
@@ -999,7 +982,7 @@ function SceneContent({
         onStudentSelect={live.onStudentSelect}
       />
 
-      <ContactShadows position={[0, 0.003, 0]} scale={Math.max(w, d)} opacity={0.2} blur={2.5} far={2} />
+      
     </>
   );
 }
@@ -1020,7 +1003,7 @@ export default function LabScene({
   return (
     <Canvas
       shadows
-      dpr={[1, 2]}
+      dpr={[1, 1.5]}
       camera={{ position: [w / 2 - 0.5, CEIL - 0.45, d / 2 - 0.5], fov: 62, near: 0.1, far: 60 }} // tight near/far keeps depth precise so small parts don't flicker
       onPointerMissed={() => onSelect('')}
     >
@@ -1033,7 +1016,7 @@ export default function LabScene({
         position={[5, 10, 6]}
         intensity={1.2}
         castShadow
-        shadow-mapSize={[2048, 2048]}
+        shadow-mapSize={[1024, 1024]}
         shadow-camera-left={-12}
         shadow-camera-right={12}
         shadow-camera-top={12}

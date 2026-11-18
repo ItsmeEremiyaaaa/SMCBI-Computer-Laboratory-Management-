@@ -21,7 +21,7 @@ describe('SeatGrid', () => {
   it('shows a reserved PC in the reserved color with its status in the name', () => {
     render(<SeatGrid lab={lab} pcs={pcs} selectedId={null} onSelect={() => {}} />);
     const b = screen.getByRole('button', { name: 'PC-05, Reserved' });
-    expect(b.querySelector('.led')).toHaveStyle({ color: STATUS_COLOR.reserved });
+    expect(b.querySelector(`rect[fill="${STATUS_COLOR.reserved}"]`)).not.toBeNull();
   });
 
   it('calls onSelect with the PC id', async () => {
