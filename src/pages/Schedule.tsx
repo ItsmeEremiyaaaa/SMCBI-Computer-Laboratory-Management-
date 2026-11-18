@@ -36,7 +36,7 @@ export default function Schedule() {
     r.start_time <= today.time && today.time < r.end_time;
 
   async function remove(r: ClassSchedule) {
-    if (!confirm(`Remove ${r.section} ${r.subject} on ${DAYS[r.day_of_week - 1]}s?`)) return;
+    if (!confirm(`Remove ${r.section} ${r.subject} on ${DAYS[r.day_of_week - 1]}s? It moves to the Archive, where an admin can restore it.`)) return;
     try { await api.deleteSchedule(r.id); await list.reload(); } catch (e) { setError((e as Error).message); }
   }
 

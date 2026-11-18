@@ -2,7 +2,7 @@
 // in supabase/migrations; this file only maps rows and errors.
 import { createClient } from '@supabase/supabase-js';
 import type { Api } from './api';
-import type { CheckIn, ClassSchedule, Pc, Profile, Reservation } from './types';
+import type { ArchivedItem, CheckIn, ClassSchedule, Pc, PcReport, Profile, Reservation } from './types';
 import { manilaNow } from './seat';
 
 export const hhmm = (t: string) => t.slice(0, 5);
@@ -12,6 +12,7 @@ export function friendlyError(e: { message: string; code?: string }): Error {
   if (e.message === 'class_conflict') return new Error('This slot overlaps a regular class in this lab.');
   if (e.message === 'schedule_conflict') return new Error('This class overlaps another class in the same lab.');
   if (e.code === '42501' || /row-level security/.test(e.message)) return new Error('Not allowed for your role.');
+  if (e.code === '23505' && /pc_reports/.test(e.message)) return new Error('You already reported a problem with this PC. Staff will check it.');
   if (e.code === '23505') {
     if (/student_id/.test(e.message)) return new Error('Student ID already exists.');
     if (/email/.test(e.message)) return new Error('Email already exists.');
@@ -117,10 +118,7 @@ export function createSupabaseApi(url: string, key: string): Api {
       const rows = ok(await sb.from('reservations').update(patch).eq('id', id).select('id'));
       if (!rows.length) throw new Error('Not allowed for your role.');
     },
-    async deleteReservation(id) {
-      const rows = ok(await sb.from('reservations').delete().eq('id', id).select('id'));
-      if (!rows.length) throw new Error('Only pending reservations can be deleted.');
-    },
+    async deleteReservation(id) { ok(await sb.rpc('archive_row', { kind: 'reservation', row_id: id })); },
 
     async listProfiles(role) {
       let q = sb.from('profiles').select('*').order('full_name');
@@ -137,7 +135,7 @@ export function createSupabaseApi(url: string, key: string): Api {
       if (id) ok(await sb.from('students').update(s).eq('id', id));
       else ok(await sb.from('students').insert(s));
     },
-    async deleteStudent(id) { ok(await sb.from('students').delete().eq('id', id)); },
+    async deleteStudent(id) { ok(await sb.rpc('archive_row', { kind: 'student', row_id: id })); },
 
     async listEvents() {
       return (ok(await sb.from('events').select('*').order('event_date')) as { event_time: string }[])
@@ -147,7 +145,7 @@ export function createSupabaseApi(url: string, key: string): Api {
       if (id) ok(await sb.from('events').update(e).eq('id', id));
       else ok(await sb.from('events').insert(e));
     },
-    async deleteEvent(id) { ok(await sb.from('events').delete().eq('id', id)); },
+    async deleteEvent(id) { ok(await sb.rpc('archive_row', { kind: 'event', row_id: id })); },
 
     async listSchedules() {
       return (ok(await sb.from('class_schedules').select('*').order('day_of_week').order('start_time')) as ClassSchedule[])
@@ -157,10 +155,7 @@ export function createSupabaseApi(url: string, key: string): Api {
       const rows = ok(await (id ? sb.from('class_schedules').update(c).eq('id', id) : sb.from('class_schedules').insert(c)).select('id'));
       if (!rows.length) throw new Error('Not allowed for your role.');
     },
-    async deleteSchedule(id) {
-      const rows = ok(await sb.from('class_schedules').delete().eq('id', id).select('id'));
-      if (!rows.length) throw new Error('Not allowed for your role.');
-    },
+    async deleteSchedule(id) { ok(await sb.rpc('archive_row', { kind: 'class', row_id: id })); },
 
     async stats() {
       const count = async (q: PromiseLike<{ count: number | null; error: { message: string } | null }>) => {
@@ -169,15 +164,17 @@ export function createSupabaseApi(url: string, key: string): Api {
         return r.count ?? 0;
       };
       const head = { count: 'exact' as const, head: true };
-      const [students, staff, teachers, pending, pendingTeachers, courses] = await Promise.all([
+      const [students, staff, teachers, pending, pendingTeachers, courses, openReports] = await Promise.all([
         count(sb.from('students').select('*', head)),
         count(sb.from('profiles').select('*', head).eq('role', 'staff').eq('approved', true)),
         count(sb.from('profiles').select('*', head).eq('role', 'teacher').eq('approved', true)),
         count(sb.from('reservations').select('*', head).eq('status', 'pending')),
         count(sb.from('profiles').select('*', head).eq('approved', false)),
         sb.from('students').select('course').then((r) => new Set((r.data ?? []).map((x) => x.course)).size),
+        // 0 until migration 0008 adds the table
+        sb.from('pc_reports').select('*', head).is('resolved_at', null).then((r) => r.count ?? 0),
       ]);
-      return { students, staff, teachers, courses, pending, pendingTeachers };
+      return { students, staff, teachers, courses, pending, pendingTeachers, openReports };
     },
 
     async listCheckIns(labId) {
@@ -189,6 +186,39 @@ export function createSupabaseApi(url: string, key: string): Api {
     async checkIn(pcId) {
       // lab, user, name and time are filled in (and the rules checked) by the database trigger
       return ok(await sb.from('checkins').insert({ pc_id: pcId }).select().single()) as CheckIn;
+    },
+    async listReports(o = {}) {
+      let q = sb.from('pc_reports').select('*').order('created_at', { ascending: false });
+      if (!o.all) q = q.is('resolved_at', null);
+      if (o.labId) q = q.eq('lab_id', o.labId);
+      return ok(await q) as PcReport[];
+    },
+    async reportProblem(pcId, problem, note = null) {
+      // lab, reporter and time are filled in by the database trigger
+      ok(await sb.from('pc_reports').insert({ pc_id: pcId, problem, note: note?.trim() || null }));
+    },
+    async resolveReport(id, action) {
+      const r = ok(await sb.from('pc_reports').select('*').eq('id', id).single()) as PcReport;
+      if (action === 'broken') {
+        const rows = ok(await sb.from('pcs').update({ status: 'broken', note: (r.note ? `${r.problem}: ${r.note}` : r.problem).slice(0, 120) }).eq('id', r.pc_id).select('id'));
+        if (!rows.length) throw new Error('Not allowed for your role.');
+      }
+      // closes every open report for that PC, not just this one
+      const rows = ok(await sb.from('pc_reports').update({ resolved_at: new Date().toISOString(), resolution: action })
+        .eq('pc_id', r.pc_id).is('resolved_at', null).select('id'));
+      if (!rows.length) throw new Error('Not allowed for your role.');
+    },
+    async listArchive() {
+      return ok(await sb.from('archive').select('*').order('archived_at', { ascending: false })) as ArchivedItem[];
+    },
+    async restoreArchived(id) { ok(await sb.rpc('restore_row', { archive_id: id })); },
+    async purgeArchived(id) {
+      const rows = ok(await sb.from('archive').delete().eq('id', id).select('id'));
+      if (!rows.length) throw new Error('Not allowed for your role.');
+    },
+    async setAccountArchived(profileId, archived) {
+      const rows = ok(await sb.from('profiles').update({ archived_at: archived ? new Date().toISOString() : null }).eq('id', profileId).select('id'));
+      if (!rows.length) throw new Error('Not allowed for your role.');
     },
     async checkOut() {
       const me = await uid();

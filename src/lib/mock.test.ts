@@ -47,11 +47,17 @@ describe('mock api', () => {
     await expect(api.reviewReservation(b.id, 'approved')).rejects.toThrow(/overlaps/);
   });
 
-  it('cannot delete an approved reservation', async () => {
-    const api = await asAdmin();
+  it('only an admin can delete (archive) an approved reservation', async () => {
+    const api = createMock(null);
+    await api.signIn('teacher@smcbi.edu.ph', 'x');
     const a = await api.createReservation(input());
+    await api.signIn('admin@smcbi.edu.ph', 'x');
     await api.reviewReservation(a.id, 'approved');
-    await expect(api.deleteReservation(a.id)).rejects.toThrow(/pending/);
+    await api.signIn('teacher@smcbi.edu.ph', 'x');
+    await expect(api.deleteReservation(a.id)).rejects.toThrow(/not allowed/i);
+    await api.signIn('admin@smcbi.edu.ph', 'x');
+    await api.deleteReservation(a.id);
+    expect((await api.listArchive())[0]).toMatchObject({ kind: 'reservation', row_id: a.id });
   });
 
   it('teachers cannot approve reservations or change PC status', async () => {
@@ -120,5 +126,60 @@ describe('mock class schedule', () => {
     await api.signIn('teacher@smcbi.edu.ph', 'x');
     await expect(api.saveSchedule(cls)).rejects.toThrow(/not allowed/i);
     expect((await api.listSchedules()).length).toBeGreaterThan(0);
+  });
+});
+
+describe('mock problem reports', () => {
+  it('students report, cannot spam the same PC, and staff mark it broken', async () => {
+    const api = createMock(null);
+    await api.signIn('c230001@smcbi.edu.ph', 'x');
+    await api.reportProblem('netlab-pc01', 'No display', 'black screen');
+    await expect(api.reportProblem('netlab-pc01', 'No internet')).rejects.toThrow(/already reported/);
+    await expect(api.resolveReport((await api.listReports())[0].id, 'broken')).rejects.toThrow(/not allowed/i);
+
+    await api.signIn('staff@smcbi.edu.ph', 'x');
+    expect((await api.stats()).openReports).toBe(1);
+    const [r] = await api.listReports({ labId: 'netlab' });
+    expect(r).toMatchObject({ problem: 'No display', user_name: '4th Year Student 001', resolved_at: null });
+    await api.resolveReport(r.id, 'broken');
+    const pc = (await api.listPcs('netlab')).find((p) => p.id === 'netlab-pc01');
+    expect(pc).toMatchObject({ status: 'broken', note: 'No display: black screen' });
+    expect(await api.listReports()).toEqual([]);
+    expect((await api.listReports({ all: true }))[0].resolution).toBe('broken');
+  });
+});
+
+describe('mock archive', () => {
+  it('delete moves records to the archive and restore puts them back', async () => {
+    const api = createMock(null);
+    await api.signIn('admin@smcbi.edu.ph', 'x');
+    const before = (await api.listStudents()).length;
+    const s = (await api.listStudents())[0];
+    await api.deleteStudent(s.id);
+    expect((await api.listStudents()).length).toBe(before - 1);
+    const [a] = await api.listArchive();
+    expect(a).toMatchObject({ kind: 'student', row_id: s.id, label: `${s.student_id} · ${s.full_name}` });
+    await api.restoreArchived(a.id);
+    expect((await api.listStudents()).find((x) => x.id === s.id)).toEqual(s);
+    expect(await api.listArchive()).toEqual([]);
+
+    await api.deleteSchedule((await api.listSchedules())[0].id);
+    await api.purgeArchived((await api.listArchive())[0].id);
+    expect(await api.listArchive()).toEqual([]);
+  });
+
+  it('an archived account loses access until restored; others cannot archive', async () => {
+    const api = createMock(null);
+    await api.signIn('teacher@smcbi.edu.ph', 'x');
+    await expect(api.deleteStudent('stu-C260001')).rejects.toThrow(/not allowed/i);
+    await api.signIn('admin@smcbi.edu.ph', 'x');
+    await expect(api.setAccountArchived('admin', true)).rejects.toThrow(/own account/);
+    await api.setAccountArchived('teacher', true);
+    await api.signIn('teacher@smcbi.edu.ph', 'x');
+    await expect(api.listLabs()).rejects.toThrow(/not allowed/i);
+    await api.signIn('admin@smcbi.edu.ph', 'x');
+    await api.setAccountArchived('teacher', false);
+    await api.signIn('teacher@smcbi.edu.ph', 'x');
+    await expect(api.listLabs()).resolves.toHaveLength(3);
   });
 });

@@ -1,7 +1,7 @@
 import { manilaNow } from './seat';
 import { LAYOUTS, seatsFor } from './layouts';
 import { TIMETABLE } from './timetable';
-import { BSIT_ROSTER, type CheckIn, type ClassSchedule, type Lab, type LabEvent, type Pc, type Profile, type Reservation, type Student } from './types';
+import { BSIT_ROSTER, type ArchivedItem, type CheckIn, type ClassSchedule, type PcReport, type Lab, type LabEvent, type Pc, type Profile, type Reservation, type Student } from './types';
 
 export interface MockState {
   profiles: Profile[];
@@ -12,6 +12,8 @@ export interface MockState {
   events: LabEvent[];
   schedules: ClassSchedule[];
   checkIns: CheckIn[];
+  reports: PcReport[];
+  archive: ArchivedItem[];
 }
 
 const person = (id: string, full_name: string, role: Profile['role'], approved: boolean, department: string): Profile => ({
@@ -67,6 +69,8 @@ export function seed(): MockState {
     students: bsitRoster(),
     schedules: seedSchedules(),
     checkIns: [],
+    reports: [],
+    archive: [],
     events: [
       { id: 'e1', title: 'Lab maintenance', description: 'All labs closed for cleaning', event_date: addDays(now.date, 3), event_time: '08:00', event_type: 'meeting', owner_id: 'admin' },
       { id: 'e2', title: 'Midterm week', description: null, event_date: addDays(now.date, 7), event_time: '07:30', event_type: 'academic', owner_id: 'admin' },

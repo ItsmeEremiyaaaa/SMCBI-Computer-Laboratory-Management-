@@ -1,5 +1,5 @@
 import type {
-  CheckIn, ClassSchedule, ScheduleInput,
+  ArchivedItem, CheckIn, ClassSchedule, PcReport, ScheduleInput,
   Lab, LabEvent, Pc, PcStatus, Profile, Reservation, ReservationInput, ResStatus, Role, Student,
 } from './types';
 import { createMock } from './mock';
@@ -11,7 +11,7 @@ export interface SignUpInput {
 }
 export interface ReservationFilter { labId?: string; date?: string; status?: ResStatus; mine?: boolean }
 export interface Stats {
-  students: number; staff: number; teachers: number; courses: number; pending: number; pendingTeachers: number;
+  students: number; staff: number; teachers: number; courses: number; pending: number; pendingTeachers: number; openReports: number;
 }
 export type StudentInput = Omit<Student, 'id'> & { id?: string };
 export type EventInput = Omit<LabEvent, 'id' | 'owner_id'> & { id?: string };
@@ -63,6 +63,20 @@ export interface Api {
   /** Student confirms they are sitting at this PC (leaves any earlier seat). */
   checkIn(pcId: string): Promise<CheckIn>;
   checkOut(): Promise<void>;
+
+  /** Problem reports (open only by default), optionally for one lab. */
+  listReports(opts?: { labId?: string; all?: boolean }): Promise<PcReport[]>;
+  reportProblem(pcId: string, problem: string, note?: string | null): Promise<void>;
+  /** Staff: mark the PC broken (with the report as its note) or dismiss the report. */
+  resolveReport(id: string, action: 'broken' | 'dismissed'): Promise<void>;
+
+  // Archive: deleteStudent/deleteReservation/deleteEvent/deleteSchedule move rows here instead of erasing them.
+  listArchive(): Promise<ArchivedItem[]>;
+  restoreArchived(id: string): Promise<void>;
+  /** Permanently erase an archived row. */
+  purgeArchived(id: string): Promise<void>;
+  /** Archive (no access) or restore a login. */
+  setAccountArchived(profileId: string, archived: boolean): Promise<void>;
 }
 
 const url = import.meta.env.VITE_SUPABASE_URL as string | undefined;

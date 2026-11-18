@@ -13,6 +13,7 @@ import Schedule from './pages/Schedule';
 import StudentHome from './pages/StudentHome';
 import ResetPassword from './pages/ResetPassword';
 import CheckIn from './pages/CheckIn';
+const ArchivePage = lazy(() => import('./pages/Archive'));
 const QrCodes = lazy(() => import('./pages/QrCodes')); // qrcode library only loads for staff printing stickers
 import type { Role } from './lib/types';
 
@@ -46,6 +47,7 @@ export default function App() {
         <Route index element={profile.role === 'student' ? <StudentHome /> : <Dashboard />} />
         <Route path="checkin/:pcId" element={<CheckIn />} />
         <Route path="reset-password" element={<ResetPassword />} />
+        <Route path="archive" element={<Only roles={['admin']}><Suspense fallback={<Loading />}><ArchivePage /></Suspense></Only>} />
         <Route path="qr/:labId?" element={<Only roles={['admin', 'staff']}><Suspense fallback={<Loading />}><QrCodes /></Suspense></Only>} />
         <Route path="labs/:labId?" element={<Suspense fallback={<Loading />}><Labs3D /></Suspense>} />
         <Route path="reservations" element={<Reservations />} />

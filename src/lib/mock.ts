@@ -2,7 +2,7 @@
 import type { Api } from './api';
 import { classesOn, manilaNow, slotsOverlap } from './seat';
 import { seed, seedSchedules, type MockState } from './seed';
-import type { Pc, Profile, Role } from './types';
+import type { ArchiveKind, Pc, Profile, Role } from './types';
 import { isSchoolEmail, schedulesOverlap, validateReservation, validateSchedule, validateStudent } from './validate';
 import { bookingProblems, checkInProblem } from './rules';
 
@@ -21,6 +21,8 @@ export function createMock(storage: Store | null = browserStorage()): Api {
   try { state = JSON.parse(storage?.getItem(KEY) ?? 'null') ?? seed(); } catch { state = seed(); }
   state.schedules ??= seedSchedules(); // demo data saved before weekly classes existed
   state.checkIns ??= [];
+  state.reports ??= [];
+  state.archive ??= [];
   state.labs.forEach((l) => {
     if (l.id === 'lab1') l.name = 'Computer Laboratory 1';
     if (l.id === 'lab2') l.name = 'Computer Laboratory 2';
@@ -38,13 +40,28 @@ export function createMock(storage: Store | null = browserStorage()): Api {
   };
   const me = (): Profile => {
     const p = state.profiles.find((x) => x.id === sessionId);
-    if (!p || !p.approved) throw new Error('Not allowed: sign in with an approved account.');
+    if (!p || !p.approved || p.archived_at) throw new Error('Not allowed: sign in with an approved account.');
     return p;
   };
   const need = (...roles: Role[]) => {
     const p = me();
     if (!roles.includes(p.role)) throw new Error('Not allowed for your role.');
     return p;
+  };
+  // Same as the database: "delete" moves the row to the archive.
+  const LISTS = { student: 'students', reservation: 'reservations', event: 'events', class: 'schedules' } as const;
+  const archiveRow = (kind: ArchiveKind, id: string) => {
+    const p = me();
+    const list = state[LISTS[kind]] as { id: string }[];
+    const row = list.find((x) => x.id === id) as unknown as Record<string, string> | undefined;
+    if (!row) throw new Error('Not found.');
+    const own = (kind === 'reservation' && row.requester_id === p.id && row.status === 'pending') || (kind === 'event' && row.owner_id === p.id);
+    if (p.role !== 'admin' && !own) throw new Error('Not allowed for your role.');
+    const label = kind === 'student' ? `${row.student_id} · ${row.full_name}` : kind === 'reservation' ? `${row.title} · ${row.date} ${row.start_time}`
+      : kind === 'event' ? `${row.title} · ${row.event_date}` : `${row.section} · ${row.subject}`;
+    state.archive.unshift({ id: uid(), kind, row_id: id, label, data: row, archived_by_name: p.full_name, archived_at: new Date().toISOString() });
+    (state as unknown as Record<string, { id: string }[]>)[LISTS[kind]] = list.filter((x) => x.id !== id);
+    changedRes();
   };
   const changedRes = () => { save(); resListeners.forEach((f) => f()); };
   const clone = <T,>(x: T): T => structuredClone(x);
@@ -123,14 +140,7 @@ export function createMock(storage: Store | null = browserStorage()): Api {
       Object.assign(r, { status, admin_notes: notes ?? r.admin_notes, reviewed_at: new Date().toISOString() });
       changedRes();
     },
-    async deleteReservation(id) {
-      const p = me();
-      const r = state.reservations.find((x) => x.id === id);
-      if (!r) throw new Error('Reservation not found.');
-      if (r.status !== 'pending') throw new Error('Only pending reservations can be deleted.');
-      if (r.requester_id !== p.id && p.role !== 'admin') throw new Error('Not allowed for your role.');
-      state.reservations = state.reservations.filter((x) => x.id !== id); changedRes();
-    },
+    async deleteReservation(id) { archiveRow('reservation', id); },
 
     async listProfiles(role) { me(); return clone(state.profiles.filter((p) => !role || p.role === role)); },
     async updateProfile(id, patch) {
@@ -152,7 +162,7 @@ export function createMock(storage: Store | null = browserStorage()): Api {
       if (existing) Object.assign(existing, s); else state.students.push({ ...s, id: uid() });
       save();
     },
-    async deleteStudent(id) { need('admin'); state.students = state.students.filter((x) => x.id !== id); save(); },
+    async deleteStudent(id) { archiveRow('student', id); },
 
     async listEvents() { me(); return clone(state.events); },
     async saveEvent(e) {
@@ -165,12 +175,7 @@ export function createMock(storage: Store | null = browserStorage()): Api {
       } else state.events.push({ ...e, id: uid(), owner_id: p.id });
       save();
     },
-    async deleteEvent(id) {
-      const p = me();
-      const e = state.events.find((x) => x.id === id);
-      if (e && e.owner_id !== p.id && p.role !== 'admin') throw new Error('Not allowed for your role.');
-      state.events = state.events.filter((x) => x.id !== id); save();
-    },
+    async deleteEvent(id) { archiveRow('event', id); },
 
     async listSchedules() { me(); return clone(state.schedules); },
     async saveSchedule(s) {
@@ -183,10 +188,7 @@ export function createMock(storage: Store | null = browserStorage()): Api {
       if (existing) Object.assign(existing, s); else state.schedules.push({ ...s, id: uid() });
       save(); resListeners.forEach((f) => f());
     },
-    async deleteSchedule(id) {
-      need('admin');
-      state.schedules = state.schedules.filter((x) => x.id !== id); save(); resListeners.forEach((f) => f());
-    },
+    async deleteSchedule(id) { archiveRow('class', id); },
 
     async stats() {
       me();
@@ -197,6 +199,7 @@ export function createMock(storage: Store | null = browserStorage()): Api {
         courses: new Set(state.students.map((s) => s.course)).size,
         pending: state.reservations.filter((r) => r.status === 'pending').length,
         pendingTeachers: state.profiles.filter((p) => !p.approved).length,
+        openReports: state.reports.filter((r) => !r.resolved_at).length,
       };
     },
 
@@ -217,6 +220,51 @@ export function createMock(storage: Store | null = browserStorage()): Api {
       const c = { id: uid(), pc_id: pc.id, lab_id: pc.lab_id, user_id: p.id, user_name: p.full_name, checked_in_at: at, checked_out_at: null };
       state.checkIns.push(c); changedRes();
       return clone(c);
+    },
+    async listReports(o = {}) {
+      me();
+      return clone(state.reports.filter((r) => (o.all || !r.resolved_at) && (!o.labId || r.lab_id === o.labId))
+        .sort((a, b) => b.created_at.localeCompare(a.created_at)));
+    },
+    async reportProblem(pcId, problem, note = null) {
+      const p = me();
+      const pc = state.pcs.find((x) => x.id === pcId);
+      if (!pc) throw new Error('PC not found.');
+      if (!problem.trim()) throw new Error('Choose what is wrong.');
+      if (state.reports.some((r) => r.pc_id === pcId && r.user_id === p.id && !r.resolved_at))
+        throw new Error('You already reported a problem with this PC. Staff will check it.');
+      state.reports.push({ id: uid(), pc_id: pcId, lab_id: pc.lab_id, user_id: p.id, user_name: p.full_name, problem,
+        note: note?.trim() || null, created_at: new Date().toISOString(), resolved_at: null, resolution: null });
+      changedRes();
+    },
+    async resolveReport(id, action) {
+      need('admin', 'staff');
+      const r = state.reports.find((x) => x.id === id);
+      if (!r) throw new Error('Report not found.');
+      const pc = state.pcs.find((x) => x.id === r.pc_id);
+      if (action === 'broken' && pc) {
+        Object.assign(pc, { status: 'broken', note: (r.note ? `${r.problem}: ${r.note}` : r.problem).slice(0, 120), updated_at: new Date().toISOString() });
+        pcListeners.forEach((f) => f(clone(pc)));
+      }
+      const at = new Date().toISOString();
+      state.reports.forEach((x) => { if (x.pc_id === r.pc_id && !x.resolved_at) Object.assign(x, { resolved_at: at, resolution: action }); });
+      changedRes();
+    },
+    async listArchive() { need('admin'); return clone(state.archive); },
+    async restoreArchived(id) {
+      need('admin');
+      const a = state.archive.find((x) => x.id === id);
+      if (!a) throw new Error('Not found.');
+      (state[LISTS[a.kind]] as unknown[]).push(clone(a.data));
+      state.archive = state.archive.filter((x) => x.id !== id); changedRes();
+    },
+    async purgeArchived(id) { need('admin'); state.archive = state.archive.filter((x) => x.id !== id); save(); },
+    async setAccountArchived(profileId, archived) {
+      const p = need('admin');
+      if (p.id === profileId) throw new Error('You cannot archive your own account.');
+      const t = state.profiles.find((x) => x.id === profileId);
+      if (!t) throw new Error('Profile not found.');
+      t.archived_at = archived ? new Date().toISOString() : null; save();
     },
     async checkOut() {
       const p = me();

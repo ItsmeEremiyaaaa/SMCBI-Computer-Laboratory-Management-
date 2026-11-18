@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { NavLink, Outlet, useLocation } from 'react-router-dom';
 import NotificationBell from './NotificationBell';
-import { Box, CalendarClock, CalendarDays, ClipboardList, LayoutGrid, LogOut, Menu, QrCode, Users, X } from 'lucide-react';
+import { Archive, Box, CalendarClock, CalendarDays, ClipboardList, LayoutGrid, LogOut, Menu, QrCode, Users, X } from 'lucide-react';
 import { Crest } from './ui';
 import IntroSplash from './IntroSplash';
 import { useAuth } from '../auth';
@@ -16,6 +16,7 @@ const NAV: { to: string; label: string; icon: typeof Box; roles: Role[] }[] = [
   { to: '/calendar', label: 'Calendar', icon: CalendarDays, roles: ['admin', 'staff', 'teacher', 'student'] },
   { to: '/people/teachers', label: 'People', icon: Users, roles: ['admin'] },
   { to: '/qr', label: 'PC QR codes', icon: QrCode, roles: ['admin', 'staff'] },
+  { to: '/archive', label: 'Archive', icon: Archive, roles: ['admin'] },
 ];
 
 function Brand() {
@@ -46,7 +47,7 @@ export default function Layout() {
   }, [profile?.role, pathname]);
 
   if (!profile) return null;
-  const count = (stats?.pending ?? 0) + (profile.role === 'admin' ? stats?.pendingTeachers ?? 0 : 0);
+  const count = (stats?.pending ?? 0) + (stats?.openReports ?? 0) + (profile.role === 'admin' ? stats?.pendingTeachers ?? 0 : 0);
 
   // Floating bottom navigation (active only on Labs view)
   const floatingNav = isLabs && (

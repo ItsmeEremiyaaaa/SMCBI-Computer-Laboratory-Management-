@@ -8,6 +8,7 @@ import { checkInProblem } from '../lib/rules';
 import { manilaNow } from '../lib/seat';
 import type { CheckIn as CheckInRow } from '../lib/types';
 import { Alert, Button, Panel } from '../components/ui';
+import ReportProblem from '../components/ReportProblem';
 
 const LAB_NAME: Record<string, string> = { lab1: 'Computer Laboratory 1', lab2: 'Computer Laboratory 2', netlab: 'Networking Laboratory' };
 
@@ -73,6 +74,9 @@ export default function CheckIn() {
 
           {pc && profile && profile.role !== 'student' && (
             <p className="text-sm">{here ? <>Checked in now: <b>{here.user_name}</b></> : <span className="text-muted">No student is checked in at this PC.</span>}</p>
+          )}
+          {pc && profile && profile.role !== 'admin' && profile.role !== 'staff' && pc.status !== 'broken' && (
+            <ReportProblem pcId={pc.id} pcLabel={pc.label} />
           )}
         </div>
       </Panel>

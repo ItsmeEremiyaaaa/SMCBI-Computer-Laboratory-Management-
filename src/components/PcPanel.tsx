@@ -6,6 +6,7 @@ import { useAuth } from '../auth';
 import { useLoad } from '../hooks/useLoad';
 import { api } from '../lib/api';
 import { STUDENT_LAB } from '../lib/rules';
+import ReportProblem from './ReportProblem';
 import type { Lab, PcStatus } from '../lib/types';
 import { Alert, Button, Field, fmtTime, Input, Led, STATUS_LABEL } from './ui';
 
@@ -20,6 +21,13 @@ export default function PcPanel({ pc, lab, canEdit, onClose }: { pc: LivePc; lab
   const checkIns = useLoad(() => api.listCheckIns(lab.id).catch(() => []), [lab.id, pc.id]);
   const here = checkIns.data?.find((c) => c.pc_id === pc.id);
   const canReserve = pc.status !== 'broken' && (profile?.role !== 'student' || lab.id === STUDENT_LAB);
+  const isStaff = profile?.role === 'admin' || profile?.role === 'staff';
+  const reports = useLoad(() => (profile?.role === 'student' ? Promise.resolve([]) : api.listReports({ labId: lab.id }).catch(() => [])), [lab.id, pc.id, pc.status]);
+  const open = (reports.data ?? []).filter((r) => r.pc_id === pc.id);
+  async function resolve(id: string, action: 'broken' | 'dismissed') {
+    setBusy(true); setError(null);
+    try { await api.resolveReport(id, action); await reports.reload(); } catch (e) { setError((e as Error).message); } finally { setBusy(false); }
+  }
 
   async function set(status: PcStatus) {
     setBusy(true); setError(null);
@@ -53,6 +61,25 @@ export default function PcPanel({ pc, lab, canEdit, onClose }: { pc: LivePc; lab
           <span className="text-muted"> since {new Date(here.checked_in_at).toLocaleTimeString('en-PH', { hour: 'numeric', minute: '2-digit' })}</span>
         </p>
       )}
+      {open.length > 0 && (
+        <div className="rounded-md border border-amber-300 bg-amber-50 p-3 text-sm">
+          <p className="font-semibold text-amber-900">{open.length} problem report{open.length > 1 ? 's' : ''}</p>
+          <ul className="mt-1 grid gap-1.5">
+            {open.map((r) => (
+              <li key={r.id}>
+                <b>{r.problem}</b>{r.note && <> — {r.note}</>}
+                <span className="block text-xs text-amber-800/80">{r.user_name}, {new Date(r.created_at).toLocaleString('en-PH', { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' })}</span>
+              </li>
+            ))}
+          </ul>
+          {isStaff && (
+            <div className="mt-2 flex gap-2">
+              <Button size="sm" variant="danger" disabled={busy} onClick={() => resolve(open[0].id, 'broken')}>Mark broken</Button>
+              <Button size="sm" variant="ghost" disabled={busy} onClick={() => resolve(open[0].id, 'dismissed')}>Dismiss</Button>
+            </div>
+          )}
+        </div>
+      )}
       {pc.note && !canEdit && <p className="text-sm"><span className="text-muted">Note:</span> {pc.note}</p>}
 
       {canEdit ? (
@@ -82,6 +109,7 @@ export default function PcPanel({ pc, lab, canEdit, onClose }: { pc: LivePc; lab
         </div>
       ) : null}
 
+      {!isStaff && pc.status !== 'broken' && <ReportProblem pcId={pc.id} pcLabel={pc.label} onDone={reports.reload} />}
       {canReserve ? (
         <Link to={`/reservations?new=1&lab=${lab.id}&pc=${pc.id}`}
           className="inline-flex h-10 items-center justify-center rounded-md border border-line bg-panel text-sm font-medium hover:bg-chalk">

@@ -116,8 +116,8 @@ export default function Reservations() {
                   </>}
                   {isAdmin && r.status === 'approved' && ended(r) &&
                     <Button size="sm" variant="ghost" onClick={() => act(() => api.reviewReservation(r.id, 'completed'))}>Mark completed</Button>}
-                  {r.status === 'pending' && (isAdmin || r.requester_id === profile?.id) &&
-                    <Button size="sm" variant="quiet" onClick={() => confirm('Delete this request?') && act(() => api.deleteReservation(r.id))}>Delete</Button>}
+                  {(isAdmin || (r.status === 'pending' && r.requester_id === profile?.id)) &&
+                    <Button size="sm" variant="quiet" onClick={() => confirm('Delete this request? It moves to the Archive, where an admin can restore it.') && act(() => api.deleteReservation(r.id))}>Delete</Button>}
                 </div>
               </li>
             ))}

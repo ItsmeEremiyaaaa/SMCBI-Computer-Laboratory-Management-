@@ -18,6 +18,8 @@ export interface Profile {
   course: string | null;
   phone: string | null;
   address: string | null;
+  /** set when an admin archives the login: it keeps its data but has no access */
+  archived_at?: string | null;
 }
 
 export interface Lab { id: string; name: string; rows: number; cols: number }
@@ -115,4 +117,31 @@ export interface CheckIn {
   user_name: string;
   checked_in_at: string; // ISO timestamp
   checked_out_at: string | null;
+}
+
+// A student/teacher reporting a problem with a PC. Staff mark the PC broken or dismiss it.
+export const PROBLEMS = ['No display', 'Keyboard / mouse', 'No internet', "Won't turn on", 'Slow / freezing', 'Other'] as const;
+export interface PcReport {
+  id: string;
+  pc_id: string;
+  lab_id: string;
+  user_id: string;
+  user_name: string;
+  problem: string;
+  note: string | null;
+  created_at: string;
+  resolved_at: string | null;
+  resolution: 'broken' | 'dismissed' | null;
+}
+
+// Rows moved to the Archive by "Delete" (restorable).
+export type ArchiveKind = 'student' | 'reservation' | 'event' | 'class';
+export interface ArchivedItem {
+  id: string;
+  kind: ArchiveKind;
+  row_id: string;
+  label: string;
+  data: Record<string, unknown>;
+  archived_by_name: string | null;
+  archived_at: string;
 }

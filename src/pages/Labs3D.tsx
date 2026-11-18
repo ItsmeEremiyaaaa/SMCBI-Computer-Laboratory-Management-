@@ -138,7 +138,7 @@ export default function Labs3D() {
   const lab = labs.data?.find((l) => l.id === labId) ?? labs.data?.[0];
   const { pcs, error } = useLabLive(lab?.id ?? '__none__');
   const [selectedId, setSelectedId] = useState<string | null>(null);
-  const [mode, setMode] = useState<'3d' | '2d'>(hasWebGL ? '3d' : '2d');
+  const [mode, setMode] = useState<'3d' | '2d'>('2d'); // floor plan by default; 3D is one click away
   const [sceneReady, setSceneReady] = useState(false);
   const select = (id: string) => { setSelectedId(id || null); setStudentPick(null); };
   const [showGuideModal, setShowGuideModal] = useState(false);
@@ -382,7 +382,7 @@ export default function Labs3D() {
                 />
               </Suspense>
             </SceneBoundary>
-          : <div className="h-full w-full overflow-auto p-6 pt-36 pb-24"><SeatGrid lab={lab} pcs={displayedPcs} selectedId={selectedId} onSelect={select} onReady={() => setSceneReady(true)} isOccupied={isClassInSession} classInfo={activeClassSchedule} simMode={effectiveSimMode} teacherName={teacherName} /></div>)}
+          : <div className="h-full w-full overflow-auto p-6 pt-36 pb-32"><SeatGrid lab={lab} pcs={displayedPcs} selectedId={selectedId} onSelect={select} onReady={() => setSceneReady(true)} isOccupied={isClassInSession} classInfo={activeClassSchedule} simMode={effectiveSimMode} teacherName={teacherName} /></div>)}
       </div>
 
 

@@ -71,7 +71,7 @@ function Accounts({ role, q }: { role: Role; q: string }) {
   const list = useLoad(() => api.listProfiles(role), [role]);
   const [edit, setEdit] = useState<Profile | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const rows = (list.data ?? []).filter((p) => match(q, p.full_name, p.email, p.department))
+  const rows = (list.data ?? []).filter((p) => !p.archived_at && match(q, p.full_name, p.email, p.department))
     .sort((a, b) => Number(a.approved) - Number(b.approved) || a.full_name.localeCompare(b.full_name));
 
   // Instructors named on the class schedule, matched to accounts by name.
@@ -96,6 +96,11 @@ function Accounts({ role, q }: { role: Role; q: string }) {
   const accountKeys = new Set((list.data ?? []).map((p) => nameKey(p.full_name)));
   const noAccount = [...byInstructor.entries()].filter(([k, v]) => !accountKeys.has(k) && match(q, v.name))
     .map(([, v]) => v).sort((a, b) => a.name.localeCompare(b.name));
+
+  async function archive(id: string) {
+    setError(null);
+    try { await api.setAccountArchived(id, true); await list.reload(); } catch (e) { setError((e as Error).message); }
+  }
 
   async function patch(id: string, p: Partial<Profile>) {
     setError(null);
@@ -138,7 +143,7 @@ function Accounts({ role, q }: { role: Role; q: string }) {
                     <Button size="sm" variant="ghost" onClick={() => setNewRecord(draftRecord(p))}>Add student record</Button>}
                   {!p.approved && <Button size="sm" onClick={() => patch(p.id, { approved: true })}>Approve</Button>}
                   {p.approved && p.id !== me?.id &&
-                    <Button size="sm" variant="quiet" onClick={() => confirm(`Remove ${p.full_name}'s access?`) && patch(p.id, { approved: false })}>Remove access</Button>}
+                    <Button size="sm" variant="quiet" onClick={() => confirm(`Archive ${p.full_name}? They lose access right away; restore them from the Archive.`) && archive(p.id)}>Archive</Button>}
                   <Button size="sm" variant="ghost" onClick={() => setEdit(p)}>Edit</Button>
                 </div>
               </li>
@@ -246,7 +251,7 @@ function Students({ q }: { q: string }) {
   }).filter((r) => r.total > 0);
 
   async function remove(s: Student) {
-    if (!confirm(`Delete ${s.full_name}? This can't be undone.`)) return;
+    if (!confirm(`Delete ${s.full_name}? It moves to the Archive, where an admin can restore it.`)) return;
     try { await api.deleteStudent(s.id); await list.reload(); } catch (e) { setError((e as Error).message); }
   }
   async function changeStatus(s: Student, next: StudentStatus) {
