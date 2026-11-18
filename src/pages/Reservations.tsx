@@ -141,7 +141,7 @@ export default function Reservations() {
         )}
       </Panel>
 
-      <Modal open={newOpen} title={isStudent ? 'Book a NetLab PC' : 'Request a lab'} onClose={closeNew}>
+      <Modal wide open={newOpen} title={isStudent ? 'Book a NetLab PC' : 'Request a lab'} onClose={closeNew}>
         {labs.data && profile && (
           <ReservationForm labs={labs.data} pcs={pcs.data ?? []} role={profile.role}
             approved={approvedAll.data ?? []} schedules={schedules.data ?? []}

@@ -62,49 +62,58 @@ export default function ReservationForm({ labs: allLabs, pcs, initial, onSubmit,
           {errors.map((x) => <li key={x}>{x}</li>)}
         </ul>
       )}
-      <div className="grid gap-3 sm:grid-cols-2">
-        <Field label="Lab">
-          <Select value={f.lab_id} onChange={(e) => setF({ ...f, lab_id: e.target.value, pc_id: '' })}>
-            {labs.map((l) => <option key={l.id} value={l.id}>{l.name}</option>)}
-          </Select>
-        </Field>
-        <Field label="Seat">
-          <Select value={f.pc_id} onChange={set('pc_id')}>
-            <option value="">{student ? 'Choose a PC' : 'Whole lab (class)'}</option>
-            {labPcs.map((p) => (
-              <option key={p.id} value={p.id} disabled={p.status === 'broken'}>{p.label}{p.status === 'broken' ? ' — broken' : ''}</option>
-            ))}
-          </Select>
-        </Field>
+      <div className="grid gap-4 lg:grid-cols-2 lg:gap-6">
+        {/* where & who */}
+        <div className="grid content-start gap-4">
+          <div className="grid gap-3 sm:grid-cols-2">
+            <Field label="Lab" required>
+              <Select value={f.lab_id} onChange={(e) => setF({ ...f, lab_id: e.target.value, pc_id: '' })}>
+                {labs.map((l) => <option key={l.id} value={l.id}>{l.name}</option>)}
+              </Select>
+            </Field>
+            <Field label="Seat" required={student}>
+              <Select value={f.pc_id} onChange={set('pc_id')}>
+                <option value="">{student ? 'Choose a PC' : 'Whole lab (class)'}</option>
+                {labPcs.map((p) => (
+                  <option key={p.id} value={p.id} disabled={p.status === 'broken'}>{p.label}{p.status === 'broken' ? ' — broken' : ''}</option>
+                ))}
+              </Select>
+            </Field>
+          </div>
+          {role === 'admin' && (
+            <Field label="Teacher" hint="Who asked for this booking. It is filed under them and students see their name.">
+              <Select value={f.teacher} onChange={set('teacher')}>
+                <option value="">Me (admin)</option>
+                {teacherList.map((t) => <option key={t.id} value={t.id}>{t.full_name}</option>)}
+              </Select>
+            </Field>
+          )}
+          {!student && sections.length > 0 && (
+            <Field label="For class" hint="Students of this section get a notification about this booking.">
+              <Select value={f.section} onChange={set('section')}>
+                <option value="">No class / not for students</option>
+                {sections.map((x) => <option key={x} value={x}>{x}</option>)}
+              </Select>
+            </Field>
+          )}
+          <div className="grid gap-3 sm:grid-cols-[8rem_1fr]">
+            <Field label="Participants"><Input type="number" min={1} value={f.participants} onChange={set('participants')} /></Field>
+            <Field label="Requirements"><Input value={f.requirements} onChange={set('requirements')} placeholder="Software, internet, projector…" /></Field>
+          </div>
+        </div>
+        {/* what & when */}
+        <div className="grid content-start gap-4">
+          <Field label="Title" required><Input value={f.title} onChange={set('title')} placeholder={student ? 'e.g. Packet Tracer practice' : 'e.g. Programming 2, BSIT 1A'} /></Field>
+          <Field label="Purpose" required><Textarea value={f.purpose} onChange={set('purpose')} rows={2} /></Field>
+          <div className="grid gap-3 sm:grid-cols-3">
+            <Field label="Date" required><Input type="date" value={f.date} onChange={set('date')} min={manilaNow().date} /></Field>
+            <Field label="Start time" required><Input type="time" value={f.start_time} onChange={set('start_time')} /></Field>
+            <Field label="End time" required><Input type="time" value={f.end_time} onChange={set('end_time')} /></Field>
+          </div>
+        </div>
       </div>
-      {role === 'admin' && (
-        <Field label="Teacher" hint="The booking is filed under this teacher; their name is shown to students.">
-          <Select value={f.teacher} onChange={set('teacher')}>
-            <option value="">Me (admin)</option>
-            {teacherList.map((t) => <option key={t.id} value={t.id}>{t.full_name}</option>)}
-          </Select>
-        </Field>
-      )}
-      <Field label="Title"><Input value={f.title} onChange={set('title')} placeholder={student ? 'e.g. Packet Tracer practice' : 'e.g. Programming 2, BSIT 1A'} /></Field>
-      {!student && sections.length > 0 && (
-        <Field label="For class (optional)" hint="Students of this section get a notification about this booking.">
-          <Select value={f.section} onChange={set('section')}>
-            <option value="">No class / not for students</option>
-            {sections.map((s) => <option key={s} value={s}>{s}</option>)}
-          </Select>
-        </Field>
-      )}
-      <Field label="Purpose"><Textarea value={f.purpose} onChange={set('purpose')} rows={2} /></Field>
-      <div className="grid gap-3 sm:grid-cols-3">
-        <Field label="Date"><Input type="date" value={f.date} onChange={set('date')} min={manilaNow().date} /></Field>
-        <Field label="Start time"><Input type="time" value={f.start_time} onChange={set('start_time')} /></Field>
-        <Field label="End time"><Input type="time" value={f.end_time} onChange={set('end_time')} /></Field>
-      </div>
-      <div className="grid gap-3 sm:grid-cols-[8rem_1fr]">
-        <Field label="Participants"><Input type="number" min={1} value={f.participants} onChange={set('participants')} /></Field>
-        <Field label="Requirements"><Input value={f.requirements} onChange={set('requirements')} placeholder="Software, internet, projector…" /></Field>
-      </div>
-      <div className="flex justify-end gap-2">
+      <div className="flex items-center justify-end gap-2">
+        <p className="mr-auto text-xs text-muted"><span className="text-broken">*</span> required</p>
         <Button type="button" variant="ghost" onClick={onCancel}>Cancel</Button>
         <Button disabled={busy}>{busy ? 'Sending…' : 'Send request'}</Button>
       </div>

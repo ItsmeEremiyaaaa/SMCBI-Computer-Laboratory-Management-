@@ -30,10 +30,10 @@ export function Button({ variant = 'primary', size = 'md', className, ...p }: Bt
   );
 }
 
-export function Field({ label, error, children, hint }: { label: string; error?: string; hint?: string; children: ReactNode }) {
+export function Field({ label, error, children, hint, required }: { label: string; error?: string; hint?: string; required?: boolean; children: ReactNode }) {
   return (
     <label className="grid gap-1 text-sm">
-      <span className="font-medium">{label}</span>
+      <span className="font-medium">{label}{required && <span className="text-broken" aria-hidden> *</span>}{required && <span className="sr-only"> (required)</span>}</span>
       {children}
       {hint && !error && <span className="text-xs text-muted">{hint}</span>}
       {error && <span className="text-xs text-broken">{error}</span>}
@@ -145,7 +145,7 @@ export function ConfirmHost() {
   );
 }
 
-export function Modal({ open, title, onClose, children }: { open: boolean; title: string; onClose: () => void; children: ReactNode }) {
+export function Modal({ open, title, onClose, children, wide = false }: { open: boolean; title: string; onClose: () => void; children: ReactNode; wide?: boolean }) {
   const ref = useRef<HTMLDialogElement>(null);
   useEffect(() => {
     const d = ref.current;
@@ -156,8 +156,8 @@ export function Modal({ open, title, onClose, children }: { open: boolean; title
   if (!open) return null;
   return (
     <dialog ref={ref} onClose={onClose} onCancel={onClose} aria-label={title}
-      className="mb-0 mt-auto w-full max-w-full rounded-t-2xl border border-line bg-panel p-0 text-ink shadow-xl backdrop:bg-rail/50
-        sm:m-auto sm:w-[min(92vw,34rem)] sm:rounded-lg">
+      className={`mb-0 mt-auto w-full max-w-full rounded-t-2xl border border-line bg-panel p-0 text-ink shadow-xl backdrop:bg-rail/50
+        sm:m-auto sm:rounded-lg ${wide ? 'sm:w-[min(94vw,34rem)] lg:w-[min(94vw,62rem)]' : 'sm:w-[min(92vw,34rem)]'}`}>
       <div className="mx-auto mt-2 h-1 w-10 rounded-full bg-line sm:hidden" aria-hidden />
       <div className="flex items-center justify-between gap-3 border-b border-line px-4 py-3 sm:px-5">
         <h2 className="min-w-0 truncate font-semibold">{title}</h2>
