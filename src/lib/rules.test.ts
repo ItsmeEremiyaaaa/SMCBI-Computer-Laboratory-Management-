@@ -1,4 +1,4 @@
-import { bookingProblems, checkInProblem, effectiveStatuses, sectionIncludes } from './rules';
+import { bookingProblems, checkInProblem, effectiveStatuses, sectionIncludes, sectionSize } from './rules';
 import type { ClassSchedule, Pc, Reservation, ReservationInput } from './types';
 
 const pc = (id: string, status: Pc['status'] = 'free', lab_id = 'netlab'): Pc =>
@@ -98,5 +98,18 @@ describe('sectionIncludes', () => {
     expect(sectionIncludes('BSIT 2B', 'BSIT 2A')).toBe(false);
     expect(sectionIncludes('BSIT 4', 'BSBA 4A')).toBe(false);
     expect(sectionIncludes(null, 'BSIT 4A')).toBe(false);
+  });
+});
+
+describe('sectionSize', () => {
+  it('adds up the enrolled students in a section, or a whole year', () => {
+    const sizes = [
+      { course: 'BSIT', year_level: '4th Year', section: 'A', n: 12 },
+      { course: 'BSIT', year_level: '4th Year', section: 'B', n: 13 },
+      { course: 'BSIT', year_level: '2nd Year', section: 'B', n: 24 },
+    ];
+    expect(sectionSize(sizes, 'BSIT 2B')).toBe(24);
+    expect(sectionSize(sizes, 'BSIT 4')).toBe(25);
+    expect(sectionSize(sizes, 'BSBA 1A')).toBe(0);
   });
 });

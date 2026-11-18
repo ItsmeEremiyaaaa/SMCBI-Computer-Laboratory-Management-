@@ -156,6 +156,17 @@ export function createMock(storage: Store | null = browserStorage()): Api {
     },
 
     async listStudents() { me(); return clone(state.students); },
+    async sectionSizes() {
+      me();
+      const m = new Map<string, { course: string; year_level: string; section: string; n: number }>();
+      for (const s of state.students) {
+        if ((s.status ?? 'Enrolled') !== 'Enrolled') continue;
+        const k = `${s.course}|${s.year_level}|${s.section.toUpperCase()}`;
+        const e = m.get(k) ?? { course: s.course, year_level: s.year_level, section: s.section.toUpperCase(), n: 0 };
+        e.n++; m.set(k, e);
+      }
+      return [...m.values()];
+    },
     async saveStudent(s) {
       need('admin');
       const errs = validateStudent(s);

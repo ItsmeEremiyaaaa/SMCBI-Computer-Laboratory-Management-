@@ -9,6 +9,7 @@ export interface SignUpInput {
   full_name: string; email: string; password: string; department: string; course: string;
   account_type?: 'student' | 'teacher';
 }
+export interface SectionSize { course: string; year_level: string; section: string; n: number }
 export interface ReservationFilter { labId?: string; date?: string; status?: ResStatus; mine?: boolean }
 export interface Stats {
   students: number; staff: number; teachers: number; courses: number; pending: number; pendingTeachers: number; openReports: number;
@@ -46,6 +47,8 @@ export interface Api {
   updateProfile(id: string, patch: Partial<Omit<Profile, 'id' | 'email'>>): Promise<void>;
 
   listStudents(): Promise<Student[]>;
+  /** Enrolled students per section (counts only; any approved user). */
+  sectionSizes(): Promise<SectionSize[]>;
   saveStudent(s: StudentInput): Promise<void>;
   deleteStudent(id: string): Promise<void>;
 

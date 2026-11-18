@@ -94,6 +94,11 @@ export function nameKey(name: string) {
   return words.length ? `${words[0]} ${words[words.length - 1]}` : '';
 }
 
+/** Enrolled students in a class section ('BSIT 2B', or 'BSIT 4' = the whole year), from per-section counts. */
+export function sectionSize(sizes: { course: string; year_level: string; section: string; n: number }[], classSection: string) {
+  return sizes.filter((x) => sectionIncludes(classSection, `${x.course} ${x.year_level.charAt(0)}${x.section}`)).reduce((t, x) => t + x.n, 0);
+}
+
 /** Whether a class section ('BSIT 2B', or 'BSIT 4' = the whole year) includes a student's section ('BSIT 4A'). */
 export function sectionIncludes(classSection: string | null | undefined, studentSection: string | null | undefined) {
   const re = /^([A-Z]+)\s*(\d)\s*([A-Z])?$/i;

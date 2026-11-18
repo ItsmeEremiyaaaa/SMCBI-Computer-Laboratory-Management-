@@ -134,6 +134,7 @@ export function createSupabaseApi(url: string, key: string): Api {
     },
 
     async listStudents() { return ok(await sb.from('students').select('*').order('full_name')); },
+    async sectionSizes() { return ok(await sb.rpc('section_sizes')) ?? []; },
     async saveStudent({ id, ...s }) {
       if (id) ok(await sb.from('students').update(s).eq('id', id));
       else ok(await sb.from('students').insert(s));
