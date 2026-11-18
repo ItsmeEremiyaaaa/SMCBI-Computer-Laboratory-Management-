@@ -1,4 +1,4 @@
-import { useState, type FormEvent } from 'react';
+import { useMemo, useState, type FormEvent } from 'react';
 import { NavLink, useParams } from 'react-router-dom';
 import { Plus, Search } from 'lucide-react';
 import { useAuth } from '../auth';
@@ -183,11 +183,29 @@ function Accounts({ role, q }: { role: Role; q: string }) {
   );
 }
 
+const ORDINAL = ['', '1st', '2nd', '3rd', '4th', '5th'];
+/** 'Nth Year X' options for a department, from student records and timetable sections like 'BSIT 2B'; keeps the current value. */
+export function yearSections(department: string, records: Student[], timetable: ClassSchedule[], current = '') {
+  const out = new Set<string>();
+  for (const r of records) if (r.course === department && r.year_level && r.section) out.add(`${r.year_level} ${r.section.toUpperCase()}`);
+  for (const c of timetable) {
+    const m = c.section.trim().match(/^([A-Z]+)\s*(\d)\s*([A-Z])$/i);
+    if (m && m[1].toUpperCase() === department) out.add(`${ORDINAL[Number(m[2])] ?? m[2] + 'th'} Year ${m[3].toUpperCase()}`);
+  }
+  if (current) out.add(current);
+  return [...out].sort();
+}
+
 function ProfileModal({ p, canChangeRole, onClose, onSave }:
   { p: Profile; canChangeRole: boolean; onClose: () => void; onSave: (x: Partial<Profile>) => Promise<void> }) {
   const [f, setF] = useState({ full_name: p.full_name, email: p.email, department: p.department ?? '', course: p.course ?? '', phone: p.phone ?? '', address: p.address ?? '', role: p.role });
   const [error, setError] = useState<string | null>(null);
   const set = (k: keyof typeof f) => (e: { target: { value: string } }) => setF({ ...f, [k]: e.target.value });
+  const isStudent = f.role === 'student';
+  // year & section choices: the sections on record for this department (student records + lab timetable)
+  const records = useLoad(() => (isStudent ? api.listStudents().catch(() => []) : Promise.resolve([] as Student[])), [isStudent]);
+  const timetable = useLoad(() => (isStudent ? api.listSchedules().catch(() => []) : Promise.resolve([] as ClassSchedule[])), [isStudent]);
+  const sections = useMemo(() => yearSections(f.department, records.data ?? [], timetable.data ?? [], f.course), [f.department, f.course, records.data, timetable.data]);
   async function submit(e: FormEvent) {
     e.preventDefault();
     if (!f.full_name.trim()) return setError('Full name is required.');
@@ -215,7 +233,16 @@ function ProfileModal({ p, canChangeRole, onClose, onSave }:
           <Field label="Role"><Select value={f.role} onChange={set('role')} disabled={!canChangeRole}>
             <option value="student">Student</option><option value="teacher">Teacher</option><option value="staff">Staff</option><option value="admin">Admin</option></Select></Field>
         </div>
-        <Field label={p.role === 'student' ? 'Year and section' : 'Course taught'}><Input value={f.course} onChange={set('course')} placeholder={p.role === 'student' ? 'e.g. 1st Year A' : ''} /></Field>
+        {isStudent ? (
+          <Field label="Year and section" hint={f.department ? 'Sections recorded for this department in the student records and lab schedule.' : 'Choose a department first.'}>
+            <Select value={f.course} onChange={set('course')} disabled={!f.department}>
+              <option value="">Not set</option>
+              {sections.map((x) => <option key={x}>{x}</option>)}
+            </Select>
+          </Field>
+        ) : (
+          <Field label="Course taught"><Input value={f.course} onChange={set('course')} /></Field>
+        )}
         <div className="grid gap-3 sm:grid-cols-2">
           <Field label="Phone"><Input value={f.phone} onChange={set('phone')} inputMode="numeric" maxLength={11} /></Field>
           <Field label="Address"><Input value={f.address} onChange={set('address')} /></Field>
