@@ -8,7 +8,7 @@ Scripts the lab admin runs on their own PC. They talk to the live Supabase datab
 ```
 D:\Python312\python.exe -m venv D:\venvs\comlab
 D:\venvs\comlab\Scripts\pip install -r tools\requirements.txt
-copy tools\.env.example tools\.env      (then paste the service_role key into it)
+copy tools\.env.example tools\.env      (then paste the secret key, sb_secret_..., into it)
 ```
 
 Run every command from the `tools` folder with `D:\venvs\comlab\Scripts\python.exe <script> …`.

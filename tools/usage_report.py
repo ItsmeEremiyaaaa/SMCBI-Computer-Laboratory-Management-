@@ -24,9 +24,10 @@ def hours(a: str, b: str) -> float:
     return (t1.hour * 60 + t1.minute - t0.hour * 60 - t0.minute) / 60
 
 
-def lab_hours(schedules: list[dict], reservations: list[dict], start: date, end: date) -> pd.DataFrame:
+def lab_hours(schedules: list[dict], reservations: list[dict], start: date, end: date, labs: list[str] = ()) -> pd.DataFrame:
+    """Every lab gets a row, even one with no classes or bookings (zeros)."""
     rows = []
-    for lab in sorted({s["lab_id"] for s in schedules} | {r["lab_id"] for r in reservations}):
+    for lab in sorted(set(labs) | {s["lab_id"] for s in schedules} | {r["lab_id"] for r in reservations}):
         cls = sum(hours(s["start_time"], s["end_time"]) * len(class_days(s, start, end)) for s in schedules if s["lab_id"] == lab)
         bk = [r for r in reservations if r["lab_id"] == lab and r["status"] in ("approved", "completed")
               and start.isoformat() <= r["date"] <= end.isoformat()]
@@ -89,7 +90,7 @@ def main() -> None:
 
     path = out_dir() / f"usage_{a.month}.xlsx"
     with pd.ExcelWriter(path) as xl:
-        lab_hours(schedules, reservations, start, end).to_excel(xl, sheet_name="Labs", index=False)
+        lab_hours(schedules, reservations, start, end, [p["lab_id"] for p in pcs]).to_excel(xl, sheet_name="Labs", index=False)
         pc_usage(checkins, pcs, start, end, now).to_excel(xl, sheet_name="PCs", index=False)
         no_shows(reservations, checkins, profiles, start, end, now).to_excel(xl, sheet_name="No-shows", index=False)
         broken(pcs).to_excel(xl, sheet_name="Broken", index=False)
