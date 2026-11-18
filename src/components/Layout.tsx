@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { NavLink, Outlet, useLocation } from 'react-router-dom';
 import NotificationBell from './NotificationBell';
+import StudentBell from './StudentBell';
 import { Archive, Box, CalendarClock, CalendarDays, ClipboardList, LayoutGrid, LogOut, Menu, QrCode, Users, X } from 'lucide-react';
 import { Crest } from './ui';
 import IntroSplash from './IntroSplash';
@@ -90,6 +91,7 @@ export default function Layout() {
           {(profile.role === 'admin' || profile.role === 'staff') && (
             <NotificationBell count={count} />
           )}
+          {profile.role === 'student' && <StudentBell />}
           <div className="pointer-events-auto flex items-center gap-2 rounded-xl border border-line/60 bg-panel/90 p-1.5 shadow-md backdrop-blur">
             <span className="grid h-7 w-7 place-items-center rounded-lg bg-rail text-xs font-semibold text-white">
               {profile.full_name.split(' ').map((w) => w[0]).slice(0, 2).join('')}
@@ -155,6 +157,7 @@ export default function Layout() {
             {(profile.role === 'admin' || profile.role === 'staff') && (
               <NotificationBell count={count} />
             )}
+            {profile.role === 'student' && <StudentBell />}
           </div>
         </div>
         <main className="mx-auto w-full max-w-7xl flex-1 px-4 py-5 md:px-6"><Outlet /></main>
