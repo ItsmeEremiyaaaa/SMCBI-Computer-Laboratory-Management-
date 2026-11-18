@@ -139,8 +139,9 @@ function Accounts({ role, q }: { role: Role; q: string }) {
                 </div>
                 {!p.approved && <span className="rounded bg-amber-50 px-2 py-0.5 text-xs font-medium text-amber-800 ring-1 ring-amber-200 ring-inset">Waiting for approval</span>}
                 <div className="flex gap-2">
-                  {role === 'student' && !records.loading && !recordOf(p) &&
-                    <Button size="sm" variant="ghost" onClick={() => setNewRecord(draftRecord(p))}>Add student record</Button>}
+                  {role === 'student' && !records.loading && (recordOf(p)
+                    ? <Button size="sm" variant="ghost" onClick={() => setNewRecord(recordOf(p)!)}>Edit record</Button>
+                    : <Button size="sm" variant="ghost" onClick={() => setNewRecord(draftRecord(p))}>Add student record</Button>)}
                   {!p.approved && <Button size="sm" onClick={() => patch(p.id, { approved: true })}>Approve</Button>}
                   {p.approved && p.id !== me?.id &&
                     <Button size="sm" variant="quiet" onClick={() => confirm(`Archive ${p.full_name}? They lose access right away; restore them from the Archive.`) && archive(p.id)}>Archive</Button>}
@@ -175,7 +176,7 @@ function Accounts({ role, q }: { role: Role; q: string }) {
         </Panel>
       )}
       {newRecord && <StudentModal s={newRecord} onClose={() => setNewRecord(null)}
-        onSave={async (x) => { await api.saveStudent(x); setNewRecord(null); await records.reload(); }} />}
+        onSave={async (x) => { await saveRecordKeepingLogin(x, newRecord, list.data ?? []); setNewRecord(null); await records.reload(); await list.reload(); }} />}
       {edit && <ProfileModal p={edit} canChangeRole={edit.id !== me?.id} onClose={() => setEdit(null)}
         onSave={async (x) => { await api.updateProfile(edit.id, x); setEdit(null); await list.reload(); }} />}
     </>
@@ -184,14 +185,18 @@ function Accounts({ role, q }: { role: Role; q: string }) {
 
 function ProfileModal({ p, canChangeRole, onClose, onSave }:
   { p: Profile; canChangeRole: boolean; onClose: () => void; onSave: (x: Partial<Profile>) => Promise<void> }) {
-  const [f, setF] = useState({ full_name: p.full_name, department: p.department ?? '', course: p.course ?? '', phone: p.phone ?? '', address: p.address ?? '', role: p.role });
+  const [f, setF] = useState({ full_name: p.full_name, email: p.email, department: p.department ?? '', course: p.course ?? '', phone: p.phone ?? '', address: p.address ?? '', role: p.role });
   const [error, setError] = useState<string | null>(null);
   const set = (k: keyof typeof f) => (e: { target: { value: string } }) => setF({ ...f, [k]: e.target.value });
   async function submit(e: FormEvent) {
     e.preventDefault();
     if (!f.full_name.trim()) return setError('Full name is required.');
     if (f.phone && !/^\d{11}$/.test(f.phone)) return setError('Phone must be 11 digits, e.g. 09171234567.');
+    const email = f.email.trim().toLowerCase();
+    if (canChangeRole && email !== p.email.toLowerCase() && !/^[^\s@]+@smcbi\.edu\.ph$/.test(email)) return setError('Use an @smcbi.edu.ph email.');
     try {
+      // the login email changes first: if it's taken, nothing else is saved
+      if (canChangeRole && email !== p.email.toLowerCase()) await api.updateAccountEmail(p.id, email);
       await onSave({ full_name: f.full_name.trim(), department: f.department || null, course: f.course || null,
         phone: f.phone || null, address: f.address || null, ...(canChangeRole ? { role: f.role } : {}) });
     } catch (err) { setError((err as Error).message); }
@@ -201,13 +206,16 @@ function ProfileModal({ p, canChangeRole, onClose, onSave }:
       <form onSubmit={submit} className="grid gap-4">
         {error && <Alert>{error}</Alert>}
         <Field label="Full name"><Input value={f.full_name} onChange={set('full_name')} /></Field>
+        <Field label="Email" hint={canChangeRole ? 'This is the sign-in email. Changing it also updates the matching student record.' : "You can't change your own sign-in email here."}>
+          <Input type="email" value={f.email} onChange={set('email')} disabled={!canChangeRole} autoCapitalize="none" spellCheck={false} />
+        </Field>
         <div className="grid gap-3 sm:grid-cols-2">
           <Field label="Department"><Select value={f.department} onChange={set('department')}>
             <option value="">None</option>{[...DEPARTMENTS, 'Admin'].map((d) => <option key={d}>{d}</option>)}</Select></Field>
           <Field label="Role"><Select value={f.role} onChange={set('role')} disabled={!canChangeRole}>
-            <option value="teacher">Teacher</option><option value="staff">Staff</option><option value="admin">Admin</option></Select></Field>
+            <option value="student">Student</option><option value="teacher">Teacher</option><option value="staff">Staff</option><option value="admin">Admin</option></Select></Field>
         </div>
-        <Field label="Course taught"><Input value={f.course} onChange={set('course')} /></Field>
+        <Field label={p.role === 'student' ? 'Year and section' : 'Course taught'}><Input value={f.course} onChange={set('course')} placeholder={p.role === 'student' ? 'e.g. 1st Year A' : ''} /></Field>
         <div className="grid gap-3 sm:grid-cols-2">
           <Field label="Phone"><Input value={f.phone} onChange={set('phone')} inputMode="numeric" maxLength={11} /></Field>
           <Field label="Address"><Input value={f.address} onChange={set('address')} /></Field>
@@ -231,6 +239,7 @@ const STATUS_STYLE: Record<StudentStatus, string> = {
 
 function Students({ q }: { q: string }) {
   const list = useLoad(() => api.listStudents());
+  const accounts = useLoad(() => api.listProfiles('student').catch(() => [] as Profile[]));
   const [edit, setEdit] = useState<StudentInput | null>(null);
   const [course, setCourse] = useState('');
   const [year, setYear] = useState('');
@@ -367,9 +376,17 @@ function Students({ q }: { q: string }) {
         </>)}
       </Panel>
       {edit && <StudentModal s={edit} onClose={() => setEdit(null)}
-        onSave={async (x) => { await api.saveStudent(x); setEdit(null); await list.reload(); }} />}
+        onSave={async (x) => { await saveRecordKeepingLogin(x, edit, accounts.data ?? []); setEdit(null); await list.reload(); }} />}
     </>
   );
+}
+
+// Saving a record whose email changed also moves the linked login (same old email) to the new
+// email, so the student keeps signing in and stays linked to the record.
+async function saveRecordKeepingLogin(x: StudentInput, before: StudentInput, accounts: Profile[]) {
+  const login = before.id && accounts.find((p) => p.email.toLowerCase() === before.email.toLowerCase());
+  if (login && x.email.toLowerCase() !== before.email.toLowerCase()) await api.updateAccountEmail(login.id, x.email);
+  await api.saveStudent(x);
 }
 
 function StudentModal({ s, onClose, onSave }: { s: StudentInput; onClose: () => void; onSave: (x: StudentInput) => Promise<void> }) {

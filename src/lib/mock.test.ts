@@ -183,3 +183,17 @@ describe('mock archive', () => {
     await expect(api.listLabs()).resolves.toHaveLength(3);
   });
 });
+
+describe('mock account email', () => {
+  it('admin changes a student login email; the student record follows', async () => {
+    const api = createMock(null);
+    await api.signIn('admin@smcbi.edu.ph', 'x');
+    await expect(api.updateAccountEmail('student', 'someone@gmail.com')).rejects.toThrow(/smcbi/);
+    await expect(api.updateAccountEmail('student', 'teacher@smcbi.edu.ph')).rejects.toThrow(/already uses/);
+    await api.updateAccountEmail('student', 'C230505@smcbi.edu.ph');
+    expect((await api.listProfiles('student'))[0].email).toBe('c230505@smcbi.edu.ph');
+    expect((await api.listStudents()).find((s) => s.student_id === 'C230001')?.email).toBe('c230505@smcbi.edu.ph');
+    await api.signIn('c230505@smcbi.edu.ph', 'x');
+    expect((await api.getSession())?.role).toBe('student');
+  });
+});

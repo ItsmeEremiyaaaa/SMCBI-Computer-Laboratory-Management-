@@ -259,6 +259,21 @@ export function createMock(storage: Store | null = browserStorage()): Api {
       state.archive = state.archive.filter((x) => x.id !== id); changedRes();
     },
     async purgeArchived(id) { need('admin'); state.archive = state.archive.filter((x) => x.id !== id); save(); },
+    async updateAccountEmail(profileId, email) {
+      const p = need('admin');
+      const e = email.trim().toLowerCase();
+      if (!isSchoolEmail(e)) throw new Error('Use an @smcbi.edu.ph email.');
+      if (p.id === profileId) throw new Error('Not allowed for your role.');
+      const t = state.profiles.find((x) => x.id === profileId);
+      if (!t) throw new Error('Account not found.');
+      const old = t.email.toLowerCase();
+      if (old === e) return;
+      if (state.profiles.some((x) => x.id !== profileId && x.email.toLowerCase() === e)) throw new Error('Another account already uses that email.');
+      if (state.students.some((s) => s.email.toLowerCase() === e)) throw new Error('A different student record already uses that email.');
+      t.email = e;
+      state.students.forEach((s) => { if (s.email.toLowerCase() === old) s.email = e; });
+      save();
+    },
     async setAccountArchived(profileId, archived) {
       const p = need('admin');
       if (p.id === profileId) throw new Error('You cannot archive your own account.');

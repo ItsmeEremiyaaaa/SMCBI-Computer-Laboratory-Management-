@@ -216,6 +216,7 @@ export function createSupabaseApi(url: string, key: string): Api {
       const rows = ok(await sb.from('archive').delete().eq('id', id).select('id'));
       if (!rows.length) throw new Error('Not allowed for your role.');
     },
+    async updateAccountEmail(profileId, email) { ok(await sb.rpc('admin_update_email', { profile_id: profileId, new_email: email })); },
     async setAccountArchived(profileId, archived) {
       const rows = ok(await sb.from('profiles').update({ archived_at: archived ? new Date().toISOString() : null }).eq('id', profileId).select('id'));
       if (!rows.length) throw new Error('Not allowed for your role.');

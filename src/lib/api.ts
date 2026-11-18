@@ -77,6 +77,8 @@ export interface Api {
   purgeArchived(id: string): Promise<void>;
   /** Archive (no access) or restore a login. */
   setAccountArchived(profileId: string, archived: boolean): Promise<void>;
+  /** Admin: change a login's email (sign-in, profile and matching student record together). */
+  updateAccountEmail(profileId: string, email: string): Promise<void>;
 }
 
 const url = import.meta.env.VITE_SUPABASE_URL as string | undefined;
