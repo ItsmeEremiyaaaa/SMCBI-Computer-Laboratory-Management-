@@ -5,7 +5,7 @@ import { useLoad } from '../hooks/useLoad';
 import { api, type EventInput } from '../lib/api';
 import { classesOn, manilaNow } from '../lib/seat';
 import { EVENT_TYPES, type EventType, type LabEvent, type Reservation } from '../lib/types';
-import { Alert, Button, Field, fmtDate, fmtTime, Input, Modal, PageHeader, Panel, Select, Textarea } from '../components/ui';
+import { Alert, Button, Field, fmtDate, fmtTime, Input, Modal, PageHeader, Panel, Select, Textarea, askConfirm } from '../components/ui';
 
 const TYPE_STYLE: Record<EventType, string> = {
   academic: 'bg-blue-50 text-blue-900 border-blue-400',
@@ -255,7 +255,7 @@ function EventModal({ e, onClose, onSave, onDelete }:
         <Field label="Description"><Textarea value={f.description ?? ''} onChange={set('description')} rows={3} /></Field>
         {e.id && <p className="text-xs text-muted">Scheduled {fmtDate(e.event_date)}.</p>}
         <div className="flex justify-between gap-2">
-          {onDelete ? <Button type="button" variant="quiet" onClick={() => confirm('Delete this event? It moves to the Archive, where an admin can restore it.') && onDelete()}>Delete event</Button> : <span />}
+          {onDelete ? <Button type="button" variant="quiet" onClick={() => askConfirm({ title: 'Delete this event?', message: 'It moves to the Archive, where an admin can restore it.', confirmLabel: 'Delete', danger: true }).then((ok) => { if (ok) onDelete(); })}>Delete event</Button> : <span />}
           <div className="flex gap-2"><Button type="button" variant="ghost" onClick={onClose}>Cancel</Button><Button>Save event</Button></div>
         </div>
       </form>

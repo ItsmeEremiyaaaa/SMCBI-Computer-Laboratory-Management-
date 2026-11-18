@@ -3,7 +3,7 @@ import { ArchiveRestore, Trash2 } from 'lucide-react';
 import { useLoad } from '../hooks/useLoad';
 import { api } from '../lib/api';
 import type { ArchiveKind } from '../lib/types';
-import { Alert, Button, Empty, PageHeader, Panel } from '../components/ui';
+import { Alert, Button, Empty, PageHeader, Panel, askConfirm } from '../components/ui';
 
 const KINDS: { kind: ArchiveKind | 'account' | 'report'; label: string }[] = [
   { kind: 'student', label: 'Student records' },
@@ -93,7 +93,8 @@ export default function Archive() {
                       <ArchiveRestore size={14} />Restore
                     </Button>
                     <Button size="sm" variant="quiet" disabled={busy === i.id}
-                      onClick={() => confirm(`Delete "${i.label}" for good? This can't be undone.`) && act(i.id, () => api.purgeArchived(i.id), items.reload)}>
+                      onClick={() => askConfirm({ title: 'Delete forever?', message: `"${i.label}" will be deleted for good. This can't be undone.`, confirmLabel: 'Delete forever', danger: true })
+                        .then((ok) => { if (ok) void act(i.id, () => api.purgeArchived(i.id), items.reload); })}>
                       <Trash2 size={14} />Delete forever
                     </Button>
                   </div>

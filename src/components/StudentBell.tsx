@@ -69,6 +69,9 @@ export function studentNotes(input: {
     } else if (r.status === 'approved') {
       notes.push({ id: `sec-${r.id}-approved`, at: r.reviewed_at ?? r.created_at ?? manilaIso(r.date, r.start_time), group: 'booking', to: '/calendar', tone: 'good',
         title: `${who} booked a lab for your class`, sub: `${r.title} · ${when}` });
+    } else if (r.status === 'rejected') {
+      notes.push({ id: `sec-${r.id}-rejected`, at: r.reviewed_at ?? r.created_at ?? manilaIso(now.date, now.time), group: 'booking', to: '/calendar', tone: 'bad',
+        title: `Lab booking for your class was not approved`, sub: `${r.title} · ${when} · by ${who}${r.admin_notes ? ` · “${r.admin_notes}”` : ''}` });
     } else if (r.status === 'pending') {
       notes.push({ id: `sec-${r.id}-pending`, at: r.created_at ?? manilaIso(now.date, now.time), group: 'booking', to: '/calendar',
         title: `${who} requested a lab for your class`, sub: `${r.title} · ${when} · waiting for approval` });

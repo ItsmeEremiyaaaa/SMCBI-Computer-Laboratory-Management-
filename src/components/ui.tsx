@@ -1,4 +1,4 @@
-import { useEffect, useId, useRef, type ButtonHTMLAttributes, type InputHTMLAttributes, type ReactNode, type SelectHTMLAttributes, type TextareaHTMLAttributes } from 'react';
+import { useEffect, useId, useRef, useState, type ButtonHTMLAttributes, type InputHTMLAttributes, type ReactNode, type SelectHTMLAttributes, type TextareaHTMLAttributes } from 'react';
 import { X, type LucideIcon } from 'lucide-react';
 import type { ResStatus, ShownStatus } from '../lib/types';
 
@@ -112,6 +112,37 @@ export function useExclusive(open: boolean, close: () => void) {
     window.addEventListener('comlab:overlay', other);
     return () => window.removeEventListener('comlab:overlay', other);
   }, [open, id]);
+}
+
+// ---- In-app confirm dialog (replaces the browser's confirm box) ----
+type Ask = { title: string; message: ReactNode; confirmLabel?: string; danger?: boolean };
+let showAsk: ((a: Ask & { resolve: (ok: boolean) => void }) => void) | null = null;
+
+/** Asks the user to confirm, in the app's own modal. Resolves true on confirm, false on cancel/close. */
+export function askConfirm(a: Ask): Promise<boolean> {
+  return new Promise((resolve) => {
+    if (showAsk) showAsk({ ...a, resolve });
+    else resolve(window.confirm(typeof a.message === 'string' ? a.message : a.title)); // host not mounted (tests)
+  });
+}
+
+/** Mounted once at the app root; renders whatever askConfirm asks. */
+export function ConfirmHost() {
+  const [q, setQ] = useState<(Ask & { resolve: (ok: boolean) => void }) | null>(null);
+  useEffect(() => {
+    showAsk = (a) => setQ((prev) => { prev?.resolve(false); return a; });
+    return () => { showAsk = null; };
+  }, []);
+  const done = (ok: boolean) => { q?.resolve(ok); setQ(null); };
+  return (
+    <Modal open={!!q} title={q?.title ?? ''} onClose={() => done(false)}>
+      <p className="text-sm text-muted">{q?.message}</p>
+      <div className="mt-5 flex justify-end gap-2">
+        <Button type="button" variant="ghost" onClick={() => done(false)}>Cancel</Button>
+        <Button type="button" variant={q?.danger ? 'danger' : 'primary'} autoFocus onClick={() => done(true)}>{q?.confirmLabel ?? 'OK'}</Button>
+      </div>
+    </Modal>
+  );
 }
 
 export function Modal({ open, title, onClose, children }: { open: boolean; title: string; onClose: () => void; children: ReactNode }) {

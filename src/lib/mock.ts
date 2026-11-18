@@ -55,7 +55,7 @@ export function createMock(storage: Store | null = browserStorage()): Api {
     const list = state[LISTS[kind]] as { id: string }[];
     const row = list.find((x) => x.id === id) as unknown as Record<string, string> | undefined;
     if (!row) throw new Error('Not found.');
-    const own = (kind === 'reservation' && row.requester_id === p.id && ['pending', 'rejected', 'completed'].includes(row.status)) || (kind === 'event' && row.owner_id === p.id);
+    const own = (kind === 'reservation' && row.requester_id === p.id && row.status === 'pending') || (kind === 'event' && row.owner_id === p.id);
     if (p.role !== 'admin' && !own) throw new Error('Not allowed for your role.');
     const label = kind === 'student' ? `${row.student_id} · ${row.full_name}` : kind === 'reservation' ? `${row.title} · ${row.date} ${row.start_time}`
       : kind === 'event' ? `${row.title} · ${row.event_date}` : `${row.section} · ${row.subject}`;
@@ -125,7 +125,9 @@ export function createMock(storage: Store | null = browserStorage()): Api {
         ...bookingProblems(input, { role: p.role, pcs: state.pcs, reservations: state.reservations, schedules: state.schedules })];
       if (errs.length) throw new Error(errs.join(' '));
       if (input.section && p.role === 'student') throw new Error('Only teachers can book for a class section.');
-      const r = { ...input, section: input.section?.trim() || null, id: uid(), requester_id: p.id, requester_name: p.full_name, status: 'pending' as const,
+      // an admin may file it under an approved teacher (same as the database trigger)
+      const by = (p.role === 'admin' && state.profiles.find((x) => x.id === input.requester_id && x.role === 'teacher' && x.approved)) || p;
+      const r = { ...input, section: input.section?.trim() || null, id: uid(), requester_id: by.id, requester_name: by.full_name, status: 'pending' as const,
         admin_notes: null, reviewed_at: null, created_at: new Date().toISOString() };
       state.reservations.push(r); changedRes();
       return clone(r);

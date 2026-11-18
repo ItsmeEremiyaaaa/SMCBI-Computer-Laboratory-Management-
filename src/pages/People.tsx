@@ -6,7 +6,7 @@ import { useLoad } from '../hooks/useLoad';
 import { api, type StudentInput } from '../lib/api';
 import { DEPARTMENTS, SEXES, STUDENT_STATUSES, YEAR_LEVELS, type ClassSchedule, type Profile, type Role, type Student, type StudentStatus } from '../lib/types';
 import { validateStudent } from '../lib/validate';
-import { Alert, Button, Empty, Field, Input, Modal, PageHeader, Panel, Select } from '../components/ui';
+import { Alert, Button, Empty, Field, Input, Modal, PageHeader, Panel, Select, askConfirm } from '../components/ui';
 
 const TABS = [
   { id: 'teachers', label: 'Teachers' },
@@ -144,7 +144,7 @@ function Accounts({ role, q }: { role: Role; q: string }) {
                     : <Button size="sm" variant="ghost" onClick={() => setNewRecord(draftRecord(p))}>Add student record</Button>)}
                   {!p.approved && <Button size="sm" onClick={() => patch(p.id, { approved: true })}>Approve</Button>}
                   {p.approved && p.id !== me?.id &&
-                    <Button size="sm" variant="quiet" onClick={() => confirm(`Archive ${p.full_name}? They lose access right away; restore them from the Archive.`) && archive(p.id)}>Archive</Button>}
+                    <Button size="sm" variant="quiet" onClick={() => askConfirm({ title: `Archive ${p.full_name}?`, message: 'They lose access right away. You can restore them from the Archive.', confirmLabel: 'Archive', danger: true }).then((ok) => { if (ok) void archive(p.id); })}>Archive</Button>}
                   <Button size="sm" variant="ghost" onClick={() => setEdit(p)}>Edit</Button>
                 </div>
               </li>
@@ -287,7 +287,7 @@ function Students({ q }: { q: string }) {
   }).filter((r) => r.total > 0);
 
   async function remove(s: Student) {
-    if (!confirm(`Delete ${s.full_name}? It moves to the Archive, where an admin can restore it.`)) return;
+    if (!(await askConfirm({ title: `Delete ${s.full_name}?`, message: 'It moves to the Archive, where an admin can restore it.', confirmLabel: 'Delete', danger: true }))) return;
     try { await api.deleteStudent(s.id); await list.reload(); } catch (e) { setError((e as Error).message); }
   }
   async function changeStatus(s: Student, next: StudentStatus) {

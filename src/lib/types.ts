@@ -57,7 +57,11 @@ export interface Reservation {
 }
 
 export type ReservationInput = Pick<Reservation,
-  'title' | 'lab_id' | 'pc_id' | 'purpose' | 'date' | 'start_time' | 'end_time' | 'participants' | 'requirements'> & { section?: string | null };
+  'title' | 'lab_id' | 'pc_id' | 'purpose' | 'date' | 'start_time' | 'end_time' | 'participants' | 'requirements'> & {
+  section?: string | null;
+  /** Admin only: file the booking under this teacher instead of the admin. */
+  requester_id?: string;
+};
 
 export interface Student {
   id: string;

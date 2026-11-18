@@ -1,13 +1,14 @@
 import { useEffect, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
-import { Plus } from 'lucide-react';
+import { Plus, Trash2 } from 'lucide-react';
 import { useAuth } from '../auth';
 import { useLoad } from '../hooks/useLoad';
 import { api } from '../lib/api';
+import { useCleared } from '../lib/cleared';
 import { manilaNow } from '../lib/seat';
 import type { Reservation, ResStatus } from '../lib/types';
 import ReservationForm from '../components/ReservationForm';
-import { Alert, Button, Empty, Field, fmtDate, fmtTime, Input, Modal, PageHeader, Panel, ResBadge, Select, Textarea } from '../components/ui';
+import { Alert, Button, Empty, Field, fmtDate, fmtTime, Input, Modal, PageHeader, Panel, ResBadge, Select, Textarea, askConfirm } from '../components/ui';
 
 const STATUSES: ResStatus[] = ['pending', 'approved', 'rejected', 'completed'];
 
@@ -24,7 +25,10 @@ export default function Reservations() {
 
   const labs = useLoad(() => api.listLabs());
   const pcs = useLoad(() => api.listPcs());
-  const list = useLoad(() => api.listReservations({ mine: isTeacher }), [isTeacher]);
+  const fetched = useLoad(() => api.listReservations({ mine: isTeacher }), [isTeacher]);
+  // a requester's "delete" on a decided booking only hides it from their own list; the admin keeps the record
+  const { cleared: hidden, clear: hide } = useCleared(profile?.id);
+  const list = { ...fetched, data: fetched.data?.filter((r) => isAdmin || !hidden.has(`res-${r.id}`)) };
   const approvedAll = useLoad(() => api.listReservations({ status: 'approved' }));
   const schedules = useLoad(() => api.listSchedules());
   const isStudent = profile?.role === 'student';
@@ -116,9 +120,20 @@ export default function Reservations() {
                   </>}
                   {isAdmin && r.status === 'approved' && ended(r) &&
                     <Button size="sm" variant="ghost" onClick={() => act(() => api.reviewReservation(r.id, 'completed'))}>Mark completed</Button>}
-                  {/* your own booking can go unless it's approved (an admin removes those, so the slot isn't freed silently) */}
-                  {(isAdmin || (r.status !== 'approved' && r.requester_id === profile?.id)) &&
-                    <Button size="sm" variant="quiet" onClick={() => confirm('Delete this booking? It moves to the Archive, where an admin can restore it.') && act(() => api.deleteReservation(r.id))}>Delete</Button>}
+                  {/* admin: archive. requester: cancel a pending request, or hide a decided one from their own list */}
+                  {(isAdmin || (r.status !== 'approved' && r.requester_id === profile?.id)) && (
+                    <button type="button" title="Delete" aria-label={`Delete ${r.title}`}
+                      className="grid h-8 w-8 place-items-center rounded-lg text-muted hover:bg-red-50 hover:text-red-700"
+                      onClick={() => {
+                        const own = !isAdmin && r.status !== 'pending';
+                        askConfirm(own
+                          ? { title: 'Remove from your list?', message: 'It disappears from your reservations. The lab office keeps its record.', confirmLabel: 'Remove', danger: true }
+                          : isAdmin
+                            ? { title: 'Delete this booking?', message: 'It moves to the Archive, where you can restore it.', confirmLabel: 'Delete', danger: true }
+                            : { title: 'Cancel this request?', message: 'The admin will no longer see it.', confirmLabel: 'Cancel request', danger: true })
+                          .then((ok) => { if (!ok) return; if (own) hide([`res-${r.id}`]); else void act(() => api.deleteReservation(r.id)); });
+                      }}><Trash2 size={16} /></button>
+                  )}
                 </div>
               </li>
             ))}

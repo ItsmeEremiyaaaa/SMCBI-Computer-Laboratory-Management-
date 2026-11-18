@@ -23,7 +23,7 @@ describe('studentNotes', () => {
     expect(titles({ bookings: [booking({ ...t, status: 'approved', reviewed_at: recent })] })).toEqual(['Ms. Cruz booked a lab for your class']);
     expect(titles({ bookings: [booking({ ...t, status: 'approved', date: now.date })] })).toEqual(['Today: Packet Tracer']);
     expect(titles({ bookings: [booking({ ...t, section: 'BSIT 2B' })] })).toEqual([]);
-    expect(titles({ bookings: [booking({ ...t, status: 'rejected', reviewed_at: recent })] })).toEqual([]);
+    expect(titles({ bookings: [booking({ ...t, status: 'rejected', reviewed_at: recent })] })).toEqual(['Lab booking for your class was not approved']);
   });
 
   it('warns when the PC on an upcoming booking breaks, but not for past ones', () => {

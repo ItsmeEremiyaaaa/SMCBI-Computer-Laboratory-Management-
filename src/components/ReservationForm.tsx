@@ -1,4 +1,6 @@
 import { useState, type FormEvent } from 'react';
+import { useLoad } from '../hooks/useLoad';
+import { api } from '../lib/api';
 import { manilaNow } from '../lib/seat';
 import { bookingProblems, STUDENT_LAB } from '../lib/rules';
 import type { ClassSchedule, Lab, Pc, Reservation, ReservationInput, Role } from '../lib/types';
@@ -21,7 +23,7 @@ export default function ReservationForm({ labs: allLabs, pcs, initial, onSubmit,
   const student = role === 'student';
   const labs = student ? allLabs.filter((l) => l.id === STUDENT_LAB) : allLabs;
   const [f, setF] = useState({
-    title: '', purpose: '', date: '', start_time: '', end_time: '', participants: '', requirements: '', section: '',
+    title: '', purpose: '', date: '', start_time: '', end_time: '', participants: '', requirements: '', section: '', teacher: '',
     lab_id: (student ? STUDENT_LAB : initial?.lab_id) ?? labs[0]?.id ?? '',
     pc_id: initial?.pc_id && pcs.find((p) => p.id === initial.pc_id)?.status !== 'broken' ? initial.pc_id : '',
   });
@@ -37,6 +39,7 @@ export default function ReservationForm({ labs: allLabs, pcs, initial, onSubmit,
       date: f.date, start_time: f.start_time, end_time: f.end_time,
       participants: f.participants ? Number(f.participants) : null, requirements: f.requirements.trim() || null,
       ...(f.section ? { section: f.section } : {}),
+      ...(f.teacher ? { requester_id: f.teacher } : {}),
     };
     const errs = [...validateReservation(input, manilaNow().date),
       ...bookingProblems(input, { role, pcs, reservations: approved, schedules })];
@@ -47,6 +50,9 @@ export default function ReservationForm({ labs: allLabs, pcs, initial, onSubmit,
   }
 
   const labPcs = pcs.filter((p) => p.lab_id === f.lab_id);
+  // admins book on behalf of a teacher account
+  const teachers = useLoad(() => (role === 'admin' ? api.listProfiles('teacher').catch(() => []) : Promise.resolve([])), [role]);
+  const teacherList = (teachers.data ?? []).filter((t) => t.approved && !t.archived_at).sort((a, b) => a.full_name.localeCompare(b.full_name));
   const sections = [...new Set(schedules.map((c) => c.section.trim()).filter(Boolean))].sort();
   return (
     <form onSubmit={submit} noValidate className="grid gap-4">
@@ -71,6 +77,14 @@ export default function ReservationForm({ labs: allLabs, pcs, initial, onSubmit,
           </Select>
         </Field>
       </div>
+      {role === 'admin' && (
+        <Field label="Teacher" hint="The booking is filed under this teacher; their name is shown to students.">
+          <Select value={f.teacher} onChange={set('teacher')}>
+            <option value="">Me (admin)</option>
+            {teacherList.map((t) => <option key={t.id} value={t.id}>{t.full_name}</option>)}
+          </Select>
+        </Field>
+      )}
       <Field label="Title"><Input value={f.title} onChange={set('title')} placeholder={student ? 'e.g. Packet Tracer practice' : 'e.g. Programming 2, BSIT 1A'} /></Field>
       {!student && sections.length > 0 && (
         <Field label="For class (optional)" hint="Students of this section get a notification about this booking.">

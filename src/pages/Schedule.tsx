@@ -6,7 +6,7 @@ import { api } from '../lib/api';
 import { isoWeekday, manilaNow } from '../lib/seat';
 import type { ClassSchedule, Lab, ScheduleInput } from '../lib/types';
 import { validateSchedule } from '../lib/validate';
-import { Alert, Button, Empty, Field, fmtDate, fmtTime, Input, Modal, PageHeader, Panel, Select } from '../components/ui';
+import { Alert, Button, Empty, Field, fmtDate, fmtTime, Input, Modal, PageHeader, Panel, Select, askConfirm } from '../components/ui';
 
 const DAYS = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
 const labDisplayName = (lab?: Lab) => {
@@ -36,7 +36,7 @@ export default function Schedule() {
     r.start_time <= today.time && today.time < r.end_time;
 
   async function remove(r: ClassSchedule) {
-    if (!confirm(`Remove ${r.section} ${r.subject} on ${DAYS[r.day_of_week - 1]}s? It moves to the Archive, where an admin can restore it.`)) return;
+    if (!(await askConfirm({ title: `Remove ${r.section} ${r.subject}?`, message: `The ${DAYS[r.day_of_week - 1]} class. It moves to the Archive, where an admin can restore it.`, confirmLabel: 'Remove', danger: true }))) return;
     try { await api.deleteSchedule(r.id); await list.reload(); } catch (e) { setError((e as Error).message); }
   }
 
