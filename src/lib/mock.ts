@@ -55,7 +55,7 @@ export function createMock(storage: Store | null = browserStorage()): Api {
     const list = state[LISTS[kind]] as { id: string }[];
     const row = list.find((x) => x.id === id) as unknown as Record<string, string> | undefined;
     if (!row) throw new Error('Not found.');
-    const own = (kind === 'reservation' && row.requester_id === p.id && row.status === 'pending') || (kind === 'event' && row.owner_id === p.id);
+    const own = (kind === 'reservation' && row.requester_id === p.id && ['pending', 'rejected', 'completed'].includes(row.status)) || (kind === 'event' && row.owner_id === p.id);
     if (p.role !== 'admin' && !own) throw new Error('Not allowed for your role.');
     const label = kind === 'student' ? `${row.student_id} · ${row.full_name}` : kind === 'reservation' ? `${row.title} · ${row.date} ${row.start_time}`
       : kind === 'event' ? `${row.title} · ${row.event_date}` : `${row.section} · ${row.subject}`;
