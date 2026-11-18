@@ -86,3 +86,35 @@ export function studentsInSection(students: Student[], section: string | null | 
       && (s.status ?? 'Enrolled') === 'Enrolled')
     .sort((a, b) => a.student_id.localeCompare(b.student_id));
 }
+
+const mins = (t: string) => Number(t.slice(0, 2)) * 60 + Number(t.slice(3, 5));
+
+/**
+ * Hours actually used per lab, for usage stats: only time that has already happened, and a booking
+ * only counts if its requester checked in at that lab during it. Classes count once they are under way.
+ * `entries` = classes (ids starting "class-") and approved/completed bookings; `now` in Manila time.
+ */
+export function usedHours(
+  entries: Pick<Reservation, 'id' | 'lab_id' | 'date' | 'start_time' | 'end_time' | 'requester_id' | 'status'>[],
+  checkIns: Pick<CheckIn, 'lab_id' | 'user_id' | 'checked_in_at'>[],
+  now: Now,
+): Record<string, number> {
+  const out: Record<string, number> = {};
+  for (const r of entries) {
+    if (!r.id.startsWith('class-') && r.status !== 'approved' && r.status !== 'completed') continue;
+    if (r.date > now.date) continue;
+    const start = mins(r.start_time), end = mins(r.end_time);
+    const until = r.date < now.date ? end : Math.min(end, mins(now.time));
+    if (until <= start) continue;
+    if (!r.id.startsWith('class-')) {
+      // a booking nobody showed up for is not usage
+      const from = new Date(`${r.date}T${r.start_time}:00+08:00`).getTime() - 10 * 60_000;
+      const to = new Date(`${r.date}T${r.end_time}:00+08:00`).getTime();
+      const came = checkIns.some((c) => c.user_id === r.requester_id && c.lab_id === r.lab_id
+        && new Date(c.checked_in_at).getTime() >= from && new Date(c.checked_in_at).getTime() < to);
+      if (!came) continue;
+    }
+    out[r.lab_id] = (out[r.lab_id] ?? 0) + (until - start) / 60;
+  }
+  return out;
+}

@@ -203,10 +203,11 @@ export function createMock(storage: Store | null = browserStorage()): Api {
       };
     },
 
-    async listCheckIns(labId) {
+    async listCheckIns(labId, since) {
       me();
       const today = manilaNow().date;
-      return clone(state.checkIns.filter((c) => !c.checked_out_at && c.checked_in_at.slice(0, 10) >= today && (!labId || c.lab_id === labId)));
+      return clone(state.checkIns.filter((c) => (since ? c.checked_in_at.slice(0, 10) >= since : !c.checked_out_at && c.checked_in_at.slice(0, 10) >= today)
+        && (!labId || c.lab_id === labId)));
     },
     async checkIn(pcId) {
       const p = me();

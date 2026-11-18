@@ -177,9 +177,11 @@ export function createSupabaseApi(url: string, key: string): Api {
       return { students, staff, teachers, courses, pending, pendingTeachers, openReports };
     },
 
-    async listCheckIns(labId) {
-      // Check-ins left open from earlier days don't count.
-      let q = sb.from('checkins').select('*').is('checked_out_at', null).gte('checked_in_at', `${manilaNow().date}T00:00:00+08:00`);
+    async listCheckIns(labId, since) {
+      // Without `since`: open check-ins from today (ones left open from earlier days don't count).
+      let q = since
+        ? sb.from('checkins').select('*').gte('checked_in_at', `${since}T00:00:00+08:00`)
+        : sb.from('checkins').select('*').is('checked_out_at', null).gte('checked_in_at', `${manilaNow().date}T00:00:00+08:00`);
       if (labId) q = q.eq('lab_id', labId);
       return ok(await q) as CheckIn[];
     },

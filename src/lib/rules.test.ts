@@ -72,3 +72,21 @@ describe('studentsInSection', () => {
     expect(studentsInSection(all, null)).toEqual([]);
   });
 });
+
+describe('usedHours', () => {
+  it('counts only time already used: classes so far, bookings only when checked in', async () => {
+    const { usedHours } = await import('./rules');
+    const now = { date: '2026-11-18', time: '10:30' };
+    const e = (o: Record<string, string>) => ({ id: 'x', lab_id: 'lab1', date: '2026-11-18', start_time: '09:00', end_time: '12:00', requester_id: 'u1', ...o, status: (o.status ?? 'approved') as 'approved' });
+    const entries = [
+      e({ id: 'class-a' }),                                            // running: 1.5 h so far
+      e({ id: 'class-b', date: '2026-11-17' }),                        // yesterday: 3 h
+      e({ id: 'class-c', date: '2026-11-19' }),                        // tomorrow: 0
+      e({ id: 'b1', lab_id: 'netlab', date: '2026-11-17', start_time: '13:00', end_time: '14:30' }),   // checked in: 1.5 h
+      e({ id: 'b2', lab_id: 'netlab', date: '2026-11-17', start_time: '15:00', end_time: '16:00', requester_id: 'u2' }), // no-show: 0
+      e({ id: 'b3', lab_id: 'netlab', date: '2026-11-16', status: 'rejected' }),                       // rejected: 0
+    ];
+    const checkIns = [{ lab_id: 'netlab', user_id: 'u1', checked_in_at: '2026-11-17T05:05:00Z' }];  // 1:05 PM Manila
+    expect(usedHours(entries, checkIns, now)).toEqual({ lab1: 4.5, netlab: 1.5 });
+  });
+});

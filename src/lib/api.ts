@@ -58,8 +58,8 @@ export interface Api {
 
   stats(): Promise<Stats>;
 
-  /** Active check-ins from today (optionally for one lab). */
-  listCheckIns(labId?: string): Promise<CheckIn[]>;
+  /** Active check-ins from today (optionally for one lab); with `since` (YYYY-MM-DD), every check-in from that day on. */
+  listCheckIns(labId?: string, since?: string): Promise<CheckIn[]>;
   /** Student confirms they are sitting at this PC (leaves any earlier seat). */
   checkIn(pcId: string): Promise<CheckIn>;
   checkOut(): Promise<void>;

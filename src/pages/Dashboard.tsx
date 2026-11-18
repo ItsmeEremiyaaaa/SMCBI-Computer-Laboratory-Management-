@@ -6,6 +6,7 @@ import { useLabLive, type LivePc } from '../hooks/useLabLive';
 import { useLoad } from '../hooks/useLoad';
 import { api } from '../lib/api';
 import { classesOn, isoWeekday, manilaNow } from '../lib/seat';
+import { usedHours } from '../lib/rules';
 import type { Lab, Reservation } from '../lib/types';
 import { Button, Empty, fmtDate, fmtTime, Led, Panel, ResBadge, STATUS_COLOR, STATUS_LABEL, STATUSES } from '../components/ui';
 
@@ -20,10 +21,6 @@ const addDays = (date: string, n: number) => {
   d.setUTCDate(d.getUTCDate() + n);
   return d.toISOString().slice(0, 10);
 };
-const hours = (r: Reservation) => {
-  const m = (t: string) => Number(t.slice(0, 2)) * 60 + Number(t.slice(3, 5));
-  return (m(r.end_time) - m(r.start_time)) / 60;
-}; 
 
 function StatCard({ icon: Icon, label, value, note, to }: { icon: LucideIcon; label: string; value: ReactNode; note: string; to?: string }) {
   const body = (
@@ -145,7 +142,7 @@ function StatusDonut({ pcs }: { pcs: LivePc[] }) {
   );
 }
 
-// Hours each lab is booked this week (classes + approved bookings), as bars.
+// Hours each lab was actually used this week (see usedHours), as bars.
 function WeekUsage({ labs, booked }: { labs: Lab[]; booked: Record<string, number> }) {
   const max = Math.max(1, ...labs.map((l) => booked[l.id] ?? 0));
   return (
@@ -156,7 +153,7 @@ function WeekUsage({ labs, booked }: { labs: Lab[]; booked: Record<string, numbe
           <li key={l.id}>
             <div className="mb-1.5 flex justify-between text-sm">
               <span className="font-medium">{labDisplayName(l.name)}</span>
-              <span className="text-muted"><b className="font-semibold text-ink">{h}</b> hrs</span>
+              <span className="text-muted"><b className="font-semibold text-ink">{Math.round(h * 10) / 10}</b> hrs</span>
             </div>
             <div className="h-2.5 overflow-hidden rounded-full bg-accent-soft">
               <div className="h-full rounded-full bg-gradient-to-r from-accent to-gold" style={{ width: `${(h / max) * 100}%` }} />
@@ -178,6 +175,9 @@ export default function Dashboard() {
   const stats = useLoad(() => (isTeacher ? Promise.resolve(null) : api.stats()), [isTeacher]);
   const res = useLoad(() => api.listReservations({ mine: isTeacher }), [isTeacher]);
   const allApproved = useLoad(() => api.listReservations({ status: 'approved' }));
+  const monday = addDays(today, 1 - isoWeekday(today));
+  const allBookings = useLoad(() => api.listReservations());
+  const weekCheckIns = useLoad(() => api.listCheckIns(undefined, monday).catch(() => []), [monday]);
   const classes = useLoad(() => api.listSchedules());
   const events = useLoad(() => api.listEvents());
   useEffect(() => api.subscribeReservations(() => { res.reload(); stats.reload(); allApproved.reload(); }), [res.reload, stats.reload, allApproved.reload]);
@@ -198,13 +198,13 @@ export default function Dashboard() {
   const hour = new Date().getHours();
   const greeting = hour < 12 ? 'Good morning' : hour < 18 ? 'Good afternoon' : 'Good evening';
 
-  const monday = addDays(today, 1 - isoWeekday(today));
-  const booked: Record<string, number> = {};
+  // Usage this week = time actually used so far: classes under way or done, bookings only if checked in.
+  const week: Reservation[] = [];
   for (let i = 0; i < 7; i++) {
     const d = addDays(monday, i);
-    for (const r of [...(allApproved.data ?? []).filter((x) => x.date === d), ...classesOn(d, classes.data ?? [])])
-      booked[r.lab_id] = (booked[r.lab_id] ?? 0) + hours(r);
+    week.push(...(allBookings.data ?? []).filter((x) => x.date === d), ...classesOn(d, classes.data ?? []));
   }
+  const booked = usedHours(week, weekCheckIns.data ?? [], manilaNow());
 
   const free = pcs.filter((p) => p.shown === 'free').length;
   const inUse = pcs.filter((p) => p.shown === 'in_use' || p.shown === 'reserved').length;
@@ -238,7 +238,7 @@ export default function Dashboard() {
 
       <div className="mb-6 grid grid-cols-1 gap-4 lg:grid-cols-2">
         <Panel title="PC status" icon={MonitorCheck}><StatusDonut pcs={pcs} /></Panel>
-        <Panel title="Lab usage this week" icon={ClipboardList}
+        <Panel title="Lab hours used this week" icon={ClipboardList}
           actions={<span className="text-xs text-muted">{fmtDate(monday)} to {fmtDate(addDays(monday, 6))}</span>}>
           {labs.data && <WeekUsage labs={labs.data} booked={booked} />}
         </Panel>
