@@ -21,6 +21,7 @@ Output files go to `tools\out\`.
 | `usage_report.py 2026-11` | Monthly report → Excel: class/booking hours per lab, busiest PCs, student no-shows, broken PCs |
 | `accounts.py not-signed-up` | Enrolled students who haven't created a website account → Excel |
 | `accounts.py set-status changes.xlsx [--apply]` | Bulk status change (e.g. graduates) from a sheet with "Student ID" and "Status" columns; dry run unless `--apply` |
+| `accounts.py create-teachers [--apply]` | Approved teacher accounts for instructors on the class schedule who have none (placeholder `first.last@smcbi.edu.ph` emails to fix in People; temporary passwords → `out\teacher_accounts.xlsx`, keep private) |
 | `backup.py [--dir D:\backups]` | Every table → one dated Excel file. Supabase's free plan has no automatic backups, so run it weekly (Task Scheduler) |
 
 Tests (offline, no database needed): `D:\venvs\comlab\Scripts\python.exe -m pytest tools`
