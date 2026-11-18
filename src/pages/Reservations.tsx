@@ -30,6 +30,14 @@ export default function Reservations() {
   // a requester's "delete" on a decided booking only hides it from their own list; the admin keeps the record
   const { cleared: hidden, clear: hide } = useCleared(profile?.id);
   const list = { ...fetched, data: fetched.data?.filter((r) => isAdmin || !hidden.has(`res-${r.id}`)) };
+  // ?review=<id>&to=approved|rejected (from the bell / Notifications) opens that booking's review dialog
+  const reviewId = params.get('review'), reviewTo = params.get('to');
+  useEffect(() => {
+    if (!reviewId || !list.data) return;
+    const r = list.data.find((x) => x.id === reviewId);
+    if (r && r.status === 'pending' && (reviewTo === 'approved' || reviewTo === 'rejected')) setReview({ r, to: reviewTo });
+    params.delete('review'); params.delete('to'); setParams(params, { replace: true });
+  }, [reviewId, reviewTo, list.data, params, setParams]);
   const approvedAll = useLoad(() => api.listReservations({ status: 'approved' }));
   const schedules = useLoad(() => api.listSchedules());
   const isStudent = profile?.role === 'student';

@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { Bell, ClipboardList, MonitorX, TriangleAlert, UserPlus, X } from 'lucide-react';
 import { useAuth } from '../auth';
 import { api } from '../lib/api';
@@ -53,6 +53,9 @@ export function AttentionList({ page = false, onNavigate }: { page?: boolean; on
     try { await fn(); await load(); } catch (e) { setError((e as Error).message); } finally { setBusy(null); }
   }
   const done = () => onNavigate?.();
+  const navigate = useNavigate();
+  // approve/reject go through the Reservations dialog: full details + the note (with the school greeting)
+  const review = (id: string, to: 'approved' | 'rejected') => { done(); navigate(`/reservations?status=pending&review=${id}&to=${to}`); };
   const show = <T,>(list: T[], id: (x: T) => string) => list.filter((x) => !cleared.has(id(x)));
   const accounts = show(data?.accounts ?? [], (p) => `acc-${p.id}`);
   const reports = show(data?.reports ?? [], (r) => `rep-${r.id}`);
@@ -109,8 +112,8 @@ export function AttentionList({ page = false, onNavigate }: { page?: boolean; on
               <Item key={r.id} to="/reservations?status=pending" onClick={done} onClear={() => clear([`req-${r.id}`])} title={r.title}
                 sub={`${r.requester_name} · ${LAB_SHORT[r.lab_id] ?? r.lab_id}${r.pc_id ? ' ' + pcLabel(r.pc_id) : ''} · ${fmtDate(r.date)} ${fmtTime(r.start_time)}`}
                 actions={isAdmin && <>
-                  <Act busy={busy === r.id} onClick={() => act(r.id, () => api.reviewReservation(r.id, 'approved'))}>Approve</Act>
-                  <Act busy={busy === r.id} quiet onClick={() => act(r.id, () => api.reviewReservation(r.id, 'rejected'))}>Reject</Act>
+                  <Act busy={busy === r.id} onClick={() => review(r.id, 'approved')}>Approve</Act>
+                  <Act busy={busy === r.id} quiet onClick={() => review(r.id, 'rejected')}>Reject</Act>
                 </>} />
             ))}
             {requests.length > maxReq && <Item to="/reservations?status=pending" onClick={done} title={`See all ${requests.length} requests`} />}
