@@ -391,7 +391,7 @@ export default function Labs3D() {
                 />
               </Suspense>
             </SceneBoundary>
-          : <div className="h-full w-full overflow-auto px-3 pb-32 pt-44 sm:p-6 sm:pt-36 sm:pb-32"><SeatGrid lab={lab} pcs={displayedPcs} selectedId={selectedId} onSelect={select} onReady={() => setSceneReady(true)} isOccupied={isClassInSession} classInfo={activeClassSchedule} simMode={effectiveSimMode} teacherName={teacherName} bookedLater={bookedLater} /></div>)}
+          : <div className="h-full w-full overflow-auto px-3 pb-8 pt-44 sm:p-6 sm:pt-36"><SeatGrid lab={lab} pcs={displayedPcs} selectedId={selectedId} onSelect={select} onReady={() => setSceneReady(true)} isOccupied={isClassInSession} classInfo={activeClassSchedule} simMode={effectiveSimMode} teacherName={teacherName} bookedLater={bookedLater} /></div>)}
       </div>
 
 

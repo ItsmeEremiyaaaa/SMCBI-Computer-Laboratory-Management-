@@ -2,14 +2,14 @@ import { useEffect, useState } from 'react';
 import { NavLink, Outlet, useLocation } from 'react-router-dom';
 import NotificationBell from './NotificationBell';
 import StudentBell from './StudentBell';
-import { Archive, Box, CalendarClock, ChevronDown, CalendarDays, ClipboardList, LayoutGrid, LogOut, Menu, QrCode, Users, X } from 'lucide-react';
+import { Archive, Box, CalendarClock, CalendarDays, ClipboardList, LayoutGrid, LogOut, Menu, PanelLeftClose, PanelLeftOpen, QrCode, Users, X } from 'lucide-react';
 import { Crest } from './ui';
 import IntroSplash from './IntroSplash';
 import { useAuth } from '../auth';
 import { api, type Stats } from '../lib/api';
 import type { Role } from '../lib/types';
 
-const NAV_HIDDEN_KEY = 'comlab-labs-nav-hidden';
+const COLLAPSED_KEY = 'comlab-sidebar-collapsed';
 
 const NAV: { to: string; label: string; icon: typeof Box; roles: Role[] }[] = [
   { to: '/', label: 'Overview', icon: LayoutGrid, roles: ['admin', 'staff', 'teacher', 'student'] },
@@ -22,11 +22,11 @@ const NAV: { to: string; label: string; icon: typeof Box; roles: Role[] }[] = [
   { to: '/archive', label: 'Archive', icon: Archive, roles: ['admin'] },
 ];
 
-function Brand() {
+function Brand({ compact = false }: { compact?: boolean }) {
   return (
     <div className="flex items-center gap-3 px-1">
-      <span data-intro-target className="inline-flex rounded-full"><Crest size={40} /></span>
-      <div className="leading-tight">
+      <span data-intro-target className="inline-flex shrink-0 rounded-full"><Crest size={40} /></span>
+      <div className={compact ? 'sr-only' : 'min-w-0 leading-tight'}>
         <p className="text-[17px] font-bold tracking-tight text-white">ComLab Monitor</p>
         <p className="text-[11px] text-blue-200">St. Mary's College of Bansalan</p>
       </div>
@@ -38,11 +38,11 @@ export default function Layout() {
   const { profile } = useAuth();
   const [open, setOpen] = useState(false);
   const [stats, setStats] = useState<Stats | null>(null);
-  // Labs view: the floating menu can be tucked away so it doesn't cover the floor plan (remembered per device).
-  const [navHidden, setNavHidden] = useState(() => { try { return localStorage.getItem(NAV_HIDDEN_KEY) === '1'; } catch { return false; } });
-  const toggleNav = (hidden: boolean) => {
-    setNavHidden(hidden);
-    try { localStorage.setItem(NAV_HIDDEN_KEY, hidden ? '1' : '0'); } catch { /* private mode */ }
+  // Desktop sidebar can collapse to an icon rail (remembered per device).
+  const [collapsed, setCollapsed] = useState(() => { try { return localStorage.getItem(COLLAPSED_KEY) === '1'; } catch { return false; } });
+  const toggleCollapsed = () => {
+    setCollapsed(!collapsed);
+    try { localStorage.setItem(COLLAPSED_KEY, collapsed ? '0' : '1'); } catch { /* private mode */ }
   };
   const { pathname } = useLocation();
   const isLabs = pathname.startsWith('/labs');
@@ -58,100 +58,33 @@ export default function Layout() {
   if (!profile) return null;
   const count = (stats?.pending ?? 0) + (stats?.openReports ?? 0) + (profile.role === 'admin' ? stats?.pendingTeachers ?? 0 : 0);
 
-  // Floating bottom navigation (active only on Labs view); hidden → a small round Menu button
-  const floatingNav = isLabs && (navHidden ? (
-    <button onClick={() => toggleNav(false)} aria-label="Show menu" title="Show menu"
-      className="fixed bottom-4 left-1/2 z-40 flex -translate-x-1/2 items-center gap-1.5 rounded-full border border-white/20 navy-weave px-4 py-2.5 text-xs font-semibold text-white shadow-2xl hover:brightness-110">
-      <Menu size={16} />Menu
-    </button>
-  ) : (
-    <nav
-      className="fixed bottom-4 left-1/2 -translate-x-1/2 z-40 flex items-center gap-1 rounded-2xl border border-white/20 navy-weave p-1.5 shadow-2xl backdrop-blur-md animate-in fade-in slide-in-from-bottom-4 duration-200"
-      aria-label="Floating navigation"
-    >
-      {NAV.filter((n) => n.roles.includes(profile.role)).map(({ to, label, icon: Icon }) => (
-        <NavLink
-          key={to}
-          to={to}
-          end={to === '/'}
-          className={({ isActive }) =>
-            `flex items-center gap-2 rounded-xl px-3.5 py-2 text-xs font-semibold transition-all ${
-              isActive || (to.startsWith('/people') && pathname.startsWith('/people'))
-                ? 'bg-white text-rail shadow-md'
-                : 'text-blue-100 hover:bg-white/15 hover:text-white'
-            }`
-          }
-        >
-          <Icon size={16} strokeWidth={2} />
-          <span className="hidden sm:inline">{label}</span>
-        </NavLink>
-      ))}
-      <span className="mx-0.5 h-6 w-px bg-white/20" aria-hidden />
-      <button onClick={() => toggleNav(true)} aria-label="Hide menu" title="Hide menu"
-        className="grid h-8 w-8 place-items-center rounded-xl text-blue-100 hover:bg-white/15 hover:text-white">
-        <ChevronDown size={18} />
-      </button>
-    </nav>
-  ));
-
-  // When on Labs view: 100% full-window 3D visual with floating navigation below
-  if (isLabs) {
-    return (
-      <div className="relative h-screen w-screen overflow-hidden bg-[#dfe5ee]">
-        <IntroSplash />
-        {/* Floating top-right user and notification controls */}
-        <div className="pointer-events-none absolute right-4 top-4 z-30 flex items-center gap-2">
-          {api.demo && (
-            <span className="pointer-events-auto hidden rounded-xl border sm:inline border-amber-200 bg-amber-100/90 px-2.5 py-1 text-xs font-medium text-amber-900 shadow-sm backdrop-blur">
-              Demo mode
-            </span>
-          )}
-          {(profile.role === 'admin' || profile.role === 'staff') && (
-            <NotificationBell count={count} />
-          )}
-          {profile.role === 'student' && <StudentBell />}
-          <div className="pointer-events-auto flex items-center gap-2 rounded-xl border border-line/60 bg-panel/90 p-1.5 shadow-md backdrop-blur">
-            <span className="grid h-7 w-7 place-items-center rounded-lg bg-rail text-xs font-semibold text-white">
-              {profile.full_name.split(' ').map((w) => w[0]).slice(0, 2).join('')}
-            </span>
-            <button onClick={() => api.signOut()} aria-label="Sign out" className="rounded-md p-1 text-muted hover:bg-chalk hover:text-ink">
-              <LogOut size={16} />
-            </button>
-          </div>
-        </div>
-
-        {/* Full-window content */}
-        <main className="h-full w-full">
-          <Outlet />
-        </main>
-
-        {/* Floating bottom navigation */}
-        {floatingNav}
-      </div>
-    );
-  }
-
-  // Standard layout with left sidebar menu for all other navigation pages
-  const nav = (
+  // Left sidebar menu (all pages, Labs included); `compact` = the collapsed icon rail
+  const nav = (compact: boolean) => (
     <nav className="mt-8 grid gap-1">
-      <p className="mb-1 px-3 text-[11px] font-medium text-blue-200/80">Menu</p>
+      <p className={compact ? 'sr-only' : 'mb-1 px-3 text-[11px] font-medium text-blue-200/80'}>Menu</p>
       {NAV.filter((n) => n.roles.includes(profile.role)).map(({ to, label, icon: Icon }) => (
-        <NavLink key={to} to={to} end={to === '/'}
-          className={({ isActive }) => `flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium transition-colors ${
+        <NavLink key={to} to={to} end={to === '/'} title={compact ? label : undefined} aria-label={compact ? label : undefined}
+          className={({ isActive }) => `flex items-center gap-3 rounded-xl py-2.5 text-sm font-medium transition-colors ${compact ? 'justify-center px-0' : 'px-3'} ${
             isActive || (to.startsWith('/people') && pathname.startsWith('/people'))
               ? 'bg-white text-rail shadow-sm' : 'text-blue-100 hover:bg-white/10 hover:text-white'}`}>
-          <Icon size={18} strokeWidth={1.75} />{label}
+          <Icon size={18} strokeWidth={1.75} className="shrink-0" />{!compact && label}
         </NavLink>
       ))}
     </nav>
   );
 
   return (
-    <div className="flex min-h-full gap-3 p-0 md:p-3">
+    <div className={`flex gap-3 p-0 md:p-3 ${isLabs ? 'h-screen overflow-hidden' : 'min-h-full'}`}>
       <IntroSplash />
-      <aside className="sticky top-3 hidden h-[calc(100vh-1.5rem)] w-64 shrink-0 flex-col rounded-2xl navy-weave p-4 shadow-lg md:flex print:!hidden">
-        <Brand />{nav}
-        <UserBox />
+      <aside className={`sticky top-3 hidden h-[calc(100vh-1.5rem)] shrink-0 flex-col rounded-2xl navy-weave shadow-lg transition-[width] duration-200 md:flex print:!hidden ${
+        collapsed ? 'w-[4.5rem] px-2.5 py-4' : 'w-64 p-4'}`}>
+        <Brand compact={collapsed} />
+        <button onClick={toggleCollapsed} aria-label={collapsed ? 'Expand menu' : 'Collapse menu'} title={collapsed ? 'Expand menu' : 'Collapse menu'}
+          className={`mt-4 flex items-center gap-2 rounded-lg py-1.5 text-xs font-medium text-blue-200 hover:bg-white/10 hover:text-white ${collapsed ? 'justify-center' : 'px-3'}`}>
+          {collapsed ? <PanelLeftOpen size={18} /> : <><PanelLeftClose size={16} />Collapse menu</>}
+        </button>
+        {nav(collapsed)}
+        <UserBox compact={collapsed} />
       </aside>
 
       {open && (
@@ -160,12 +93,12 @@ export default function Layout() {
           <aside className="absolute inset-y-0 left-0 flex w-64 flex-col navy-weave p-4">
             <div className="flex items-center justify-between"><Brand />
               <button onClick={() => setOpen(false)} aria-label="Close menu" className="text-slate-300"><X /></button></div>
-            {nav}<UserBox />
+            {nav(false)}<UserBox />
           </aside>
         </div>
       )}
 
-      <div className="flex min-w-0 flex-1 flex-col">
+      <div className={`flex min-w-0 flex-1 flex-col ${isLabs ? 'min-h-0' : ''}`}>
         <div className="sticky top-0 z-30 flex h-14 items-center gap-3 bg-chalk px-4 md:static md:bg-transparent md:px-6 print:hidden">
           <button className="md:hidden" onClick={() => setOpen(true)} aria-label="Open menu"><Menu /></button>
           {api.demo && (
@@ -178,15 +111,28 @@ export default function Layout() {
             {profile.role === 'student' && <StudentBell />}
           </div>
         </div>
-        <main className="mx-auto w-full max-w-7xl flex-1 px-4 py-5 md:px-6"><Outlet /></main>
+        {isLabs
+          // Labs fills the rest of the screen (floor plan / 3D), in a rounded panel like the sidebar
+          ? <main className="relative min-h-0 flex-1 overflow-hidden md:rounded-2xl"><Outlet /></main>
+          : <main className="mx-auto w-full max-w-7xl flex-1 px-4 py-5 md:px-6"><Outlet /></main>}
       </div>
     </div>
   );
 }
 
-function UserBox() {
+function UserBox({ compact = false }: { compact?: boolean }) {
   const { profile } = useAuth();
   if (!profile) return null;
+  if (compact) {
+    return (
+      <div className="mt-auto grid justify-items-center gap-2" title={`${profile.full_name} · ${profile.role}`}>
+        <span className="grid h-9 w-9 place-items-center rounded-full bg-white text-sm font-semibold text-rail">
+          {profile.full_name.split(' ').map((w) => w[0]).slice(0, 2).join('')}
+        </span>
+        <button onClick={() => api.signOut()} aria-label="Sign out" title="Sign out" className="rounded-lg p-1.5 text-blue-200 hover:bg-white/15 hover:text-white"><LogOut size={18} /></button>
+      </div>
+    );
+  }
   return (
     <div className="mt-auto flex items-center gap-3 rounded-xl bg-white/10 p-3">
       <span className="grid h-9 w-9 shrink-0 place-items-center rounded-full bg-white text-sm font-semibold text-rail">
