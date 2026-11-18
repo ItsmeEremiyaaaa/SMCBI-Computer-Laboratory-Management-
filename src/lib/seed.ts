@@ -1,7 +1,7 @@
 import { manilaNow } from './seat';
 import { LAYOUTS, seatsFor } from './layouts';
 import { TIMETABLE } from './timetable';
-import { BSIT_ROSTER, type ClassSchedule, type Lab, type LabEvent, type Pc, type Profile, type Reservation, type Student } from './types';
+import { BSIT_ROSTER, type CheckIn, type ClassSchedule, type Lab, type LabEvent, type Pc, type Profile, type Reservation, type Student } from './types';
 
 export interface MockState {
   profiles: Profile[];
@@ -11,6 +11,7 @@ export interface MockState {
   students: Student[];
   events: LabEvent[];
   schedules: ClassSchedule[];
+  checkIns: CheckIn[];
 }
 
 const person = (id: string, full_name: string, role: Profile['role'], approved: boolean, department: string): Profile => ({
@@ -60,9 +61,12 @@ export function seed(): MockState {
       person('staff', 'Jose Reyes', 'staff', true, 'Admin'),
       person('teacher', 'Maria Santos', 'teacher', true, 'BSIT'),
       person('newteacher', 'Carlo Dizon', 'teacher', false, 'BSBA'),
+      // demo student: matches roster record C230001 (sign in as c230001@smcbi.edu.ph)
+      { id: 'student', full_name: '4th Year Student 001', email: 'c230001@smcbi.edu.ph', role: 'student', approved: true, department: 'BSIT', course: '4th Year A', phone: null, address: null },
     ],
     students: bsitRoster(),
     schedules: seedSchedules(),
+    checkIns: [],
     events: [
       { id: 'e1', title: 'Lab maintenance', description: 'All labs closed for cleaning', event_date: addDays(now.date, 3), event_time: '08:00', event_type: 'meeting', owner_id: 'admin' },
       { id: 'e2', title: 'Midterm week', description: null, event_date: addDays(now.date, 7), event_time: '07:30', event_type: 'academic', owner_id: 'admin' },

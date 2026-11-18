@@ -18,7 +18,7 @@ describe('ReservationForm', () => {
   it('shows an error and does not submit when end is not after start', async () => {
     const calls: ReservationInput[] = [];
     const u = userEvent.setup();
-    render(<ReservationForm labs={labs} pcs={pcs} onSubmit={async (i) => { calls.push(i); }} onCancel={() => {}} />);
+    render(<ReservationForm labs={labs} pcs={pcs} role="teacher" approved={[]} schedules={[]} onSubmit={async (i) => { calls.push(i); }} onCancel={() => {}} />);
     await fill(u, '08:00');
     await u.click(screen.getByRole('button', { name: /send request/i }));
     expect(await screen.findByText(/end time must be after start time/i)).toBeInTheDocument();
@@ -28,7 +28,7 @@ describe('ReservationForm', () => {
   it('submits once with pc_id null for a whole-lab booking', async () => {
     const calls: ReservationInput[] = [];
     const u = userEvent.setup();
-    render(<ReservationForm labs={labs} pcs={pcs} onSubmit={async (i) => { calls.push(i); }} onCancel={() => {}} />);
+    render(<ReservationForm labs={labs} pcs={pcs} role="teacher" approved={[]} schedules={[]} onSubmit={async (i) => { calls.push(i); }} onCancel={() => {}} />);
     await fill(u, '10:00');
     await u.click(screen.getByRole('button', { name: /send request/i }));
     expect(calls).toHaveLength(1);
@@ -37,7 +37,7 @@ describe('ReservationForm', () => {
 
   it('prefills a single PC and shows server errors', async () => {
     const u = userEvent.setup();
-    render(<ReservationForm labs={labs} pcs={pcs} initial={{ lab_id: 'lab1', pc_id: 'lab1-pc05' }}
+    render(<ReservationForm labs={labs} pcs={pcs} role="teacher" approved={[]} schedules={[]} initial={{ lab_id: 'lab1', pc_id: 'lab1-pc05' }}
       onSubmit={async () => { throw new Error('This slot overlaps an approved reservation.'); }} onCancel={() => {}} />);
     expect(screen.getByLabelText(/seat/i)).toHaveValue('lab1-pc05');
     await fill(u, '10:00');

@@ -2,7 +2,10 @@ import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { X } from 'lucide-react';
 import type { LivePc } from '../hooks/useLabLive';
+import { useAuth } from '../auth';
+import { useLoad } from '../hooks/useLoad';
 import { api } from '../lib/api';
+import { STUDENT_LAB } from '../lib/rules';
 import type { Lab, PcStatus } from '../lib/types';
 import { Alert, Button, Field, fmtTime, Input, Led, STATUS_LABEL } from './ui';
 
@@ -13,6 +16,10 @@ export default function PcPanel({ pc, lab, canEdit, onClose }: { pc: LivePc; lab
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   useEffect(() => { setNote(pc.note ?? ''); setError(null); }, [pc.id, pc.note]);
+  const { profile } = useAuth();
+  const checkIns = useLoad(() => api.listCheckIns(lab.id).catch(() => []), [lab.id, pc.id]);
+  const here = checkIns.data?.find((c) => c.pc_id === pc.id);
+  const canReserve = pc.status !== 'broken' && (profile?.role !== 'student' || lab.id === STUDENT_LAB);
 
   async function set(status: PcStatus) {
     setBusy(true); setError(null);
@@ -40,6 +47,12 @@ export default function PcPanel({ pc, lab, canEdit, onClose }: { pc: LivePc; lab
           <p className="text-muted">{pc.current.pc_id ? 'This PC is booked' : 'Whole lab is booked'}</p>
         </div>
       )}
+      {here && profile?.role !== 'student' && (
+        <p className="rounded-md border border-blue-200 bg-blue-50 p-3 text-sm">
+          <span className="text-muted">Checked in:</span> <b>{here.user_name}</b>
+          <span className="text-muted"> since {new Date(here.checked_in_at).toLocaleTimeString('en-PH', { hour: 'numeric', minute: '2-digit' })}</span>
+        </p>
+      )}
       {pc.note && !canEdit && <p className="text-sm"><span className="text-muted">Note:</span> {pc.note}</p>}
 
       {canEdit ? (
@@ -63,10 +76,16 @@ export default function PcPanel({ pc, lab, canEdit, onClose }: { pc: LivePc; lab
         </div>
       ) : null}
 
-      <Link to={`/reservations?new=1&lab=${lab.id}&pc=${pc.id}`}
-        className="inline-flex h-10 items-center justify-center rounded-md border border-line bg-panel text-sm font-medium hover:bg-chalk">
-        Reserve this PC
-      </Link>
+      {canReserve ? (
+        <Link to={`/reservations?new=1&lab=${lab.id}&pc=${pc.id}`}
+          className="inline-flex h-10 items-center justify-center rounded-md border border-line bg-panel text-sm font-medium hover:bg-chalk">
+          Reserve this PC
+        </Link>
+      ) : (
+        <p className="rounded-md bg-chalk px-3 py-2 text-center text-sm text-muted">
+          {pc.status === 'broken' ? "This PC is broken, so it can't be reserved." : 'Students can book PCs in the Networking Laboratory only.'}
+        </p>
+      )}
     </div>
   );
 }

@@ -3,3 +3,9 @@ dist
 .env
 .env.local
 .superpowers
+
+# Python tools
+tools/.env
+tools/out/
+__pycache__/
+.pytest_cache/

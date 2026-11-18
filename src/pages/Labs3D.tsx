@@ -424,7 +424,7 @@ export default function Labs3D() {
       {/* Floating PC inspection drawer in top-right when a workstation is selected */}
       {selected && lab && (
         <aside className="absolute right-4 top-20 z-30 w-80 max-w-[calc(100%-2rem)] max-h-[calc(100%-6rem)] overflow-y-auto rounded-2xl border border-line bg-panel/95 shadow-2xl backdrop-blur transition-all">
-          <PcPanel pc={selected} lab={lab} canEdit={profile?.role !== 'teacher'} onClose={() => setSelectedId(null)} />
+          <PcPanel pc={selected} lab={lab} canEdit={profile?.role === 'admin' || profile?.role === 'staff'} onClose={() => setSelectedId(null)} />
         </aside>
       )}
 

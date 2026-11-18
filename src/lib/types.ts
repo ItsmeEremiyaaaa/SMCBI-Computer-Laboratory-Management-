@@ -1,4 +1,4 @@
-export type Role = 'admin' | 'staff' | 'teacher';
+export type Role = 'admin' | 'staff' | 'teacher' | 'student';
 export type PcStatus = 'free' | 'in_use' | 'broken';
 export type ShownStatus = PcStatus | 'reserved';
 export type ResStatus = 'pending' | 'approved' | 'rejected' | 'completed';
@@ -105,3 +105,14 @@ export interface ClassSchedule {
   ends_on: string;
 }
 export type ScheduleInput = Omit<ClassSchedule, 'id'> & { id?: string };
+
+// A student confirming which PC they're sitting at (scanned from the PC's QR code).
+export interface CheckIn {
+  id: string;
+  pc_id: string;
+  lab_id: string;
+  user_id: string;
+  user_name: string;
+  checked_in_at: string; // ISO timestamp
+  checked_out_at: string | null;
+}

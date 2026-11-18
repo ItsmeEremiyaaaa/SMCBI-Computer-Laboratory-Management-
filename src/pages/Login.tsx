@@ -34,10 +34,11 @@ export default function Login() {
               <Button key={r} type="button" size="sm" variant="ghost" className="capitalize"
                 onClick={() => api.signIn(`${r}@smcbi.edu.ph`, 'demo')}>{r}</Button>
             ))}
+            <Button type="button" size="sm" variant="ghost" onClick={() => api.signIn('c230001@smcbi.edu.ph', 'demo')}>Student</Button>
           </div>
         </div>
       )}
-      <p className="mt-6 text-sm text-muted">New teacher? <Link to="/signup" className="font-medium text-accent hover:underline">Create an account</Link></p>
+      <p className="mt-6 text-sm text-muted">No account yet? <Link to="/signup" className="font-medium text-accent hover:underline">Create one</Link> (students and teachers)</p>
     </AuthShell>
   );
 }

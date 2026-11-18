@@ -14,7 +14,7 @@ const STATUSES: ResStatus[] = ['pending', 'approved', 'rejected', 'completed'];
 export default function Reservations() {
   const { profile } = useAuth();
   const isAdmin = profile?.role === 'admin';
-  const isTeacher = profile?.role === 'teacher';
+  const isTeacher = profile?.role === 'teacher' || profile?.role === 'student'; // sees only their own requests
   const [params, setParams] = useSearchParams();
   const status = (params.get('status') ?? '') as ResStatus | '';
   const [labId, setLabId] = useState('');
@@ -25,6 +25,10 @@ export default function Reservations() {
   const labs = useLoad(() => api.listLabs());
   const pcs = useLoad(() => api.listPcs());
   const list = useLoad(() => api.listReservations({ mine: isTeacher }), [isTeacher]);
+  const approvedAll = useLoad(() => api.listReservations({ status: 'approved' }));
+  const schedules = useLoad(() => api.listSchedules());
+  const isStudent = profile?.role === 'student';
+  const brokenPc = (id: string | null) => !!id && pcs.data?.find((p) => p.id === id)?.status === 'broken';
   useEffect(() => api.subscribeReservations(list.reload), [list.reload]);
 
   const labName = (id: string) => {
@@ -52,8 +56,9 @@ export default function Reservations() {
   return (
     <>
       <PageHeader title="Reservations"
-        sub={isTeacher ? 'Your lab and PC requests.' : 'Requests from teachers for whole labs or single PCs.'}
-        actions={<Button onClick={() => { params.set('new', '1'); setParams(params); }}><Plus size={16} />Request a lab</Button>} />
+        sub={isStudent ? 'Book a Networking Laboratory PC. The admin approves or denies each request.'
+          : isTeacher ? 'Your lab and PC requests.' : 'Requests from teachers and students for whole labs or single PCs.'}
+        actions={<Button onClick={() => { params.set('new', '1'); setParams(params); }}><Plus size={16} />{isStudent ? 'Book a NetLab PC' : 'Request a lab'}</Button>} />
 
       <Panel className="mb-4">
         <div className="grid gap-px overflow-hidden rounded-lg bg-line sm:grid-cols-4">
@@ -101,7 +106,8 @@ export default function Reservations() {
                   </p>
                   {r.admin_notes && <p className="text-sm text-muted">Admin note: {r.admin_notes}</p>}
                 </div>
-                <p className="text-sm">{labName(r.lab_id)}<span className="block text-muted">{pcLabel(r.pc_id)}</span></p>
+                <p className="text-sm">{labName(r.lab_id)}<span className="block text-muted">{pcLabel(r.pc_id)}</span>
+                  {r.status === 'pending' && brokenPc(r.pc_id) && <span className="block text-xs font-semibold text-red-700">PC is broken — can't approve</span>}</p>
                 <div><ResBadge status={r.status} /></div>
                 <div className="flex flex-wrap gap-2 xl:justify-end">
                   {isAdmin && r.status === 'pending' && <>
@@ -119,19 +125,20 @@ export default function Reservations() {
         )}
       </Panel>
 
-      <Modal open={newOpen} title="Request a lab" onClose={closeNew}>
-        {labs.data && (
-          <ReservationForm labs={labs.data} pcs={pcs.data ?? []}
+      <Modal open={newOpen} title={isStudent ? 'Book a NetLab PC' : 'Request a lab'} onClose={closeNew}>
+        {labs.data && profile && (
+          <ReservationForm labs={labs.data} pcs={pcs.data ?? []} role={profile.role}
+            approved={approvedAll.data ?? []} schedules={schedules.data ?? []}
             initial={{ lab_id: params.get('lab') ?? undefined, pc_id: params.get('pc') ?? undefined }}
             onCancel={closeNew}
-            onSubmit={async (input) => { await api.createReservation(input); closeNew(); await list.reload(); }} />
+            onSubmit={async (input) => { await api.createReservation(input); closeNew(); await list.reload(); await approvedAll.reload(); }} />
         )}
       </Modal>
 
       {review && (
         <ReviewModal r={review.r} to={review.to} where={`${labName(review.r.lab_id)}, ${pcLabel(review.r.pc_id)}`}
           onClose={() => setReview(null)}
-          onDone={async () => { setReview(null); await list.reload(); }} />
+          onDone={async () => { setReview(null); await list.reload(); await approvedAll.reload(); }} />
       )}
     </>
   );
@@ -156,7 +163,7 @@ function ReviewModal({ r, to, where, onClose, onDone }:
           <p className="text-muted">{r.requester_name}, {where}</p>
           <p className="text-muted">{fmtDate(r.date)}, {fmtTime(r.start_time)} to {fmtTime(r.end_time)}</p>
         </div>
-        <Field label="Note to the teacher (optional)"><Textarea value={notes} onChange={(e) => setNotes(e.target.value)} rows={3} /></Field>
+        <Field label="Note to the requester (optional)"><Textarea value={notes} onChange={(e) => setNotes(e.target.value)} rows={3} /></Field>
         <div className="flex justify-end gap-2">
           <Button variant="ghost" onClick={onClose}>Cancel</Button>
           <Button variant={to === 'approved' ? 'primary' : 'danger'} disabled={busy} onClick={go}>{verb}</Button>

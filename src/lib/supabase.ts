@@ -2,7 +2,8 @@
 // in supabase/migrations; this file only maps rows and errors.
 import { createClient } from '@supabase/supabase-js';
 import type { Api } from './api';
-import type { ClassSchedule, Pc, Profile, Reservation } from './types';
+import type { CheckIn, ClassSchedule, Pc, Profile, Reservation } from './types';
+import { manilaNow } from './seat';
 
 export const hhmm = (t: string) => t.slice(0, 5);
 
@@ -51,7 +52,7 @@ export function createSupabaseApi(url: string, key: string): Api {
     async signUp(i) {
       const { error } = await sb.auth.signUp({
         email: i.email.trim(), password: i.password,
-        options: { data: { full_name: i.full_name, department: i.department, course: i.course }, emailRedirectTo: window.location.origin },
+        options: { data: { full_name: i.full_name, department: i.department, course: i.course, account_type: i.account_type ?? 'teacher' }, emailRedirectTo: window.location.origin },
       });
       // The only sign-up rule the database enforces now is the school email domain.
       if (error) throw new Error(/Database error/.test(error.message) ? 'Sign-up failed. Check that you used your @smcbi.edu.ph email.' : error.message);
@@ -161,6 +162,21 @@ export function createSupabaseApi(url: string, key: string): Api {
         sb.from('students').select('course').then((r) => new Set((r.data ?? []).map((x) => x.course)).size),
       ]);
       return { students, staff, teachers, courses, pending, pendingTeachers };
+    },
+
+    async listCheckIns(labId) {
+      // Check-ins left open from earlier days don't count.
+      let q = sb.from('checkins').select('*').is('checked_out_at', null).gte('checked_in_at', `${manilaNow().date}T00:00:00+08:00`);
+      if (labId) q = q.eq('lab_id', labId);
+      return ok(await q) as CheckIn[];
+    },
+    async checkIn(pcId) {
+      // lab, user, name and time are filled in (and the rules checked) by the database trigger
+      return ok(await sb.from('checkins').insert({ pc_id: pcId }).select().single()) as CheckIn;
+    },
+    async checkOut() {
+      const me = await uid();
+      ok(await sb.from('checkins').update({ checked_out_at: new Date().toISOString() }).eq('user_id', me ?? '').is('checked_out_at', null));
     },
   };
 }

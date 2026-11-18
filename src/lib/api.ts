@@ -1,5 +1,5 @@
 import type {
-  ClassSchedule, ScheduleInput,
+  CheckIn, ClassSchedule, ScheduleInput,
   Lab, LabEvent, Pc, PcStatus, Profile, Reservation, ReservationInput, ResStatus, Role, Student,
 } from './types';
 import { createMock } from './mock';
@@ -7,6 +7,7 @@ import { createSupabaseApi } from './supabase';
 
 export interface SignUpInput {
   full_name: string; email: string; password: string; department: string; course: string;
+  account_type?: 'student' | 'teacher';
 }
 export interface ReservationFilter { labId?: string; date?: string; status?: ResStatus; mine?: boolean }
 export interface Stats {
@@ -50,6 +51,12 @@ export interface Api {
   deleteSchedule(id: string): Promise<void>;
 
   stats(): Promise<Stats>;
+
+  /** Active check-ins from today (optionally for one lab). */
+  listCheckIns(labId?: string): Promise<CheckIn[]>;
+  /** Student confirms they are sitting at this PC (leaves any earlier seat). */
+  checkIn(pcId: string): Promise<CheckIn>;
+  checkOut(): Promise<void>;
 }
 
 const url = import.meta.env.VITE_SUPABASE_URL as string | undefined;

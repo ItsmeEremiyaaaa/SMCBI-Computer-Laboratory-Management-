@@ -1,0 +1,95 @@
+import { Link } from 'react-router-dom';
+import { CalendarClock, LogOut, MonitorCheck, Plus, QrCode } from 'lucide-react';
+import { useAuth } from '../auth';
+import { useLoad } from '../hooks/useLoad';
+import { api } from '../lib/api';
+import { classesOn, manilaNow } from '../lib/seat';
+import { Button, Empty, fmtDate, fmtTime, PageHeader, Panel, ResBadge } from '../components/ui';
+
+const LAB_NAME: Record<string, string> = { lab1: 'ComLab 1', lab2: 'ComLab 2', netlab: 'NetLab' };
+
+// "BSIT" + "1st Year A" (how a student profile stores it) → "BSIT 1A" (how the timetable names sections).
+export const sectionOf = (department: string | null, course: string | null) => {
+  const m = course?.match(/^(\d)\D+Year\s+([A-Z])$/i);
+  return department && m ? `${department} ${m[1]}${m[2].toUpperCase()}` : null;
+};
+
+// Home screen for student accounts: where am I sitting, my classes today, my NetLab bookings.
+export default function StudentHome() {
+  const { profile } = useAuth();
+  const now = manilaNow();
+  const pcs = useLoad(() => api.listPcs());
+  const seat = useLoad(() => api.listCheckIns().then((rows) => rows.find((c) => c.user_id === profile?.id) ?? null));
+  const schedules = useLoad(() => api.listSchedules());
+  const bookings = useLoad(() => api.listReservations({ mine: true }));
+
+  const section = sectionOf(profile?.department ?? null, profile?.course ?? null);
+  const today = classesOn(now.date, schedules.data ?? []).filter((c) => !section || c.title.startsWith(`${section}:`))
+    .sort((a, b) => a.start_time.localeCompare(b.start_time));
+  const upcoming = (bookings.data ?? []).filter((r) => r.date >= now.date).sort((a, b) => a.date.localeCompare(b.date) || a.start_time.localeCompare(b.start_time));
+  const pcLabel = (id: string | null) => pcs.data?.find((p) => p.id === id)?.label ?? id ?? '';
+
+  return (
+    <div className="mx-auto max-w-3xl">
+      <PageHeader title={`Hi, ${profile?.full_name.split(' ')[0] ?? 'there'}`} sub={section ? `${section} · student` : 'Student account'} />
+
+      <div className="grid gap-4 md:grid-cols-2">
+        <Panel className="p-5">
+          <p className="flex items-center gap-2 text-sm font-semibold text-muted"><MonitorCheck size={16} />Your seat</p>
+          {seat.data ? (
+            <>
+              <p className="mt-2 font-cond text-3xl font-bold">{pcLabel(seat.data.pc_id)}</p>
+              <p className="text-sm text-muted">{LAB_NAME[seat.data.lab_id] ?? seat.data.lab_id}, since {new Date(seat.data.checked_in_at).toLocaleTimeString('en-PH', { hour: 'numeric', minute: '2-digit' })}</p>
+              <Button variant="ghost" size="sm" className="mt-3" onClick={async () => { await api.checkOut(); await seat.reload(); }}>
+                <LogOut size={14} />Leave seat
+              </Button>
+            </>
+          ) : (
+            <>
+              <p className="mt-2 text-lg font-semibold">Not checked in</p>
+              <p className="mt-1 flex items-start gap-2 text-sm text-muted"><QrCode size={28} className="shrink-0 text-accent" />
+                At your PC, scan the QR code on the sticker with your phone camera and tap “I'm sitting at…”.</p>
+            </>
+          )}
+        </Panel>
+
+        <Panel className="p-5">
+          <p className="flex items-center gap-2 text-sm font-semibold text-muted"><CalendarClock size={16} />Lab classes today</p>
+          {today.length === 0 ? <p className="mt-2 text-sm text-muted">No lab classes today.</p> : (
+            <ul className="mt-2 grid gap-2">
+              {today.map((c) => (
+                <li key={c.id} className="rounded-lg bg-chalk px-3 py-2 text-sm">
+                  <p className="font-semibold">{c.title.split(': ').slice(1).join(': ')}</p>
+                  <p className="text-muted">{fmtTime(c.start_time)}–{fmtTime(c.end_time)} · {LAB_NAME[c.lab_id] ?? c.lab_id} · {c.requester_name}</p>
+                </li>
+              ))}
+            </ul>
+          )}
+        </Panel>
+      </div>
+
+      <Panel className="mt-4">
+        <div className="flex flex-wrap items-center justify-between gap-2 border-b border-line px-4 py-3">
+          <h2 className="font-semibold">My NetLab bookings</h2>
+          <Link to="/reservations?new=1&lab=netlab" className="inline-flex h-9 items-center gap-1.5 rounded-lg bg-accent px-3 text-sm font-medium text-white hover:bg-rail">
+            <Plus size={16} />Book a NetLab PC
+          </Link>
+        </div>
+        {upcoming.length === 0 ? <Empty>{bookings.loading ? 'Loading…' : 'No upcoming bookings. The admin approves or denies each request.'}</Empty> : (
+          <ul className="divide-y divide-line">
+            {upcoming.map((r) => (
+              <li key={r.id} className="flex flex-wrap items-center gap-3 px-4 py-3 text-sm">
+                <div className="min-w-0 flex-1">
+                  <p className="font-medium">{r.title}</p>
+                  <p className="text-muted">{fmtDate(r.date)}, {fmtTime(r.start_time)}–{fmtTime(r.end_time)} · {pcLabel(r.pc_id)}</p>
+                  {r.admin_notes && <p className="text-muted">Admin: {r.admin_notes}</p>}
+                </div>
+                <ResBadge status={r.status} />
+              </li>
+            ))}
+          </ul>
+        )}
+      </Panel>
+    </div>
+  );
+}

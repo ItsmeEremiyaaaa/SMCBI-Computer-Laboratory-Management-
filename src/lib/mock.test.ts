@@ -96,11 +96,19 @@ describe('mock class schedule', () => {
     lab_id: 'lab1', section: 'BSIT 9Z', subject: 'Test class', instructor: 'T', day_of_week: 1,
     start_time: '08:00', end_time: '11:00', starts_on: '2099-01-01', ends_on: '2099-12-31',
   };
-  it('blocks approving a booking during a weekly class', async () => {
+  it('refuses a booking during a weekly class when it is requested', async () => {
     const api = await asAdmin();
     await api.saveSchedule(cls);
-    const r = await api.createReservation(input({ date: '2099-01-05', start_time: '10:00', end_time: '12:00' })); // a Monday
-    await expect(api.reviewReservation(r.id, 'approved')).rejects.toThrow(/class/i);
+    await expect(api.createReservation(input({ date: '2099-01-05', start_time: '10:00', end_time: '12:00' }))).rejects.toThrow(/class/i); // a Monday
+  });
+  it('lets a student sign up with their school email and book only NetLab PCs', async () => {
+    const api = createMock(null);
+    await api.signUp({ full_name: 'x', email: 'C260001@smcbi.edu.ph', password: 'password1', department: '', course: '', account_type: 'student' });
+    const me = await api.getSession();
+    expect(me).toMatchObject({ role: 'student', approved: true, full_name: '1st Year Student 001' });
+    await expect(api.createReservation(input({ lab_id: 'lab1', pc_id: 'lab1-pc01', date: '2099-01-06' }))).rejects.toThrow(/only book the Networking/);
+    await expect(api.createReservation(input({ lab_id: 'netlab', pc_id: 'netlab-pc18', date: '2099-01-06' }))).rejects.toThrow(/broken/);
+    await expect(api.createReservation(input({ lab_id: 'netlab', pc_id: 'netlab-pc01', date: '2099-01-06' }))).resolves.toMatchObject({ status: 'pending' });
   });
   it('rejects two classes in the same lab at the same time', async () => {
     const api = await asAdmin();

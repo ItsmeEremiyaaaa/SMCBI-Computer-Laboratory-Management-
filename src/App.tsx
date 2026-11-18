@@ -10,6 +10,9 @@ import Reservations from './pages/Reservations';
 import People from './pages/People';
 import Calendar from './pages/Calendar';
 import Schedule from './pages/Schedule';
+import StudentHome from './pages/StudentHome';
+import CheckIn from './pages/CheckIn';
+const QrCodes = lazy(() => import('./pages/QrCodes')); // qrcode library only loads for staff printing stickers
 import type { Role } from './lib/types';
 
 // three.js is big; only load it when someone opens the Labs page.
@@ -39,7 +42,9 @@ export default function App() {
   return (
     <Routes>
       <Route element={<Layout />}>
-        <Route index element={<Dashboard />} />
+        <Route index element={profile.role === 'student' ? <StudentHome /> : <Dashboard />} />
+        <Route path="checkin/:pcId" element={<CheckIn />} />
+        <Route path="qr/:labId?" element={<Only roles={['admin', 'staff']}><Suspense fallback={<Loading />}><QrCodes /></Suspense></Only>} />
         <Route path="labs/:labId?" element={<Suspense fallback={<Loading />}><Labs3D /></Suspense>} />
         <Route path="reservations" element={<Reservations />} />
         <Route path="calendar" element={<Calendar />} />

@@ -7,7 +7,8 @@ import { Alert, Button, Field, Input, Select } from '../components/ui';
 import AuthShell from './AuthShell';
 
 export default function Signup() {
-  const [f, setF] = useState({ full_name: '', email: '', password: '', department: 'BSIT', course: '' });
+  const [f, setF] = useState({ full_name: '', email: '', password: '', department: 'BSIT', course: '', account_type: 'student' as 'student' | 'teacher' });
+  const student = f.account_type === 'student';
   const [error, setError] = useState<string | null>(null);
   const [done, setDone] = useState(false);
   const [busy, setBusy] = useState(false);
@@ -23,20 +24,30 @@ export default function Signup() {
 
   return (
     <AuthShell>
-      <h1 className="font-serif text-3xl font-semibold tracking-tight text-rail">Create a teacher account</h1>
-      <p className="mt-1 text-sm text-muted">An admin approves new accounts before you can book labs.</p>
+      <h1 className="font-serif text-3xl font-semibold tracking-tight text-rail">Create an account</h1>
+      <div className="mt-4 grid grid-cols-2 gap-1 rounded-lg border border-line bg-panel p-1" role="group" aria-label="I am a">
+        {(['student', 'teacher'] as const).map((t) => (
+          <button key={t} type="button" onClick={() => setF({ ...f, account_type: t })} aria-pressed={f.account_type === t}
+            className={`rounded-md py-2 text-sm font-semibold capitalize ${f.account_type === t ? 'bg-accent text-white' : 'text-muted hover:text-ink'}`}>
+            {t}
+          </button>
+        ))}
+      </div>
+      <p className="mt-2 text-sm text-muted">{student
+        ? 'Use your school email (e.g. c230505@smcbi.edu.ph). If it matches your student record, you can sign in right away.'
+        : 'An admin approves new teacher accounts before you can book labs.'}</p>
       {done ? (
         <p className="mt-6 rounded-md border border-line bg-panel p-4 text-sm">Account created. Check your email to confirm it, then sign in.</p>
       ) : (
         <form onSubmit={submit} noValidate className="mt-6 grid gap-4">
           {error && <Alert>{error}</Alert>}
-          <Field label="Full name"><Input required value={f.full_name} onChange={set('full_name')} autoComplete="name" /></Field>
+          <Field label="Full name" hint={student ? 'Your name from the student record is used if it matches.' : undefined}><Input required value={f.full_name} onChange={set('full_name')} autoComplete="name" /></Field>
           <Field label="Email" hint="Must end with @smcbi.edu.ph"><Input type="email" required value={f.email} onChange={set('email')} autoComplete="email" /></Field>
           <Field label="Password" hint="At least 8 characters"><Input type="password" required value={f.password} onChange={set('password')} autoComplete="new-password" /></Field>
-          <div className="grid grid-cols-2 gap-3">
+          {!student && <div className="grid grid-cols-2 gap-3">
             <Field label="Department"><Select value={f.department} onChange={set('department')}>{DEPARTMENTS.map((d) => <option key={d}>{d}</option>)}</Select></Field>
             <Field label="Course taught"><Input required value={f.course} onChange={set('course')} placeholder="e.g. Programming 1" /></Field>
-          </div>
+          </div>}
           <Button disabled={busy}>{busy ? 'Creating…' : 'Create account'}</Button>
         </form>
       )}

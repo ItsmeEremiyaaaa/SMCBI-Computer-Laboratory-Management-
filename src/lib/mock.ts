@@ -4,6 +4,7 @@ import { classesOn, manilaNow, slotsOverlap } from './seat';
 import { seed, seedSchedules, type MockState } from './seed';
 import type { Pc, Profile, Role } from './types';
 import { isSchoolEmail, schedulesOverlap, validateReservation, validateSchedule, validateStudent } from './validate';
+import { bookingProblems, checkInProblem } from './rules';
 
 type Store = Pick<Storage, 'getItem' | 'setItem'>;
 const KEY = 'comlab-mock-v3'; // v3: Netlab from the sketch (30 PCs)
@@ -19,6 +20,7 @@ export function createMock(storage: Store | null = browserStorage()): Api {
   let state: MockState;
   try { state = JSON.parse(storage?.getItem(KEY) ?? 'null') ?? seed(); } catch { state = seed(); }
   state.schedules ??= seedSchedules(); // demo data saved before weekly classes existed
+  state.checkIns ??= [];
   state.labs.forEach((l) => {
     if (l.id === 'lab1') l.name = 'Computer Laboratory 1';
     if (l.id === 'lab2') l.name = 'Computer Laboratory 2';
@@ -61,8 +63,13 @@ export function createMock(storage: Store | null = browserStorage()): Api {
       if (!isSchoolEmail(i.email)) throw new Error('Use your @smcbi.edu.ph email.');
       if (i.password.length < 8) throw new Error('Password must be at least 8 characters.');
       if (state.profiles.some((p) => p.email.toLowerCase() === i.email.toLowerCase())) throw new Error('That email is already registered.');
-      const p: Profile = { id: uid(), full_name: i.full_name, email: i.email.trim(), role: 'teacher', approved: false,
-        department: i.department, course: i.course, phone: null, address: null };
+      // Same as the database: an enrolled student's school email becomes a student account right away.
+      const s = state.students.find((x) => x.email.toLowerCase() === i.email.trim().toLowerCase() && (x.status ?? 'Enrolled') === 'Enrolled');
+      const p: Profile = s
+        ? { id: uid(), full_name: s.full_name, email: i.email.trim(), role: 'student', approved: true,
+            department: s.course, course: `${s.year_level} ${s.section}`, phone: null, address: null }
+        : { id: uid(), full_name: i.full_name, email: i.email.trim(), role: i.account_type === 'student' ? 'student' : 'teacher', approved: false,
+            department: i.department, course: i.course, phone: null, address: null };
       state.profiles.push(p); sessionId = p.id; save(); authListeners.forEach((f) => f());
     },
     async signOut() { sessionId = null; save(); authListeners.forEach((f) => f()); },
@@ -93,7 +100,8 @@ export function createMock(storage: Store | null = browserStorage()): Api {
     },
     async createReservation(input) {
       const p = me();
-      const errs = validateReservation(input, manilaNow().date);
+      const errs = [...validateReservation(input, manilaNow().date),
+        ...bookingProblems(input, { role: p.role, pcs: state.pcs, reservations: state.reservations, schedules: state.schedules })];
       if (errs.length) throw new Error(errs.join(' '));
       const r = { ...input, id: uid(), requester_id: p.id, requester_name: p.full_name, status: 'pending' as const,
         admin_notes: null, reviewed_at: null };
@@ -186,6 +194,31 @@ export function createMock(storage: Store | null = browserStorage()): Api {
         pending: state.reservations.filter((r) => r.status === 'pending').length,
         pendingTeachers: state.profiles.filter((p) => !p.approved).length,
       };
+    },
+
+    async listCheckIns(labId) {
+      me();
+      const today = manilaNow().date;
+      return clone(state.checkIns.filter((c) => !c.checked_out_at && c.checked_in_at.slice(0, 10) >= today && (!labId || c.lab_id === labId)));
+    },
+    async checkIn(pcId) {
+      const p = me();
+      const pc = state.pcs.find((x) => x.id === pcId);
+      if (!pc) throw new Error('PC not found.');
+      const problem = checkInProblem(pc, { role: p.role, userId: p.id, now: manilaNow(), schedules: state.schedules,
+        reservations: state.reservations, checkIns: state.checkIns.filter((c) => !c.checked_out_at) });
+      if (problem) throw new Error(problem);
+      const at = new Date().toISOString();
+      state.checkIns.forEach((c) => { if (c.user_id === p.id && !c.checked_out_at) c.checked_out_at = at; });
+      const c = { id: uid(), pc_id: pc.id, lab_id: pc.lab_id, user_id: p.id, user_name: p.full_name, checked_in_at: at, checked_out_at: null };
+      state.checkIns.push(c); changedRes();
+      return clone(c);
+    },
+    async checkOut() {
+      const p = me();
+      const at = new Date().toISOString();
+      state.checkIns.forEach((c) => { if (c.user_id === p.id && !c.checked_out_at) c.checked_out_at = at; });
+      changedRes();
     },
   };
 }

@@ -1,6 +1,7 @@
 import { useState, type FormEvent } from 'react';
 import { manilaNow } from '../lib/seat';
-import type { Lab, Pc, ReservationInput } from '../lib/types';
+import { bookingProblems, STUDENT_LAB } from '../lib/rules';
+import type { ClassSchedule, Lab, Pc, Reservation, ReservationInput, Role } from '../lib/types';
 import { validateReservation } from '../lib/validate';
 import { Alert, Button, Field, Input, Select, Textarea } from './ui';
 
@@ -10,12 +11,19 @@ interface Props {
   initial?: Partial<ReservationInput>;
   onSubmit: (input: ReservationInput) => Promise<void>;
   onCancel: () => void;
+  role: Role;
+  /** All approved bookings and the class timetable, to refuse clashes before sending. */
+  approved: Reservation[];
+  schedules: ClassSchedule[];
 }
 
-export default function ReservationForm({ labs, pcs, initial, onSubmit, onCancel }: Props) {
+export default function ReservationForm({ labs: allLabs, pcs, initial, onSubmit, onCancel, role, approved, schedules }: Props) {
+  const student = role === 'student';
+  const labs = student ? allLabs.filter((l) => l.id === STUDENT_LAB) : allLabs;
   const [f, setF] = useState({
     title: '', purpose: '', date: '', start_time: '', end_time: '', participants: '', requirements: '',
-    lab_id: initial?.lab_id ?? labs[0]?.id ?? '', pc_id: initial?.pc_id ?? '',
+    lab_id: (student ? STUDENT_LAB : initial?.lab_id) ?? labs[0]?.id ?? '',
+    pc_id: initial?.pc_id && pcs.find((p) => p.id === initial.pc_id)?.status !== 'broken' ? initial.pc_id : '',
   });
   const [errors, setErrors] = useState<string[]>([]);
   const [serverError, setServerError] = useState<string | null>(null);
@@ -29,7 +37,8 @@ export default function ReservationForm({ labs, pcs, initial, onSubmit, onCancel
       date: f.date, start_time: f.start_time, end_time: f.end_time,
       participants: f.participants ? Number(f.participants) : null, requirements: f.requirements.trim() || null,
     };
-    const errs = validateReservation(input, manilaNow().date);
+    const errs = [...validateReservation(input, manilaNow().date),
+      ...bookingProblems(input, { role, pcs, reservations: approved, schedules })];
     setErrors(errs); setServerError(null);
     if (errs.length) return;
     setBusy(true);
@@ -53,12 +62,14 @@ export default function ReservationForm({ labs, pcs, initial, onSubmit, onCancel
         </Field>
         <Field label="Seat">
           <Select value={f.pc_id} onChange={set('pc_id')}>
-            <option value="">Whole lab (class)</option>
-            {labPcs.map((p) => <option key={p.id} value={p.id}>{p.label}</option>)}
+            <option value="">{student ? 'Choose a PC' : 'Whole lab (class)'}</option>
+            {labPcs.map((p) => (
+              <option key={p.id} value={p.id} disabled={p.status === 'broken'}>{p.label}{p.status === 'broken' ? ' — broken' : ''}</option>
+            ))}
           </Select>
         </Field>
       </div>
-      <Field label="Title"><Input value={f.title} onChange={set('title')} placeholder="e.g. Programming 2, BSIT 1A" /></Field>
+      <Field label="Title"><Input value={f.title} onChange={set('title')} placeholder={student ? 'e.g. Packet Tracer practice' : 'e.g. Programming 2, BSIT 1A'} /></Field>
       <Field label="Purpose"><Textarea value={f.purpose} onChange={set('purpose')} rows={2} /></Field>
       <div className="grid gap-3 sm:grid-cols-3">
         <Field label="Date"><Input type="date" value={f.date} onChange={set('date')} min={manilaNow().date} /></Field>

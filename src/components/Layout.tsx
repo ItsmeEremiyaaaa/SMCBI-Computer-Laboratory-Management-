@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { NavLink, Outlet, useLocation } from 'react-router-dom';
-import { Bell, Box, CalendarClock, CalendarDays, ClipboardList, LayoutGrid, LogOut, Menu, Users, X } from 'lucide-react';
+import { Bell, Box, CalendarClock, CalendarDays, ClipboardList, LayoutGrid, LogOut, Menu, QrCode, Users, X } from 'lucide-react';
 import { Crest } from './ui';
 import IntroSplash from './IntroSplash';
 import { useAuth } from '../auth';
@@ -8,12 +8,13 @@ import { api, type Stats } from '../lib/api';
 import type { Role } from '../lib/types';
 
 const NAV: { to: string; label: string; icon: typeof Box; roles: Role[] }[] = [
-  { to: '/', label: 'Overview', icon: LayoutGrid, roles: ['admin', 'staff', 'teacher'] },
-  { to: '/labs', label: 'Labs', icon: Box, roles: ['admin', 'staff', 'teacher'] },
-  { to: '/reservations', label: 'Reservations', icon: ClipboardList, roles: ['admin', 'staff', 'teacher'] },
-  { to: '/schedule', label: 'Class schedule', icon: CalendarClock, roles: ['admin', 'staff', 'teacher'] },
-  { to: '/calendar', label: 'Calendar', icon: CalendarDays, roles: ['admin', 'staff', 'teacher'] },
+  { to: '/', label: 'Overview', icon: LayoutGrid, roles: ['admin', 'staff', 'teacher', 'student'] },
+  { to: '/labs', label: 'Labs', icon: Box, roles: ['admin', 'staff', 'teacher', 'student'] },
+  { to: '/reservations', label: 'Reservations', icon: ClipboardList, roles: ['admin', 'staff', 'teacher', 'student'] },
+  { to: '/schedule', label: 'Class schedule', icon: CalendarClock, roles: ['admin', 'staff', 'teacher', 'student'] },
+  { to: '/calendar', label: 'Calendar', icon: CalendarDays, roles: ['admin', 'staff', 'teacher', 'student'] },
   { to: '/people/teachers', label: 'People', icon: Users, roles: ['admin'] },
+  { to: '/qr', label: 'PC QR codes', icon: QrCode, roles: ['admin', 'staff'] },
 ];
 
 function Brand() {
@@ -37,7 +38,7 @@ export default function Layout() {
 
   useEffect(() => setOpen(false), [pathname]);
   useEffect(() => {
-    if (profile?.role === 'teacher') return;
+    if (profile?.role !== 'admin' && profile?.role !== 'staff') return;
     const load = () => api.stats().then(setStats).catch(() => {});
     load();
     return api.subscribeReservations(load);
@@ -84,7 +85,7 @@ export default function Layout() {
               Demo mode
             </span>
           )}
-          {profile.role !== 'teacher' && (
+          {(profile.role === 'admin' || profile.role === 'staff') && (
             <NavLink
               to={profile.role === 'admin' && !stats?.pending && stats?.pendingTeachers ? '/people/teachers' : '/reservations?status=pending'}
               className="pointer-events-auto relative grid h-9 w-9 place-items-center rounded-xl border border-line/60 bg-panel/90 text-muted shadow-md backdrop-blur hover:text-ink"
@@ -133,7 +134,7 @@ export default function Layout() {
   return (
     <div className="flex min-h-full gap-3 p-0 md:p-3">
       <IntroSplash />
-      <aside className="sticky top-3 hidden h-[calc(100vh-1.5rem)] w-64 shrink-0 flex-col rounded-2xl navy-weave p-4 shadow-lg md:flex">
+      <aside className="sticky top-3 hidden h-[calc(100vh-1.5rem)] w-64 shrink-0 flex-col rounded-2xl navy-weave p-4 shadow-lg md:flex print:!hidden">
         <Brand />{nav}
         <UserBox />
       </aside>
@@ -150,13 +151,13 @@ export default function Layout() {
       )}
 
       <div className="flex min-w-0 flex-1 flex-col">
-        <div className="sticky top-0 z-30 flex h-14 items-center gap-3 bg-chalk/85 px-4 backdrop-blur md:top-3 md:rounded-2xl md:px-6">
+        <div className="sticky top-0 z-30 flex h-14 items-center gap-3 bg-chalk/85 px-4 backdrop-blur md:top-3 md:rounded-2xl md:px-6 print:hidden">
           <button className="md:hidden" onClick={() => setOpen(true)} aria-label="Open menu"><Menu /></button>
           {api.demo && (
             <span className="rounded bg-amber-100 px-2 py-0.5 text-xs font-medium text-amber-900">Demo mode, sample data</span>
           )}
           <div className="ml-auto flex items-center gap-2">
-            {profile.role !== 'teacher' && (
+            {(profile.role === 'admin' || profile.role === 'staff') && (
               <NavLink to={profile.role === 'admin' && !stats?.pending && stats?.pendingTeachers ? '/people/teachers' : '/reservations?status=pending'}
                 className="relative grid h-10 w-10 place-items-center rounded-full bg-white text-muted shadow-sm hover:text-ink"
                 aria-label={`${count} items need attention`}>
