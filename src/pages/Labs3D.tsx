@@ -366,11 +366,16 @@ export default function Labs3D() {
 
           <div className="hidden h-7 w-px bg-line sm:block" />
 
-          {/* Help */}
+          {/* 3D Controls Guide */}
           <div className="flex flex-wrap items-center gap-1">
-            <button onClick={() => setShowGuideModal(true)} aria-label="3D Controls Guide" title="Open 3D Navigation & Controls Guide"
-              className="grid h-7 w-7 place-items-center rounded-lg text-muted transition-all hover:bg-chalk hover:text-accent active:scale-95">
-              <CircleHelp size={16} />
+            <button
+              onClick={() => setShowGuideModal(true)}
+              aria-label="3D Controls Guide"
+              title="Open 3D Navigation & Controls Guide"
+              className="flex items-center gap-1.5 rounded-xl border border-line/80 bg-chalk/90 px-2.5 py-1 text-xs font-semibold text-ink shadow-sm transition-all hover:bg-chalk hover:text-accent active:scale-95"
+            >
+              <CircleHelp size={14} className="text-accent" />
+              <span>3D Controls Guide</span>
             </button>
           </div>
         </div>

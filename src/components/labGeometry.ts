@@ -34,7 +34,7 @@ const at = (pos: [number, number, number], rot: [number, number, number] = [0, 0
   new Matrix4().compose(new Vector3(...pos), new Quaternion().setFromEuler(new Euler(...rot)), new Vector3(1, 1, 1));
 const merge = (geos: BufferGeometry[]) => mergeGeometries(geos.map((g) => (g.index ? g : g)), false)!;
 
-// ---- the task chair, centred on its own base (same layout the old per-part chair used) ----
+// ---- the task chair, centred on its own base (ergonomic mesh office chair matching reference render) ----
 let chairCache: { black: BufferGeometry; chrome: BufferGeometry; cushion: BufferGeometry } | null = null;
 export function chairGeometry() {
   if (chairCache) return chairCache;
@@ -51,8 +51,15 @@ export function chairGeometry() {
     { g: new BoxGeometry(0.05, 0.36, 0.025), pos: [0, -0.06, 0.02] },
     { g: new BoxGeometry(0.44, 0.46, 0.024) },
     { g: new BoxGeometry(0.32, 0.06, 0.018), pos: [0, -0.1, -0.012] },
+    // Ergonomic headrest support neck and bracket
+    { g: new BoxGeometry(0.04, 0.18, 0.02), pos: [0, 0.28, 0.015] },
+    { g: new BoxGeometry(0.24, 0.11, 0.035), pos: [0, 0.35, 0.005] },
   ], back));
-  cushion.push(...place([{ g: new BoxGeometry(0.42, 0.42, 0.05), pos: [0, 0, -0.03] }], back));
+  cushion.push(...place([
+    { g: new BoxGeometry(0.42, 0.42, 0.05), pos: [0, 0, -0.03] },
+    // Headrest mesh cushion
+    { g: new BoxGeometry(0.22, 0.09, 0.035), pos: [0, 0.35, -0.015] },
+  ], back));
   for (const x of [-0.22, 0.22]) {
     black.push(...place([{ g: new BoxGeometry(0.028, 0.18, 0.035) }, { g: new BoxGeometry(0.055, 0.022, 0.2), pos: [0, 0.09, -0.04] }], at([x, 0.53, 0.03])));
   }
@@ -82,17 +89,18 @@ export function deskGeometry(deskWidth: number, deskH: number, deskD: number, is
     { g: new BoxGeometry(0.045, 0.025, deskD - 0.08), pos: [deskWidth / 2 - 0.04, deskH - 0.038 - 0.012, 0] },
     // Under-desktop longitudinal support crossbar
     { g: new BoxGeometry(deskWidth - 0.08, 0.035, 0.035), pos: [0, deskH - 0.038 - 0.018, 0] },
-  ]);
-
-  const dark = place([
-    { g: new BoxGeometry(0.18, 0.42, 0.4), pos: [deskWidth / 2 - 0.16, 0.22, -0.12] },                 // PC tower
-    { g: new BoxGeometry(0.42, 0.012, 0.13), pos: [0, deskH + 0.022, 0.1] },                             // keyboard
-    { g: new BoxGeometry(0.055, 0.018, 0.09), pos: [0.3, deskH + 0.024, 0.11] },                         // mouse
-    { g: new BoxGeometry(0.18, 0.01, 0.15), pos: [0, deskH + 0.02, -0.15] },                             // stand foot
-    { g: new BoxGeometry(0.075, 0.2, 0.018), pos: [0, deskH + 0.115, -0.2], rot: [0.12, 0, 0] },         // stand arm
+    // Aluminum AIO PC monitor stand foot and arm (matching reference photo)
+    { g: new BoxGeometry(0.18, 0.01, 0.15), pos: [0, deskH + 0.02, -0.15] },
+    { g: new BoxGeometry(0.075, 0.2, 0.018), pos: [0, deskH + 0.115, -0.2], rot: [0.12, 0, 0] },
     ...(island ? [-deskWidth * 0.32, deskWidth * 0.32].map((bx) => ({ g: new BoxGeometry(0.028, 0.05, 0.038), pos: [bx, deskH + 0.02, -deskD / 2] as [number, number, number] })) : []),
   ]);
-  const keys = place([{ g: new BoxGeometry(0.39, 0.005, 0.11), pos: [0, deskH + 0.028, 0.1] }]);
+
+  // Clean white AIO peripherals (keyboard & mouse matching white/silver AIO setup in Image 4)
+  const dark = place([
+    { g: new BoxGeometry(0.42, 0.012, 0.13), pos: [0, deskH + 0.022, 0.1] },                             // keyboard body
+    { g: new BoxGeometry(0.055, 0.018, 0.09), pos: [0.3, deskH + 0.024, 0.11] },                         // optical mouse
+  ]);
+  const keys = place([{ g: new BoxGeometry(0.39, 0.005, 0.11), pos: [0, deskH + 0.028, 0.1] }]);        // keys
   // Frosted acoustic privacy partition screen
   const screen = island ? merge(place([{ g: new BoxGeometry(deskWidth - 0.04, 0.32, 0.022), pos: [0, deskH + 0.18, -deskD / 2] }])) : null;
   const mergedMetal = merge(metal);

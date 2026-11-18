@@ -70,7 +70,7 @@ function Spines({ lab, pcs }: { lab: Lab; pcs: LivePc[] }) {
 // Modern Ergonomic Black Mesh Office Task Chair (matching reference photo)
 function ErgonomicMeshChair({ position, rotationY = 0 }: { position: [number, number, number]; rotationY?: number }) {
   const black = <meshStandardMaterial color="#18181b" roughness={0.65} />;
-  const meshMat = <meshStandardMaterial color="#d6d6d9" roughness={0.85} />; // light grey fabric cushion
+  const meshMat = <meshStandardMaterial color="#232328" roughness={0.85} />; // breathable black mesh cushion
   const chrome = <meshStandardMaterial color="#94a3b8" metalness={0.75} roughness={0.25} />;
   return (
     <group position={position} rotation-y={rotationY}>
@@ -113,7 +113,7 @@ function ErgonomicMeshChair({ position, rotationY = 0 }: { position: [number, nu
         </mesh>
       </group>
 
-      {/* Ergonomic Curved Mesh Backrest */}
+      {/* Ergonomic Curved Mesh Backrest with Headrest */}
       <group position={[0, 0.70, 0.18]} rotation-x={-0.08}>
         {/* Central spine support */}
         <mesh position={[0, -0.06, 0.02]}>
@@ -134,6 +134,19 @@ function ErgonomicMeshChair({ position, rotationY = 0 }: { position: [number, nu
         <mesh position={[0, -0.10, -0.012]}>
           <boxGeometry args={[0.32, 0.06, 0.018]} />
           {black}
+        </mesh>
+        {/* Adjustable headrest matching reference */}
+        <mesh position={[0, 0.28, 0.015]}>
+          <boxGeometry args={[0.04, 0.18, 0.02]} />
+          {black}
+        </mesh>
+        <mesh position={[0, 0.35, 0.005]}>
+          <boxGeometry args={[0.24, 0.11, 0.035]} />
+          {black}
+        </mesh>
+        <mesh position={[0, 0.35, -0.015]}>
+          <boxGeometry args={[0.22, 0.09, 0.035]} />
+          {meshMat}
         </mesh>
       </group>
 
@@ -202,12 +215,12 @@ const ceilingTex = (rx: number, ry: number) => paintTex([128, 128], (ctx, w, h) 
 }, [rx, ry]);
 
 let woodCache: CanvasTexture | null = null;
-// Warm beech/oak laminate grain for desks.
+// Blonde Scandinavian beech/oak laminate grain matching modern lab reference render.
 function woodTex() {
   return (woodCache ??= paintTex([256, 128], (ctx, w, h) => {
-    ctx.fillStyle = '#c98f57'; ctx.fillRect(0, 0, w, h);
+    ctx.fillStyle = '#deb887'; ctx.fillRect(0, 0, w, h);
     for (let y = 0; y < h; y += 3) {
-      ctx.strokeStyle = `rgba(${y % 2 ? '120,70,30' : '230,180,120'},${0.08 + ((y * 7) % 10) / 80})`;
+      ctx.strokeStyle = `rgba(${y % 2 ? '160,120,75' : '255,235,200'},${0.07 + ((y * 7) % 10) / 90})`;
       ctx.lineWidth = 1.5;
       ctx.beginPath(); ctx.moveTo(0, y);
       for (let x = 0; x <= w; x += 16) ctx.lineTo(x, y + Math.sin(x * 0.03 + y * 0.4) * 2);
@@ -310,11 +323,11 @@ function FurnitureInstances({ items, deskWidth, island }: { items: { pos: [numbe
     return [
       { key: 'chair-black', geo: chair.black, m: mat('#18181b', 0.65), local: [0, 0, 0.62] as [number, number, number], cast: false },
       { key: 'chair-chrome', geo: chair.chrome, m: mat('#94a3b8', 0.25, 0.75), local: [0, 0, 0.62] as [number, number, number], cast: false },
-      { key: 'chair-cushion', geo: chair.cushion, m: mat('#d6d6d9', 0.85), local: [0, 0, 0.62] as [number, number, number], cast: false },
+      { key: 'chair-cushion', geo: chair.cushion, m: mat('#232328', 0.85), local: [0, 0, 0.62] as [number, number, number], cast: false },
       { key: 'desk-metal', geo: desk.metal, m: mat('#94a3b8', 0.25, 0.75), local: [0, 0, 0] as [number, number, number], cast: true },
-      { key: 'desk-dark', geo: desk.dark, m: mat('#1c1c1f', 0.4), local: [0, 0, 0] as [number, number, number], cast: true },
-      { key: 'desk-keys', geo: desk.keys, m: mat('#3f3f46', 0.5), local: [0, 0, 0] as [number, number, number], cast: false },
-      ...(desk.screen ? [{ key: 'desk-divider', geo: desk.screen, m: mat('#f8fafc', 0.35), local: [0, 0, 0] as [number, number, number], cast: true }] : []),
+      { key: 'desk-dark', geo: desk.dark, m: mat('#f8fafc', 0.25), local: [0, 0, 0] as [number, number, number], cast: true },
+      { key: 'desk-keys', geo: desk.keys, m: mat('#cbd5e1', 0.4), local: [0, 0, 0] as [number, number, number], cast: false },
+      ...(desk.screen ? [{ key: 'desk-divider', geo: desk.screen, m: mat('#f1f5f9', 0.3, 0.1), local: [0, 0, 0] as [number, number, number], cast: true }] : []),
     ];
   }, [deskWidth, island]);
   return <>{parts.map((p) => <InstancedPart key={p.key} geometry={p.geo} material={p.m} items={items} local={p.local} cast={p.cast} />)}</>;
@@ -370,10 +383,10 @@ function Workstation({ pc, pos, rot = 0, style, selected, onSelect }:
 
       {/* side/back panels, PC tower, divider, stand, keyboard, mouse and chair are drawn as instances (FurnitureInstances) */}
 
-      {/* Modern All-in-One Display Monitor */}
+      {/* Modern All-in-One Display Monitor (sleek white/silver casing matching reference render) */}
       <group ref={monitor} position={[0, DESK_H + 0.36, -0.18]}>
         {/* Sleek white/silver rear casing */}
-        <mesh castShadow geometry={box(0.62, 0.4, 0.026)} material={mat('#141416', 0.35)} />
+        <mesh castShadow geometry={box(0.62, 0.4, 0.026)} material={mat('#f8fafc', 0.25, 0.1)} />
         {/* Front glass bezel */}
         <mesh position={[0, 0, 0.014]} geometry={plane(0.61, 0.39)} material={mat('#0f172a', 0.1, 0.2)} />
         {/* Active glowing display screen */}
