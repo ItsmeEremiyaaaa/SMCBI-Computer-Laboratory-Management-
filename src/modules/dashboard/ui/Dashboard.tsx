@@ -1,6 +1,6 @@
-import { useEffect, type ReactNode } from 'react';
+import { useEffect } from 'react';
 import { Link } from 'react-router-dom';
-import { ArrowRight, CalendarClock, CalendarDays, ClipboardList, Hourglass, Monitor, MonitorCheck, MonitorSmartphone, Plus, Users, type LucideIcon } from 'lucide-react';
+import { ArrowRight, CalendarClock, CalendarDays, ClipboardList, Monitor, Plus, Users, type LucideIcon } from 'lucide-react';
 import { useAuth } from '../../auth/hooks/auth';
 import { useLabLive, type LivePc } from '../../labs/hooks/useLabLive';
 import { useLoad } from '../../../shared/hooks/useLoad';
@@ -12,8 +12,8 @@ import { scheduleRepo } from '../../schedule/data/repository';
 import { classesOn } from '../../schedule/logic/rules';
 import { isoWeekday, manilaNow } from '../../../shared/time';
 import { usedHours } from '../../bookings/logic/rules';
-import type { Lab, Reservation } from '../../../shared/data/types';
-import { Button, Empty, fmtDate, fmtTime, Led, Panel, ResBadge, STATUS_COLOR, STATUS_LABEL, STATUSES } from '../../../shared/ui/ui';
+import type { Reservation } from '../../../shared/data/types';
+import { Button, Empty, fmtDate, fmtTime, Led, ResBadge, STATUS_COLOR, STATUS_LABEL, STATUSES } from '../../../shared/ui/ui';
 import { CountUp } from '../../../shared/ui/CountUp';
 
 const labDisplayName = (name: string) => {
@@ -28,88 +28,6 @@ const addDays = (date: string, n: number) => {
   return d.toISOString().slice(0, 10);
 };
 
-function StatCard({ icon: Icon, label, value, note, to }: { icon: LucideIcon; label: string; value: ReactNode; note: string; to?: string }) {
-  const body = (
-    <>
-      <div className="flex items-center justify-between">
-        <p className="text-sm font-medium text-muted">{label}</p>
-        <span className="grid h-9 w-9 place-items-center rounded-xl bg-accent-soft text-accent"><Icon size={18} strokeWidth={2} /></span>
-      </div>
-      <p className="mt-2 text-3xl font-bold tracking-tight text-ink">{typeof value === 'number' ? <CountUp value={value} /> : value}</p>
-      <p className="mt-1 text-xs text-muted">{note}</p>
-    </>
-  );
-  return to
-    ? <Link to={to} className="card lift block p-5">{body}</Link>
-    : <div className="card p-5">{body}</div>;
-}
-
-function LabTile({ lab, pcs, later = 0 }: { lab: Lab; pcs: LivePc[]; later?: number }) {
-  const mine = pcs.filter((p) => p.lab_id === lab.id).sort((a, b) => a.row - b.row || a.col - b.col);
-  const free = mine.filter((p) => p.shown === 'free').length;
-  const inUse = mine.filter((p) => p.shown === 'in_use').length;
-  const reserved = mine.filter((p) => p.shown === 'reserved').length;
-  const broken = mine.filter((p) => p.shown === 'broken').length;
-  const pct = mine.length ? Math.round((free / mine.length) * 100) : 0;
-  return (
-    <Link to={`/labs/${lab.id}`} className="card group flex flex-col justify-between p-5 transition-all hover:-translate-y-1 hover:shadow-md">
-      <div>
-        <div className="flex items-start justify-between gap-2">
-          <div className="flex items-center gap-3">
-            <span className="grid h-10 w-10 place-items-center rounded-xl bg-accent-soft text-accent transition-colors group-hover:bg-accent group-hover:text-white">
-              <Monitor size={20} strokeWidth={2} />
-            </span>
-            <div>
-              <h3 className="font-semibold text-ink transition-colors group-hover:text-accent">{labDisplayName(lab.name)}</h3>
-              <p className="text-xs text-muted">{mine.length} workstations total</p>
-            </div>
-          </div>
-          <span className="rounded-full bg-accent-soft px-2.5 py-1 text-xs font-semibold text-accent">{free} free</span>
-        </div>
-
-        <div className="mt-4 grid grid-cols-4 gap-2 rounded-xl bg-chalk/80 p-2.5 text-center">
-          <div className="rounded-lg bg-panel/70 py-1.5 shadow-sm">
-            <p className="text-[10px] font-medium uppercase tracking-wider text-muted">Free</p>
-            <p className="text-base font-bold text-free">{free}</p>
-          </div>
-          <div className="rounded-lg bg-panel/70 py-1.5 shadow-sm">
-            <p className="text-[10px] font-medium uppercase tracking-wider text-muted">In Use</p>
-            <p className="text-base font-bold text-accent">{inUse}</p>
-          </div>
-          <div className="rounded-lg bg-panel/70 py-1.5 shadow-sm">
-            <p className="text-[10px] font-medium uppercase tracking-wider text-muted">Reserved</p>
-            <p className="text-base font-bold text-amber-500">{reserved}</p>
-          </div>
-          <div className="rounded-lg bg-panel/70 py-1.5 shadow-sm">
-            <p className="text-[10px] font-medium uppercase tracking-wider text-muted">Broken</p>
-            <p className="text-base font-bold text-rose-500">{broken}</p>
-          </div>
-        </div>
-
-        <div className="mt-4">
-          <div className="mb-1.5 flex justify-between text-xs text-muted">
-            <span>Availability</span>
-            <span className="font-semibold text-ink">{pct}% available</span>
-          </div>
-          <div className="h-2 overflow-hidden rounded-full bg-accent-soft" aria-label={`${pct}% free`}>
-            <div className="bar-grow h-full rounded-full bg-accent transition-all duration-500" style={{ width: `${pct}%` }} />
-          </div>
-          {later > 0 && (
-            <p className="mt-2 flex items-center gap-1.5 text-xs font-medium text-amber-700">
-              <CalendarClock size={13} />{later} upcoming booking{later > 1 ? 's' : ''}
-            </p>
-          )}
-        </div>
-      </div>
-
-      <div className="mt-5 flex items-center justify-between border-t border-line/60 pt-3 text-xs font-medium text-accent">
-        <span>View lab in 3D visual</span>
-        <ArrowRight size={14} className="transition-transform group-hover:translate-x-1" />
-      </div>
-    </Link>
-  );
-}
-
 // PC status across all labs as a ring chart.
 function StatusDonut({ pcs }: { pcs: LivePc[] }) {
   const total = pcs.length || 1;
@@ -117,7 +35,7 @@ function StatusDonut({ pcs }: { pcs: LivePc[] }) {
   let offset = 0;
   const free = pcs.filter((p) => p.shown === 'free').length;
   return (
-    <div className="flex flex-wrap items-center gap-6 px-5 pb-5">
+    <div className="flex flex-wrap items-center gap-6">
       <svg viewBox="0 0 140 140" className="h-36 w-36 -rotate-90" role="img" aria-label="PC status across all labs">
         <circle cx="70" cy="70" r={r} fill="none" stroke="#e8f0fb" strokeWidth="16" />
         {/* the segments are uncovered by a ring that draws itself clockwise */}
@@ -153,29 +71,6 @@ function StatusDonut({ pcs }: { pcs: LivePc[] }) {
   );
 }
 
-// Hours each lab was actually used this week (see usedHours), as bars.
-function WeekUsage({ labs, booked }: { labs: Lab[]; booked: Record<string, number> }) {
-  const max = Math.max(1, ...labs.map((l) => booked[l.id] ?? 0));
-  return (
-    <ul className="grid grid-cols-1 gap-4 px-5 pb-5">
-      {labs.map((l) => {
-        const h = booked[l.id] ?? 0;
-        return (
-          <li key={l.id}>
-            <div className="mb-1.5 flex justify-between text-sm">
-              <span className="font-medium">{labDisplayName(l.name)}</span>
-              <span className="text-muted"><b className="font-semibold text-ink">{Math.round(h * 10) / 10}</b> hrs</span>
-            </div>
-            <div className="h-2.5 overflow-hidden rounded-full bg-accent-soft">
-              <div className="bar-grow h-full rounded-full bg-gradient-to-r from-accent to-gold" style={{ width: `${(h / max) * 100}%` }} />
-            </div>
-          </li>
-        );
-      })}
-    </ul>
-  );
-}
-
 export default function Dashboard() {
   const { profile } = useAuth();
   const isTeacher = profile?.role === 'teacher';
@@ -206,8 +101,6 @@ export default function Dashboard() {
     .sort((a, b) => a.start_time.localeCompare(b.start_time));
   const pending = all.filter((r) => r.status === 'pending').sort((a, b) => (a.date + a.start_time).localeCompare(b.date + b.start_time));
   const nextEvents = (events.data ?? []).filter((e) => e.event_date >= today).sort((a, b) => a.event_date.localeCompare(b.event_date)).slice(0, 4);
-  const hour = new Date().getHours();
-  const greeting = hour < 12 ? 'Good morning' : hour < 18 ? 'Good afternoon' : 'Good evening';
 
   // Usage this week = time actually used so far: classes under way or done, bookings only if checked in.
   const week: Reservation[] = [];
@@ -218,129 +111,214 @@ export default function Dashboard() {
   const booked = usedHours(week, weekCheckIns.data ?? [], manilaNow());
 
   const free = pcs.filter((p) => p.shown === 'free').length;
-  const inUse = pcs.filter((p) => p.shown === 'in_use' || p.shown === 'reserved').length;
+  const classesToday = classesOn(today, classes.data ?? []).length;
+  const first = profile?.full_name.split(' ')[0] ?? '';
+  const waiting = isTeacher ? pending.length : stats.data?.pending ?? pending.length;
+  const totalHours = Object.values(booked).reduce((a, b) => a + b, 0);
+  const week7 = Array.from({ length: 7 }, (_, i) => addDays(monday, i));
+  const laterToday = todays.filter((r) => r.end_time > nowT.time);
+  const nextEvent = nextEvents[0];
+  // headline words blur in one after another
+  const words = (text: string, from = 0) => text.split(' ').map((w, i) => (
+    <span key={i} className="hero-word" style={{ ['--i' as string]: from + i }}>{w}&nbsp;</span>
+  ));
 
   return (
     <>
-      <header className="mb-6 flex flex-wrap items-end justify-between gap-3">
+      {/* 1 · greeting + quick actions */}
+      <section className="mb-8 grid items-center gap-6 xl:grid-cols-[minmax(0,27rem)_1fr]">
         <div>
-          <h1 className="text-2xl font-bold tracking-tight text-ink">Overview</h1>
-          <p className="mt-1 text-sm text-muted">{greeting}, {profile?.full_name.split(' ')[0]}. Here’s the lab picture for {fmtDate(today)}.</p>
+          <h1 className="text-4xl font-bold leading-[1.08] tracking-tight text-ink sm:text-5xl">
+            <span className="sr-only">Overview. </span>
+            {words(`Hi, ${first}!`)}<br />{words("What's happening in the labs today?", 2)}
+          </h1>
+          <p className="mt-4 max-w-md text-muted">
+            {fmtDate(today)} · <b className="font-semibold text-ink">{classesToday}</b> class{classesToday === 1 ? '' : 'es'} today,{' '}
+            <b className="font-semibold text-ink">{free}</b> of {pcs.length} PCs free right now
+            {waiting > 0 && <>, <b className="font-semibold text-ink">{waiting}</b> request{waiting === 1 ? '' : 's'} waiting</>}.
+          </p>
         </div>
-        <Link to="/reservations?new=1"><Button><Plus size={16} />Request a lab</Button></Link>
-      </header>
+        <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
+          <Link to="/reservations?new=1" className="card lift grid min-h-44 place-items-center border-2 border-dashed border-accent/25 !bg-accent-soft/50 p-4 text-center">
+            <span>
+              <span className="mx-auto grid h-11 w-11 place-items-center rounded-xl bg-accent text-white shadow-lg shadow-accent/30"><Plus size={22} /></span>
+              <span className="mt-3 block text-sm font-semibold text-ink">Request a lab</span>
+            </span>
+          </Link>
+          <ActionTile to="/labs" icon={Monitor} title="Open the labs" sub="3D view and floor plan, live" />
+          <ActionTile to="/schedule" icon={CalendarClock} title="Class schedule" sub="Weekly classes by semester" />
+          <ActionTile to="/calendar" icon={CalendarDays} title="Calendar" sub="Cancel or move a class" />
+        </div>
+      </section>
 
-      <div className="mb-6 grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
-        <StatCard icon={MonitorCheck} label="PCs free now" value={<><CountUp value={free} /><span className="text-lg font-semibold text-muted">/{pcs.length}</span></>} note="Across all three labs" to="/labs" />
-        <StatCard icon={MonitorSmartphone} label="In use or reserved" value={inUse} note="Students, classes and bookings" to="/labs" />
-        <StatCard icon={CalendarClock} label="Classes today" value={classesOn(today, classes.data ?? []).length} note="From the weekly class schedule" to="/schedule" />
-        {isTeacher
-          ? <StatCard icon={Hourglass} label="My pending requests" value={pending.length} note="Waiting for the lab admin" to="/reservations?status=pending" />
-          : <StatCard icon={Hourglass} label="Pending requests" value={stats.data?.pending ?? 0} note="Need a decision" to="/reservations?status=pending" />}
-      </div>
-
-      <h2 className="mb-3 flex items-center gap-2 font-semibold text-ink">
-        <Monitor className="text-accent" size={18} />
-        Labs right now
-      </h2>
-      <div className="mb-6 grid grid-cols-1 gap-4 md:grid-cols-3">
-        {labs.data?.map((l) => <LabTile key={l.id} lab={l} pcs={pcs} later={upcoming.filter((r) => r.lab_id === l.id).length} />)}
-      </div>
-
-      <div className="mb-6 grid grid-cols-1 gap-4 lg:grid-cols-2">
-        <Panel title="PC status" icon={MonitorCheck}><StatusDonut pcs={pcs} /></Panel>
-        <Panel title="Lab hours used this week" icon={ClipboardList}
-          actions={<span className="text-xs text-muted">{fmtDate(monday)} to {fmtDate(addDays(monday, 6))}</span>}>
-          {labs.data && <WeekUsage labs={labs.data} booked={booked} />}
-        </Panel>
-      </div>
-
-      <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
-        <Panel title="Today’s schedule" icon={CalendarClock}
-          actions={<Link to="/schedule" className="text-sm font-medium text-accent hover:underline">Class schedule</Link>}>
-          {todays.length === 0 ? <Empty>No classes or bookings in the labs today.</Empty> : (
-            <ul className="grid grid-cols-1 gap-2 px-5 pb-5">
-              {todays.slice(0, 7).map((r) => (
-                <li key={r.id} className="flex items-center gap-4 rounded-xl bg-chalk/70 px-3 py-2.5 text-sm">
-                  <div className="w-20 shrink-0 font-cond font-semibold text-accent">{fmtTime(r.start_time)}<br /><span className="font-normal text-muted">{fmtTime(r.end_time)}</span></div>
-                  <div className="min-w-0 flex-1">
-                    <p className="truncate font-medium">{r.title}</p>
-                    <p className="truncate text-muted">{labName(r.lab_id)}, {pcLabel(r.pc_id)}. {r.requester_name}</p>
+      {/* 2 · approvals · upcoming bookings · this week */}
+      <div className="mb-6 grid grid-cols-1 gap-5 lg:grid-cols-3">
+        <section className="card p-5">
+          <CardHead title={isTeacher ? 'My pending requests' : 'Waiting for approval'} to={pending.length ? '/reservations?status=pending' : undefined} link="Review all" />
+          {pending.length === 0 ? <Empty>Nothing waiting. You're all caught up.</Empty> : (
+            <ul className="grid gap-3">
+              {pending.slice(0, 3).map((r) => (
+                <li key={r.id} className="rounded-2xl border border-line bg-panel p-3.5 shadow-sm">
+                  <p className="flex items-center gap-1.5 text-sm font-semibold text-ink">{r.title}<span className="h-1.5 w-1.5 rounded-full bg-amber-500" /></p>
+                  <p className="mt-0.5 truncate text-xs text-muted">{isTeacher ? labName(r.lab_id) : r.requester_name} · {pcLabel(r.pc_id)}</p>
+                  <div className="mt-2 flex items-center justify-between gap-2 text-xs text-muted">
+                    <span className="flex items-center gap-1"><CalendarDays size={13} />{fmtDate(r.date)}, {fmtTime(r.start_time)}–{fmtTime(r.end_time)}</span>
+                    {isAdmin ? <Link to="/reservations?status=pending" className="font-semibold text-accent hover:underline">Review</Link> : <ResBadge status={r.status} />}
                   </div>
                 </li>
               ))}
             </ul>
           )}
-        </Panel>
+        </section>
 
-        <Panel title={isTeacher ? 'My pending requests' : 'Waiting for approval'} icon={Hourglass}
-          actions={pending.length > 0 && <Link to="/reservations?status=pending" className="text-sm font-medium text-accent hover:underline">Review all</Link>}>
-          {pending.length === 0 ? <Empty>Nothing waiting. You’re all caught up.</Empty> : (
-            <ul className="grid grid-cols-1 gap-2 px-5 pb-5">
-              {pending.slice(0, 5).map((r) => (
-                <li key={r.id} className="flex items-center gap-3 rounded-xl bg-chalk/70 px-3 py-2.5 text-sm">
-                  <div className="min-w-0 flex-1">
-                    <p className="truncate font-medium">{r.title}</p>
-                    <p className="truncate text-muted">{fmtDate(r.date)}, {fmtTime(r.start_time)}. {labName(r.lab_id)}{!isTeacher && `. ${r.requester_name}`}</p>
-                  </div>
-                  {isAdmin ? <Link to="/reservations?status=pending"><Button size="sm" variant="ghost">Review</Button></Link> : <ResBadge status={r.status} />}
-                </li>
-              ))}
-            </ul>
-          )}
-        </Panel>
-
-        <Panel title="Upcoming bookings" icon={CalendarClock} className="lg:col-span-2"
-          actions={<Link to="/reservations?status=approved" className="text-sm font-medium text-accent hover:underline">All bookings</Link>}>
+        <section className="card flex flex-col p-5">
+          <CardHead title="Upcoming bookings" to="/reservations?status=approved" link="All bookings" />
           {upcoming.length === 0 ? <Empty>No approved bookings coming up.</Empty> : (
-            <ul className="grid grid-cols-1 gap-3 px-5 pb-5 sm:grid-cols-2 xl:grid-cols-4">
-              {upcoming.slice(0, 8).map((r) => (
-                <li key={r.id} className="flex gap-3 rounded-xl bg-chalk/70 p-3 text-sm">
-                  <span className="grid h-12 w-12 shrink-0 place-items-center rounded-xl bg-amber-500 text-center leading-none text-white">
-                    <span><span className="block text-[10px] uppercase opacity-90">{fmtDate(r.date).split(' ')[1]}</span><span className="text-lg font-bold">{r.date.slice(8)}</span></span>
-                  </span>
-                  <div className="min-w-0">
-                    <p className="truncate font-medium">{r.title}</p>
-                    <p className="truncate text-muted">{fmtTime(r.start_time)}–{fmtTime(r.end_time)} · {labName(r.lab_id)}, {pcLabel(r.pc_id)}</p>
-                    <p className="truncate text-xs text-muted">{r.requester_name}</p>
+            <ul className="grid gap-3">
+              {upcoming.slice(0, 2).map((r) => (
+                <li key={r.id} className="rounded-2xl border border-line bg-panel p-3.5 shadow-sm">
+                  <p className="text-xs"><span className="font-semibold text-accent">{labName(r.lab_id)}</span> <span className="text-muted">{pcLabel(r.pc_id)}</span></p>
+                  <div className="mt-1 flex items-start justify-between gap-2">
+                    <p className="text-sm font-semibold text-ink">{r.title}</p>
+                    <span className={`shrink-0 rounded-md px-2 py-0.5 text-[11px] font-semibold ${r.date === today ? 'bg-rose-50 text-rose-600' : 'bg-chalk text-muted'}`}>
+                      {r.date === today ? 'Today' : fmtDate(r.date)}
+                    </span>
+                  </div>
+                  <div className="mt-2 flex items-center justify-between gap-2 text-xs">
+                    <span className="rounded-md bg-emerald-50 px-2 py-0.5 font-medium text-emerald-700">{fmtTime(r.start_time)}–{fmtTime(r.end_time)}</span>
+                    <span className="truncate text-muted">{r.requester_name}</span>
                   </div>
                 </li>
               ))}
             </ul>
           )}
-          {upcoming.length > 8 && <p className="px-5 pb-4 text-sm text-muted">+{upcoming.length - 8} more in Reservations.</p>}
-        </Panel>
+          <Link to="/reservations?new=1" className="mt-auto flex items-center justify-center gap-2 rounded-2xl bg-accent-soft py-3 pt-3 text-sm font-semibold text-ink transition-colors hover:bg-accent/15 [margin-top:max(1rem,auto)]">
+            <span className="grid h-6 w-6 place-items-center rounded-md bg-accent text-white"><Plus size={15} /></span>Request a lab
+          </Link>
+        </section>
 
-        <Panel title="Coming up" icon={CalendarDays} className="lg:col-span-2"
-          actions={<Link to="/calendar" className="text-sm font-medium text-accent hover:underline">Calendar</Link>}>
-          {nextEvents.length === 0 ? <Empty>No upcoming events.</Empty> : (
-            <ul className="grid gap-3 px-5 pb-5 sm:grid-cols-2 xl:grid-cols-4">
-              {nextEvents.map((e) => (
-                <li key={e.id} className="flex gap-3 rounded-xl bg-chalk/70 p-3 text-sm">
-                  <span className="grid h-12 w-12 shrink-0 place-items-center rounded-xl bg-accent text-center leading-none text-white">
-                    <span><span className="block text-[10px] uppercase opacity-80">{fmtDate(e.event_date).split(' ')[1]}</span><span className="text-lg font-bold">{e.event_date.slice(8)}</span></span>
-                  </span>
-                  <div className="min-w-0"><p className="truncate font-medium">{e.title}</p><p className="capitalize text-muted">{e.event_type}, {fmtTime(e.event_time)}</p></div>
+        <section className="card p-5">
+          <CardHead title={new Date(`${today}T00:00:00Z`).toLocaleDateString('en-PH', { month: 'long', year: 'numeric', timeZone: 'UTC' })} to="/calendar" link="Calendar" />
+          <div className="grid grid-cols-7 text-center text-[11px] text-muted">
+            {week7.map((d) => (
+              <Link key={d} to="/calendar" className="grid justify-items-center gap-1.5 py-1">
+                <span>{new Date(`${d}T00:00:00Z`).toLocaleDateString('en-PH', { weekday: 'short', timeZone: 'UTC' }).slice(0, 2)}</span>
+                <span className={`grid h-9 w-9 place-items-center rounded-full text-sm font-semibold ${d === today ? 'bg-accent text-white shadow-lg shadow-accent/30' : 'text-ink'}`}>{Number(d.slice(8))}</span>
+              </Link>
+            ))}
+          </div>
+          {laterToday.length === 0 ? <p className="mt-4 text-sm text-muted">Nothing else in the labs today.</p> : (
+            <ul className="mt-3 grid gap-1">
+              {laterToday.slice(0, 3).map((r) => (
+                <li key={r.id}>
+                  <p className="flex items-center gap-2 text-[11px] font-medium text-muted">{fmtTime(r.start_time)}–{fmtTime(r.end_time)}<span className="h-px flex-1 bg-line" /></p>
+                  <div className="flex items-center gap-3 py-1.5">
+                    <span className="grid h-9 w-9 shrink-0 place-items-center rounded-full bg-chalk text-accent">{r.id.startsWith('class-') ? <Users size={16} /> : <CalendarClock size={16} />}</span>
+                    <div className="min-w-0"><p className="truncate text-sm font-medium text-ink">{r.title}</p><p className="truncate text-xs text-muted">{labName(r.lab_id)} · {r.requester_name}</p></div>
+                  </div>
                 </li>
               ))}
             </ul>
           )}
-        </Panel>
-
-        {isAdmin && stats.data && (
-          <Panel title="People" icon={Users} className="lg:col-span-2"
-            actions={<Link to="/people/teachers" className="text-sm font-medium text-accent hover:underline">Manage</Link>}>
-            <div className="grid grid-cols-2 gap-3 px-5 pb-5 sm:grid-cols-4">
-              {([['Students', stats.data.students, '/people/students'], ['Teachers', stats.data.teachers, '/people/teachers'],
-                ['Staff', stats.data.staff, '/people/staff'], ['New sign-ups', stats.data.pendingTeachers, '/people/teachers']] as const).map(([label, n, to]) => (
-                <Link key={label} to={to} className="rounded-xl bg-chalk/70 p-3 hover:bg-accent-soft">
-                  <p className="text-xs text-muted">{label}</p><p className="text-2xl font-bold">{n}</p>
-                </Link>
-              ))}
-            </div>
-          </Panel>
-        )}
+        </section>
       </div>
+
+      {/* 3 · labs right now · lab time this week · PC status + next event */}
+      <div className="mb-6 grid grid-cols-1 gap-5 xl:grid-cols-[minmax(0,1.5fr)_minmax(0,.8fr)_minmax(0,1fr)]">
+        <section className="card p-5">
+          <CardHead title="Labs right now" to="/labs" link="Open the labs" />
+          <ul className="grid gap-1">
+            {labs.data?.map((l) => {
+              const mine = pcs.filter((p) => p.lab_id === l.id);
+              const lf = mine.filter((p) => p.shown === 'free').length;
+              const used = mine.filter((p) => p.shown === 'in_use' || p.shown === 'reserved').length;
+              const pct = mine.length ? Math.round((lf / mine.length) * 100) : 0;
+              const later = upcoming.filter((r) => r.lab_id === l.id).length;
+              return (
+                <li key={l.id}>
+                  <Link to={`/labs/${l.id}`} className="grid grid-cols-[minmax(0,1.7fr)_3.5rem_minmax(0,1.2fr)_auto] items-center gap-3 sm:gap-4 rounded-2xl px-3 py-3 transition-colors hover:bg-chalk">
+                    <div className="min-w-0"><p className="font-medium leading-tight text-ink">{labName(l.id)}</p><p className="text-xs text-muted">{mine.length} PCs{later > 0 && ` · ${later} booking${later > 1 ? 's' : ''} ahead`}</p></div>
+                    <div><p className="text-[11px] text-muted">In use</p><p className="font-semibold text-ink">{used}</p></div>
+                    <div className="flex items-center gap-3">
+                      <span className="w-10 text-sm font-semibold text-ink">{pct}%</span>
+                      <div className="h-1.5 flex-1 overflow-hidden rounded-full bg-accent-soft"><div className="bar-grow h-full rounded-full bg-accent" style={{ width: `${pct}%` }} /></div>
+                    </div>
+                    <span className="flex items-center gap-1 text-xs font-medium text-accent">{lf} free <ArrowRight size={13} /></span>
+                  </Link>
+                </li>
+              );
+            })}
+          </ul>
+        </section>
+
+        <section className="lift relative flex flex-col overflow-hidden rounded-[1.75rem] bg-gradient-to-b from-rail-2 to-rail p-6 text-center text-white shadow-xl shadow-rail/30 [animation:rise_.6s_cubic-bezier(.2,.8,.2,1)_.2s_both]">
+          <span className="pointer-events-none absolute -right-10 -top-10 h-40 w-40 rounded-full bg-white/10" />
+          <span className="pointer-events-none absolute -bottom-12 -left-8 h-36 w-36 rounded-full bg-white/5" />
+          <span className="mx-auto grid h-14 w-14 place-items-center rounded-2xl bg-white/15"><ClipboardList size={26} /></span>
+          <p className="mt-4 text-sm text-blue-100">Lab time used this week</p>
+          <p className="text-5xl font-bold tracking-tight"><CountUp value={Math.round(totalHours * 10) / 10} decimals={totalHours % 1 ? 1 : 0} /><span className="text-2xl"> h</span></p>
+          <ul className="mt-4 grid gap-1 text-left text-xs text-blue-100">
+            {labs.data?.map((l) => <li key={l.id} className="flex justify-between"><span>{labName(l.id)}</span><b className="text-white">{Math.round((booked[l.id] ?? 0) * 10) / 10} h</b></li>)}
+          </ul>
+          <Link to="/calendar" className="mx-auto mt-5 rounded-full bg-white px-5 py-2.5 text-sm font-semibold text-rail shadow-lg transition-transform hover:scale-105">Open the calendar</Link>
+        </section>
+
+        <div className="grid gap-5">
+          <section className="card p-5">
+            <CardHead title="PC status" to="/labs" link="Labs" />
+            <StatusDonut pcs={pcs} />
+          </section>
+          <section className="card p-5">
+            <CardHead title="Next event" to="/calendar" link="Calendar" />
+            {nextEvent ? (
+              <>
+                <p className="flex items-center gap-2 text-sm text-muted"><span className="h-1.5 w-1.5 rounded-full bg-accent" />{fmtDate(nextEvent.event_date)} at {fmtTime(nextEvent.event_time)}</p>
+                <p className="mt-2 font-semibold text-ink">{nextEvent.title}</p>
+                {nextEvent.description && <p className="mt-0.5 line-clamp-2 text-sm text-muted">{nextEvent.description}</p>}
+                <div className="mt-3 flex gap-2">
+                  <Link to="/calendar"><Button size="sm" variant="ghost">See the day</Button></Link>
+                  <Link to="/reservations?new=1"><Button size="sm">Book a lab</Button></Link>
+                </div>
+              </>
+            ) : <Empty>No upcoming events.</Empty>}
+          </section>
+        </div>
+      </div>
+
+      {isAdmin && stats.data && (
+        <section className="card p-5">
+          <CardHead title="People" to="/people/teachers" link="Manage" />
+          <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+            {([['Students', stats.data.students, '/people/students'], ['Teachers', stats.data.teachers, '/people/teachers'],
+              ['Staff', stats.data.staff, '/people/staff'], ['New sign-ups', stats.data.pendingTeachers, '/people/teachers']] as const).map(([label, n, to]) => (
+              <Link key={label} to={to} className="rounded-2xl bg-chalk/70 p-4 transition-colors hover:bg-accent-soft">
+                <p className="text-xs text-muted">{label}</p><p className="text-2xl font-bold"><CountUp value={n} /></p>
+              </Link>
+            ))}
+          </div>
+        </section>
+      )}
     </>
+  );
+}
+
+// a quick-action tile: big icon, title, one line
+function ActionTile({ to, icon: Icon, title, sub }: { to: string; icon: LucideIcon; title: string; sub: string }) {
+  return (
+    <Link to={to} className="card lift group flex min-h-44 flex-col justify-between p-4">
+      <span className="grid h-16 w-16 place-items-center rounded-2xl bg-accent-soft text-accent transition-transform duration-300 group-hover:-rotate-6 group-hover:scale-110">
+        <Icon size={30} strokeWidth={1.75} />
+      </span>
+      <span><span className="block text-sm font-semibold text-ink">{title}</span><span className="block text-xs text-muted">{sub}</span></span>
+    </Link>
+  );
+}
+
+function CardHead({ title, to, link }: { title: string; to?: string; link?: string }) {
+  return (
+    <div className="mb-4 flex items-center justify-between gap-2">
+      <h2 className="text-lg font-semibold text-ink">{title}</h2>
+      {to && link && <Link to={to} className="text-sm font-medium text-muted hover:text-accent">{link}</Link>}
+    </div>
   );
 }
