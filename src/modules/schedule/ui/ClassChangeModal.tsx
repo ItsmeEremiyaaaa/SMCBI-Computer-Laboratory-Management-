@@ -78,7 +78,6 @@ export default function ClassChangeModal({ session, preset, schedules, bookings,
           )}
           <div className="mt-auto flex flex-wrap items-center justify-end gap-2">
             {existing && <Button variant="quiet" className="mr-auto" disabled={busy} onClick={undo}>Undo change (back to normal)</Button>}
-            <Button variant="ghost" onClick={onClose}>Keep as is</Button>
             <Button variant={f.kind === 'cancelled' ? 'danger' : 'primary'} disabled={busy || problems.length > 0} onClick={save}>
               {busy ? 'Saving…' : f.kind === 'cancelled' ? 'Cancel this meeting' : f.kind === 'activity' ? 'Set activity only' : 'Move this meeting'}
             </Button>

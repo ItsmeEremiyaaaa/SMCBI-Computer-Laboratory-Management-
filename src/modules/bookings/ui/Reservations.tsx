@@ -233,7 +233,6 @@ function ReviewModal({ r, to, where, onClose, onDone }:
               onFocus={(e) => { const end = e.currentTarget.value.length; e.currentTarget.setSelectionRange(end, end); }} />
           </Field>
           <div className="mt-auto flex justify-end gap-2">
-            {to === 'cancelled' && <Button variant="ghost" onClick={onClose}>Keep booking</Button>}
             <Button variant={to === 'approved' ? 'primary' : 'danger'} disabled={busy} onClick={go}>{verb}</Button>
           </div>
         </div>

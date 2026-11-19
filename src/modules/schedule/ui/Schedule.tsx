@@ -160,7 +160,6 @@ export default function Schedule() {
               </div>
             )}
             <div className="flex justify-end gap-2">
-              <Button variant="ghost" onClick={() => setPreview(null)}>Cancel</Button>
               <Button disabled={!preview.ok.length || importing} onClick={importClasses}>
                 {importing ? 'Adding…' : `Add ${preview.ok.length} class${preview.ok.length === 1 ? '' : 'es'}`}
               </Button>

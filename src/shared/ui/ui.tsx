@@ -139,7 +139,6 @@ export function ConfirmHost() {
     <Modal open={!!q} title={q?.title ?? ''} onClose={() => done(false)} hideClose>
       <p className="text-sm text-muted">{q?.message}</p>
       <div className="mt-5 flex justify-end gap-2">
-        <Button type="button" variant="ghost" onClick={() => done(false)}>Cancel</Button>
         <Button type="button" variant={q?.danger ? 'danger' : 'primary'} autoFocus onClick={() => done(true)}>{q?.confirmLabel ?? 'OK'}</Button>
       </div>
     </Modal>
