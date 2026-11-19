@@ -287,7 +287,7 @@ export default function Calendar() {
                                 onDragStart={editable && !off ? (ev) => { ev.dataTransfer.effectAllowed = 'move'; setDragging(r); } : undefined}
                                 onDragEnd={() => setTimeout(() => setDragging(null), 0)}
                                 className={`absolute overflow-hidden rounded-xl border-l-4 px-1.5 py-1 text-[10px] leading-tight ${isClass(r) ? '' : 'border-dashed'} ${off ? 'line-through decoration-red-600 decoration-2 opacity-80' : ''} ${editable ? 'cursor-pointer hover:ring-2 hover:ring-accent/40' : ''} ${editable && !off ? 'active:cursor-grabbing' : ''} ${dragging?.id === r.id ? 'opacity-40' : ''}`}
-                                style={{ top: 4 + lane * laneH, height: laneH - 4, left: `calc(${((s - DAY_START) / SPAN) * 100}% + 1px)`, width: `calc(${((e - s) / SPAN) * 100}% - 2px)`, borderColor: c, background: `${c}1f`, color: off ? '#b91c1c' : '#0f172a' }}>
+                                style={{ top: 4 + lane * laneH, height: laneH - 4, left: `calc(${((s - DAY_START) / SPAN) * 100}% + 1px)`, width: `calc(${((e - s) / SPAN) * 100}% - 2px)`, borderColor: c, background: `${c}1f`, color: off ? '#b91c1c' : 'var(--color-ink)' }}>
                                 {editable && !off && (['start', 'end'] as const).map((edge) => (
                                   <span key={edge} role="separator" aria-orientation="vertical" aria-label={`Drag to change the ${edge} time`}
                                     title={`Drag to change the ${edge} time`} onPointerDown={(ev) => startResize(ev, r, edge)} onClick={(ev) => ev.stopPropagation()}

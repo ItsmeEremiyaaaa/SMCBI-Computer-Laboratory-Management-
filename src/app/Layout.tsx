@@ -107,7 +107,7 @@ export default function Layout() {
   // Labs: the 3D view / floor plan fills the whole window and the sidebar floats inside it.
   if (isLabs) {
     return (
-      <div className="relative h-screen w-screen overflow-hidden bg-[#dfe5ee]"
+      <div className="relative h-screen w-screen overflow-hidden labs-bg"
         style={{ '--labs-left': collapsed ? '6rem' : '17.5rem' } as React.CSSProperties}>
         <IntroSplash />
         <main className="absolute inset-0"><Outlet /></main>

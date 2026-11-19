@@ -76,6 +76,15 @@ html.dark {
   --color-accent-soft: #1f2a46;
   --color-gold-soft: #1f2a46;
 }
+/* Labs page backdrop behind the 3D view / floor plan */
+.labs-bg { background-color: #dfe5ee; }
+html.dark .labs-bg { background-color: var(--color-chalk); }
+/* the floor plan drawing is light by design: dim it at night instead of repainting every piece */
+html.dark svg[aria-label$="floor plan"] { filter: brightness(.8) contrast(1.05); }
+/* white pills with dark text (e.g. the selected lab tab) become dark pills with light text */
+html.dark .bg-white:is(.text-slate-900, .text-ink, .text-rail):not(.navy-weave *) { color: var(--color-ink); }
+html.dark :is([class*='text-violet-6'], [class*='text-violet-7'], [class*='text-violet-8'], [class*='text-violet-9']) { filter: brightness(1.9) saturate(1.1); }
+html.dark [class*='bg-violet-2'] { background-color: rgb(167 139 250 / .2); }
 html.dark .card { box-shadow: 0 1px 2px rgb(0 0 0 / .4), 0 10px 28px -14px rgb(0 0 0 / .7); }
 /* surfaces written as plain white become dark panels */
 html.dark .bg-white:not(.navy-weave *) { background-color: var(--color-panel); }

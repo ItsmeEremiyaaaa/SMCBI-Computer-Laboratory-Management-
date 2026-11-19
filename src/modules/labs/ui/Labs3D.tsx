@@ -309,7 +309,7 @@ export default function Labs3D() {
   }, [lab?.id, mode]);
 
   return (
-    <div className="relative h-full w-full overflow-hidden bg-[#dfe5ee]">
+    <div className="relative h-full w-full overflow-hidden labs-bg">
       {/* Centered SMCBI Loading Animation Overlay */}
       <LabLoadingOverlay labName={lab?.name} ready={sceneReady} />
 
