@@ -98,6 +98,8 @@ export interface Api {
   markRead(fromId: string): Promise<void>;
   /** People I may start a conversation with. */
   messageContacts(): Promise<Contact[]>;
+  /** Delete all messages in the conversation with `otherId`. */
+  deleteConversation(otherId: string): Promise<void>;
 }
 
 const url = import.meta.env.VITE_SUPABASE_URL as string | undefined;

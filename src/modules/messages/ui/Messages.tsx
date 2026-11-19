@@ -1,8 +1,8 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
-import { ArrowLeft, MessageSquarePlus, Search, Send } from 'lucide-react';
+import { ArrowLeft, MessageSquarePlus, Search, Send, Trash2 } from 'lucide-react';
 import { useLoad } from '../../../shared/hooks/useLoad';
-import { Alert, Empty, PageHeader, fmtDate, fmtTime } from '../../../shared/ui/ui';
+import { Alert, Empty, PageHeader, askConfirm, fmtDate, fmtTime, toast } from '../../../shared/ui/ui';
 import { messagesRepo } from '../data/repository';
 import { conversations, useMessages } from '../hooks/useMessages';
 
@@ -40,6 +40,30 @@ export default function Messages() {
     try { await messagesRepo.sendMessage(open, draft); setDraft(''); await reload(); } catch (e) { setError((e as Error).message); } finally { setBusy(false); }
   }
 
+  async function deleteChat(targetId?: string, targetName?: string) {
+    const id = targetId ?? open;
+    const name = targetName ?? other ?? 'this person';
+    if (!id) return;
+    const confirmed = await askConfirm({
+      title: 'Delete conversation?',
+      message: `Permanently delete your conversation with ${name}? All messages in this chat will be removed.`,
+      confirmLabel: 'Delete conversation',
+      danger: true,
+    });
+    if (!confirmed) return;
+    setBusy(true); setError(null);
+    try {
+      await messagesRepo.deleteConversation(id);
+      if (open === id) setParams({});
+      await reload();
+      toast('Conversation deleted');
+    } catch (e) {
+      setError((e as Error).message);
+    } finally {
+      setBusy(false);
+    }
+  }
+
   const found = (contacts.data ?? []).filter((c) => !find.trim() || c.full_name.toLowerCase().includes(find.trim().toLowerCase()));
 
   return (
@@ -75,7 +99,7 @@ export default function Messages() {
           <ul className="min-h-0 flex-1 overflow-y-auto px-2 pb-2">
             {messages && convs.length === 0 && <li className="px-3 py-6 text-center text-sm text-muted">No chats yet. Press <b>New</b> to start one.</li>}
             {convs.map((c) => (
-              <li key={c.id}>
+              <li key={c.id} className="group relative">
                 <button onClick={() => openWith(c.id)} className={`flex w-full items-center gap-3 rounded-2xl px-3 py-2.5 text-left transition-colors ${open === c.id ? 'bg-accent-soft' : 'hover:bg-chalk'}`}>
                   <span className="grid h-10 w-10 shrink-0 place-items-center rounded-full bg-accent text-sm font-semibold text-white">{initials(c.name)}</span>
                   <span className="min-w-0 flex-1">
@@ -86,6 +110,15 @@ export default function Messages() {
                       {c.unread > 0 && <span className="grid h-5 min-w-5 place-items-center rounded-full bg-broken px-1 text-[10px] font-bold text-white">{c.unread}</span>}
                     </span>
                   </span>
+                </button>
+                <button
+                  type="button"
+                  onClick={(e) => { e.stopPropagation(); void deleteChat(c.id, c.name); }}
+                  title="Delete conversation"
+                  aria-label={`Delete conversation with ${c.name}`}
+                  className="absolute right-2 top-2 hidden rounded-lg p-1.5 text-muted transition-colors hover:bg-rose-50 hover:text-broken group-hover:block"
+                >
+                  <Trash2 size={13} />
                 </button>
               </li>
             ))}
@@ -99,7 +132,20 @@ export default function Messages() {
               <header className="flex items-center gap-3 border-b border-line px-4 py-3">
                 <button onClick={() => setParams({})} aria-label="Back to chats" className="rounded-lg p-1 text-muted hover:bg-chalk md:hidden"><ArrowLeft size={18} /></button>
                 <span className="grid h-9 w-9 place-items-center rounded-full bg-accent text-sm font-semibold text-white">{initials(other || '?')}</span>
-                <div className="min-w-0"><p className="truncate font-semibold text-ink">{other}</p>{otherRole && <p className="text-xs capitalize text-muted">{otherRole}</p>}</div>
+                <div className="min-w-0 flex-1">
+                  <p className="truncate font-semibold text-ink">{other}</p>
+                  {otherRole && <p className="text-xs capitalize text-muted">{otherRole}</p>}
+                </div>
+                <button
+                  type="button"
+                  onClick={() => void deleteChat()}
+                  disabled={busy}
+                  title="Delete conversation"
+                  aria-label="Delete conversation"
+                  className="rounded-lg p-2 text-muted transition-colors hover:bg-rose-50 hover:text-broken disabled:opacity-50"
+                >
+                  <Trash2 size={16} />
+                </button>
               </header>
               <div className="min-h-0 flex-1 overflow-y-auto bg-chalk/40 px-4 py-4">
                 {thread.length === 0 && <p className="py-10 text-center text-sm text-muted">Say hello. Your message goes straight to {other || 'them'}.</p>}

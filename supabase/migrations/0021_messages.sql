@@ -47,6 +47,19 @@ drop policy if exists "send" on public.messages;
 create policy "send" on public.messages for insert with check (public.is_approved());
 drop policy if exists "mark read" on public.messages;
 create policy "mark read" on public.messages for update using (to_id = auth.uid());
+drop policy if exists "delete conversation" on public.messages;
+create policy "delete conversation" on public.messages for delete
+  using (from_id = auth.uid() or to_id = auth.uid());
+
+-- delete an entire conversation between me and other_id
+create or replace function public.delete_conversation(other_id uuid)
+returns void language sql security definer set search_path = '' as $$
+  delete from public.messages
+  where (from_id = auth.uid() and to_id = other_id)
+     or (from_id = other_id and to_id = auth.uid());
+$$;
+revoke all on function public.delete_conversation(uuid) from public, anon;
+grant execute on function public.delete_conversation(uuid) to authenticated;
 
 -- who you may start a conversation with
 create or replace function public.message_contacts()

@@ -186,6 +186,14 @@ export function createSupabaseApi(url: string, key: string): Api {
       ok(await sb.from('messages').update({ read_at: new Date().toISOString() }).eq('from_id', fromId).eq('to_id', me ?? '').is('read_at', null));
     },
     async messageContacts() { return (ok(await sb.rpc('message_contacts')) ?? []) as Contact[]; },
+    async deleteConversation(otherId) {
+      try {
+        ok(await sb.rpc('delete_conversation', { other_id: otherId }));
+      } catch {
+        const me = await uid();
+        ok(await sb.from('messages').delete().or(`and(from_id.eq.${me},to_id.eq.${otherId}),and(from_id.eq.${otherId},to_id.eq.${me})`));
+      }
+    },
     async deleteClassChange(id) {
       const rows = ok(await sb.from('class_changes').delete().eq('id', id).select('id'));
       if (!rows.length) throw new Error('Not allowed for your role.');

@@ -145,13 +145,8 @@ export default function Dashboard() {
           </p>
         </div>
         <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
-          <Link to="/reservations?new=1" className="card lift grid min-h-44 place-items-center border-2 border-dashed border-accent/25 !bg-accent-soft/50 p-4 text-center">
-            <span>
-              <span className="mx-auto grid h-11 w-11 place-items-center rounded-xl bg-accent text-white shadow-lg shadow-accent/30"><Plus size={22} /></span>
-              <span className="mt-3 block text-sm font-semibold text-ink">Request a lab</span>
-            </span>
-          </Link>
           <ActionTile to="/labs" icon={Monitor} title="Open the labs" sub="3D view and floor plan, live" />
+          <ActionTile to="/reservations" icon={ClipboardList} title="Reservations" sub={waiting > 0 ? `${waiting} pending request${waiting > 1 ? 's' : ''}` : 'View all bookings'} badge={waiting || undefined} />
           <ActionTile to="/schedule" icon={CalendarClock} title="Class schedule" sub="Weekly classes by semester" />
           <ActionTile to="/messages" icon={MessageCircle} title="Messages" sub={unreadMsg ? `${unreadMsg} unread` : 'Chat with the lab office'} badge={unreadMsg} />
         </div>
@@ -198,9 +193,6 @@ export default function Dashboard() {
               ))}
             </ul>
           )}
-          <Link to="/reservations?new=1" className="mt-[max(1rem,auto)] flex items-center justify-center gap-2 rounded-2xl bg-accent-soft py-3 text-sm font-semibold text-ink transition-colors hover:bg-accent/15">
-            <span className="grid h-6 w-6 place-items-center rounded-md bg-accent text-white"><Plus size={15} /></span>Request a lab
-          </Link>
         </section>
 
         <section className="card p-5">

@@ -272,6 +272,13 @@ export function createMock(storage: Store | null = browserStorage()): Api {
         .sort((a, b) => order[a.role] - order[b.role] || a.full_name.localeCompare(b.full_name))
         .map((x) => ({ id: x.id, full_name: x.full_name, role: x.role }));
     },
+    async deleteConversation(otherId) {
+      const p = me();
+      state.messages = (state.messages ?? []).filter(
+        (m) => !((m.from_id === p.id && m.to_id === otherId) || (m.from_id === otherId && m.to_id === p.id))
+      );
+      changedRes();
+    },
     async deleteClassChange(id) {
       me();
       state.classChanges = state.classChanges!.filter((x) => x.id !== id);

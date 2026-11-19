@@ -3,6 +3,6 @@
 import { api, type Api } from '../../../shared/data/api';
 
 export type MessagesRepository = Pick<Api,
-  'listMessages' | 'sendMessage' | 'markRead' | 'messageContacts' | 'subscribeReservations'>;
+  'listMessages' | 'sendMessage' | 'markRead' | 'messageContacts' | 'deleteConversation' | 'subscribeReservations'>;
 
 export const messagesRepo: MessagesRepository = api;

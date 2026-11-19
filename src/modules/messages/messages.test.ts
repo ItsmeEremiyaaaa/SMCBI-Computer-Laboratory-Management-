@@ -24,5 +24,10 @@ describe('messages', () => {
     expect(convs).toHaveLength(1); // the welcome message, the question and the reply are one chat with the admin
     expect(convs[0]).toMatchObject({ id: 'admin', name: 'Lab Administrator', unread: 2 });
     expect(convs[0].last.body).toBe('Yes, send the request.');
+
+    // conversation deletion
+    await api.deleteConversation('admin');
+    const afterDelete = conversations(await api.listMessages(), 'student');
+    expect(afterDelete).toHaveLength(0);
   });
 });
