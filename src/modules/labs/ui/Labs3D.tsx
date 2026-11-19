@@ -380,18 +380,23 @@ export default function Labs3D() {
           {/* 3D Controls Guide (+ whole-lab maintenance for admin/staff) */}
           <div className="flex flex-wrap items-center gap-1">
             {(profile?.role === 'admin' || profile?.role === 'staff') && lab && (() => {
-              const inMaint = pcs.filter((p) => p.status === 'maintenance');
-              const on = inMaint.length > 0;
+              // whole-lab maintenance = every working PC is under maintenance; single PCs under maintenance don't
+              // count, and ending it only frees the PCs this button put there (note 'Lab maintenance')
+              const LAB_NOTE = 'Lab maintenance';
+              const working = pcs.filter((p) => p.status !== 'broken');
+              const on = working.length > 0 && working.every((p) => p.status === 'maintenance');
+              const byLab = working.filter((p) => p.status === 'maintenance' && p.note === LAB_NOTE);
+              const already = working.filter((p) => p.status === 'maintenance').length;
               const toggle = () => askConfirm(on
-                ? { title: `End maintenance in ${lab.name}?`, message: `${inMaint.length} PCs go back to Free and can be used again.`, confirmLabel: 'End maintenance' }
-                : { title: `Put ${lab.name} under maintenance?`, message: 'Every PC (except broken ones) is set to Maintenance, so nobody can use or book it until you end maintenance.', confirmLabel: 'Start maintenance' })
+                ? { title: `End maintenance in ${lab.name}?`, message: `${byLab.length} PCs go back to Free and can be used again.${already > byLab.length ? ` ${already - byLab.length} PC(s) under their own maintenance stay that way.` : ''}`, confirmLabel: 'End maintenance' }
+                : { title: `Put ${lab.name} under maintenance?`, message: `Every working PC is set to Maintenance, so nobody can use or book it until you end maintenance.${isClassInSession ? ' A class is on now: it continues without the lab PCs.' : ''}`, confirmLabel: 'Start maintenance' })
                 .then(async (ok) => {
                   if (!ok) return;
                   setMaintBusy(true); setMaintError(null);
                   try {
                     await Promise.all(on
-                      ? inMaint.map((p) => labsRepo.setPcStatus(p.id, 'free', null))
-                      : pcs.filter((p) => p.status !== 'broken' && p.status !== 'maintenance').map((p) => labsRepo.setPcStatus(p.id, 'maintenance', 'Lab maintenance')));
+                      ? byLab.map((p) => labsRepo.setPcStatus(p.id, 'free', null))
+                      : working.filter((p) => p.status !== 'maintenance').map((p) => labsRepo.setPcStatus(p.id, 'maintenance', LAB_NOTE)));
                     toast(on ? 'Maintenance ended' : 'Lab under maintenance', on ? `${lab.name}: PCs are back to Free` : `${lab.name}: PCs can't be used or booked`);
                   } catch (e) { setMaintError((e as Error).message); } finally { setMaintBusy(false); }
                 });
@@ -400,7 +405,7 @@ export default function Labs3D() {
                   title={on ? 'Put every PC in this lab back to Free' : 'Set every PC in this lab to Maintenance'}
                   className={`flex items-center gap-1.5 rounded-xl px-2.5 py-1 text-xs font-semibold shadow-sm transition-all active:scale-95 disabled:opacity-60 ${
                     on ? 'bg-emerald-600 text-white hover:bg-emerald-700' : 'border border-violet-200 bg-violet-50 text-violet-800 hover:bg-violet-100'}`}>
-                  <Wrench size={14} />{maintBusy ? 'Updating…' : on ? `End maintenance (${inMaint.length})` : 'Lab maintenance'}
+                  <Wrench size={14} />{maintBusy ? 'Updating…' : on ? `End maintenance (${byLab.length})` : 'Lab maintenance'}
                 </button>
               );
             })()}

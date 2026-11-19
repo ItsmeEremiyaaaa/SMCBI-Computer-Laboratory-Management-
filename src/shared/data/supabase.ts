@@ -187,12 +187,11 @@ export function createSupabaseApi(url: string, key: string): Api {
     },
     async messageContacts() { return (ok(await sb.rpc('message_contacts')) ?? []) as Contact[]; },
     async deleteConversation(otherId) {
-      try {
-        ok(await sb.rpc('delete_conversation', { other_id: otherId }));
-      } catch {
-        const me = await uid();
-        ok(await sb.from('messages').delete().or(`and(from_id.eq.${me},to_id.eq.${otherId}),and(from_id.eq.${otherId},to_id.eq.${me})`));
-      }
+      const { error } = await sb.rpc('delete_conversation', { other_id: otherId });
+      if (!error) return;
+      // older databases lack the function (and the delete rule, so a direct delete would silently remove nothing)
+      if (/Could not find the function/i.test(error.message)) throw new Error('Deleting chats is not set up on the database yet. Run supabase/migrations/0021_messages.sql again.');
+      throw friendlyError(error);
     },
     async deleteClassChange(id) {
       const rows = ok(await sb.from('class_changes').delete().eq('id', id).select('id'));
