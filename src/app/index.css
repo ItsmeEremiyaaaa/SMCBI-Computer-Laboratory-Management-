@@ -89,6 +89,16 @@ body {
 /* ---- Motion: pages arrive in order (title, then cards one by one, then list rows); bars grow; menu slides in ---- */
 @keyframes rise { from { opacity: 0; transform: translateY(14px) scale(.985); filter: blur(6px); } to { opacity: 1; transform: none; filter: none; } }
 @keyframes word-in { from { opacity: 0; transform: translateY(.35em); filter: blur(8px); } to { opacity: 1; transform: none; filter: none; } }
+@keyframes toast-in { from { opacity: 0; transform: translateY(16px) scale(.96); } to { opacity: 1; transform: none; } }
+.toast-in { animation: toast-in .4s cubic-bezier(.2,.9,.3,1.2) both; }
+@keyframes draw-check { from { stroke-dashoffset: 24; } to { stroke-dashoffset: 0; } }
+.draw-check { stroke-dasharray: 24; animation: draw-check .45s ease-out .2s both; }
+@keyframes day-in { from { opacity: 0; transform: translateX(var(--from, 12px)); } to { opacity: 1; transform: none; } }
+.day-in { animation: day-in .35s ease-out both; }
+@keyframes float-dot { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-10px); } }
+.float-dot { animation: float-dot 6s ease-in-out infinite; }
+@keyframes bob { 0%, 100% { transform: translateY(0) rotate(0); } 50% { transform: translateY(-4px) rotate(-4deg); } }
+.group:hover .bob-on-hover { animation: bob 1.2s ease-in-out infinite; }
 .hero-word { display: inline-block; animation: word-in .7s cubic-bezier(.2,.8,.2,1) both; animation-delay: calc(var(--i) * 70ms); }
 @keyframes fade-up { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: none; } }
 @keyframes slide-in { from { opacity: 0; transform: translateX(-14px); } to { opacity: 1; transform: none; } }
@@ -122,7 +132,7 @@ body {
 .lift:hover { transform: translateY(-3px); box-shadow: 0 2px 4px rgb(23 43 77 / .05), 0 18px 34px -16px rgb(27 70 134 / .35); }
 
 @media (prefers-reduced-motion: reduce) {
-  .page-enter *, .menu-enter > a, .bar-grow, .donut-sweep, .hero-word { animation: none !important; }
+  .page-enter *, .menu-enter > a, .bar-grow, .donut-sweep, .hero-word, .toast-in, .draw-check, .day-in, .float-dot, .bob-on-hover { animation: none !important; }
   .lift, .lift:hover { transition: none; transform: none; }
 }
 

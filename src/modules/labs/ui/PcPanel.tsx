@@ -10,7 +10,7 @@ import { reportsRepo } from '../../reports/data/repository';
 import { STUDENT_LAB } from '../../bookings/logic/rules';
 import ReportProblem from '../../reports/ui/ReportProblem';
 import type { Lab, PcStatus } from '../../../shared/data/types';
-import { Alert, Button, Field, fmtDate, fmtTime, Input, Led, STATUS_LABEL } from '../../../shared/ui/ui';
+import { Alert, Button, Field, fmtDate, fmtTime, Input, Led, STATUS_LABEL, toast } from '../../../shared/ui/ui';
 import { manilaNow } from '../../../shared/time';
 
 const MANUAL: PcStatus[] = ['free', 'in_use', 'maintenance', 'broken'];
@@ -34,12 +34,12 @@ export default function PcPanel({ pc, lab, canEdit, onClose }: { pc: LivePc; lab
   const open = (reports.data ?? []).filter((r) => r.pc_id === pc.id);
   async function resolve(id: string, action: 'broken' | 'dismissed') {
     setBusy(true); setError(null);
-    try { await reportsRepo.resolveReport(id, action); await reports.reload(); } catch (e) { setError((e as Error).message); } finally { setBusy(false); }
+    try { await reportsRepo.resolveReport(id, action); toast(action === 'broken' ? `${pc.label} marked broken` : 'Report dismissed'); await reports.reload(); } catch (e) { setError((e as Error).message); } finally { setBusy(false); }
   }
 
   async function set(status: PcStatus) {
     setBusy(true); setError(null);
-    try { await labsRepo.setPcStatus(pc.id, status, note.trim() || null); } catch (e) { setError((e as Error).message); } finally { setBusy(false); }
+    try { await labsRepo.setPcStatus(pc.id, status, note.trim() || null); toast(`${pc.label} set to ${STATUS_LABEL[status]}`); } catch (e) { setError((e as Error).message); } finally { setBusy(false); }
   }
 
   return (

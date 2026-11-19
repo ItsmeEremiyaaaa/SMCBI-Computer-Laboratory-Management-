@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import type { ClassChangeInput, ClassChangeKind, ClassSchedule, Lab, Reservation } from '../../../shared/data/types';
 import { LAB_CLOSE, LAB_OPEN } from '../../../shared/time';
-import { Alert, Button, Field, fmtDate, fmtTime, Input, Modal, Select, Textarea } from '../../../shared/ui/ui';
+import { Alert, Button, Field, fmtDate, fmtTime, Input, Modal, Select, Textarea, toast } from '../../../shared/ui/ui';
 import { classChangeProblems } from '../logic/rules';
 import { scheduleRepo } from '../data/repository';
 
@@ -35,11 +35,15 @@ export default function ClassChangeModal({ session, preset, schedules, bookings,
 
   async function save() {
     setBusy(true); setError(null);
-    try { await scheduleRepo.saveClassChange(input); onDone(); } catch (e) { setError((e as Error).message); } finally { setBusy(false); }
+    try {
+      await scheduleRepo.saveClassChange(input);
+      toast(f.kind === 'cancelled' ? 'Class cancelled for that day' : f.kind === 'activity' ? 'Set to activity only' : 'Class moved', `${s.section} ${s.subject} · students are notified`);
+      onDone();
+    } catch (e) { setError((e as Error).message); } finally { setBusy(false); }
   }
   async function undo() {
     setBusy(true); setError(null);
-    try { await scheduleRepo.deleteClassChange(existing!.id); onDone(); } catch (e) { setError((e as Error).message); } finally { setBusy(false); }
+    try { await scheduleRepo.deleteClassChange(existing!.id); toast('Back to the normal schedule', `${s.section} ${s.subject}`); onDone(); } catch (e) { setError((e as Error).message); } finally { setBusy(false); }
   }
 
   return (

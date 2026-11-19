@@ -10,7 +10,7 @@ import { classesOn, termOf } from '../logic/rules';
 import type { ClassSchedule, Lab, ScheduleInput } from '../../../shared/data/types';
 import { validateSchedule } from '../logic/rules';
 import { COLUMNS, rowsToSchedules, schedulesToRows, type Cell } from '../logic/excel';
-import { Alert, Button, Empty, Field, fmtDate, fmtTime, Input, Modal, PageHeader, Panel, Select, askConfirm } from '../../../shared/ui/ui';
+import { Alert, Button, Empty, Field, fmtDate, fmtTime, Input, Modal, PageHeader, Panel, Select, askConfirm, toast } from '../../../shared/ui/ui';
 
 const DAYS = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
 const labDisplayName = (lab?: Lab) => {
@@ -113,6 +113,8 @@ export default function Schedule() {
     if (preview.ok[0]) setTerm(termOf(preview.ok[0].starts_on).key);
     setPreview(null);
     if (failed.length) setError(`${failed.length} class(es) were not added: ${failed.join(' · ')}`);
+    const added = preview.ok.length - failed.length;
+    if (added) toast(`${added} class${added === 1 ? '' : 'es'} added`, preview.ok[0] ? termOf(preview.ok[0].starts_on).label : undefined);
   }
 
   const blank = (): ScheduleInput => ({

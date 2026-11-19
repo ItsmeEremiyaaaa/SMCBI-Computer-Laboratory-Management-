@@ -6,7 +6,7 @@ import { labsRepo } from '../../labs/data/repository';
 import { peopleRepo } from '../../people/data/repository';
 import { reportsRepo } from '../../reports/data/repository';
 import type { ArchiveKind } from '../../../shared/data/types';
-import { Alert, Button, Empty, PageHeader, Panel, askConfirm } from '../../../shared/ui/ui';
+import { Alert, Button, Empty, PageHeader, Panel, askConfirm, toast } from '../../../shared/ui/ui';
 
 const KINDS: { kind: ArchiveKind | 'account' | 'report'; label: string }[] = [
   { kind: 'student', label: 'Student records' },
@@ -65,6 +65,7 @@ export default function Archive() {
       else if (tab === 'report') await reportsRepo.deleteReports(ids);
       else for (const id of ids) await (what === 'restore' ? archiveRepo.restoreArchived(id) : archiveRepo.purgeArchived(id));
       setPicked(new Set());
+      toast(what === 'restore' ? `Restored ${ids.length === 1 ? '1 item' : `${ids.length} items`}` : `Deleted ${ids.length === 1 ? '1 item' : `${ids.length} items`} for good`);
     } catch (e) { setError((e as Error).message); }
     finally {
       setBusy(false);

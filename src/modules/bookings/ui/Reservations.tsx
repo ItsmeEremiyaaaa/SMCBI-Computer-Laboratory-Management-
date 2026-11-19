@@ -10,7 +10,7 @@ import { useCleared } from '../../../shared/hooks/useCleared';
 import { manilaNow } from '../../../shared/time';
 import type { Reservation, ResStatus } from '../../../shared/data/types';
 import ReservationForm from './ReservationForm';
-import { Alert, Button, Empty, Field, fmtDate, fmtTime, Input, Modal, PageHeader, Panel, ResBadge, Select, Textarea, askConfirm } from '../../../shared/ui/ui';
+import { Alert, Button, Empty, Field, fmtDate, fmtTime, Input, Modal, PageHeader, Panel, ResBadge, Select, Textarea, askConfirm, toast } from '../../../shared/ui/ui';
 
 const STATUSES: ResStatus[] = ['pending', 'approved', 'rejected', 'completed', 'cancelled'];
 
@@ -216,7 +216,11 @@ function ReviewModal({ r, to, where, onClose, onDone }:
   const verb = to === 'approved' ? 'Approve' : to === 'rejected' ? 'Reject' : 'Cancel booking';
   async function go() {
     setBusy(true); setError(null);
-    try { await bookingsRepo.reviewReservation(r.id, to, notes.trim() === GREETING.trim() ? null : notes.trim() || null); onDone(); } catch (e) { setError((e as Error).message); } finally { setBusy(false); }
+    try {
+      await bookingsRepo.reviewReservation(r.id, to, notes.trim() === GREETING.trim() ? null : notes.trim() || null);
+      toast(to === 'approved' ? 'Booking approved' : to === 'rejected' ? 'Booking rejected' : 'Booking cancelled', `${r.title} · ${r.requester_name} is notified`);
+      onDone();
+    } catch (e) { setError((e as Error).message); } finally { setBusy(false); }
   }
   return (
     <Modal wide open title={to === 'cancelled' ? 'Cancel this approved booking?' : `${verb} request`} onClose={onClose}>

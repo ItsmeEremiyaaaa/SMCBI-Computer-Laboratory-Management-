@@ -115,6 +115,40 @@ export function useExclusive(open: boolean, close: () => void) {
   }, [open, id]);
 }
 
+// ---- Toasts: short "done" messages that slide in at the bottom right and leave by themselves ----
+type Toast = { id: number; title: string; sub?: string; tone: 'ok' | 'error' };
+let pushToast: ((t: Toast) => void) | null = null;
+let toastSeq = 0;
+/** Shows a small confirmation, e.g. toast('Booking approved', 'Maria Santos was told'). */
+export function toast(title: string, sub?: string, tone: Toast['tone'] = 'ok') { pushToast?.({ id: ++toastSeq, title, sub, tone }); }
+
+/** Mounted once at the app root; renders the toasts. */
+export function ToastHost() {
+  const [list, setList] = useState<Toast[]>([]);
+  useEffect(() => {
+    pushToast = (t) => {
+      setList((l) => [...l.slice(-2), t]);
+      setTimeout(() => setList((l) => l.filter((x) => x.id !== t.id)), 4200);
+    };
+    return () => { pushToast = null; };
+  }, []);
+  return (
+    <div aria-live="polite" className="pointer-events-none fixed inset-x-3 bottom-4 z-[60] grid justify-items-end gap-2 sm:inset-x-auto sm:right-5">
+      {list.map((t) => (
+        <div key={t.id} role="status" className="toast-in pointer-events-auto flex w-full max-w-sm items-start gap-3 rounded-2xl bg-ink px-4 py-3 text-white shadow-2xl">
+          <span className={cx('mt-0.5 grid h-7 w-7 shrink-0 place-items-center rounded-lg', t.tone === 'ok' ? 'bg-emerald-500' : 'bg-broken')}>
+            {t.tone === 'ok'
+              ? <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><path className="draw-check" d="M5 12.5l4.5 4.5L19 7.5" /></svg>
+              : <X size={15} />}
+          </span>
+          <span className="min-w-0 flex-1"><span className="block text-sm font-semibold">{t.title}</span>{t.sub && <span className="block text-xs text-white/70">{t.sub}</span>}</span>
+          <button onClick={() => setList((l) => l.filter((x) => x.id !== t.id))} aria-label="Dismiss" className="rounded p-0.5 text-white/60 hover:text-white"><X size={14} /></button>
+        </div>
+      ))}
+    </div>
+  );
+}
+
 // ---- In-app confirm dialog (replaces the browser's confirm box) ----
 type Ask = { title: string; message: ReactNode; confirmLabel?: string; danger?: boolean };
 let showAsk: ((a: Ask & { resolve: (ok: boolean) => void }) => void) | null = null;

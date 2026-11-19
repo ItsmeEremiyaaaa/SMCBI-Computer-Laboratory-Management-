@@ -82,7 +82,9 @@ export default function Calendar() {
   const days = new Date(Date.UTC(ym.y, ym.m + 1, 0)).getUTCDate();
   const cells = Array.from({ length: Math.ceil((first + days) / 7) * 7 }, (_, i) => i - first + 1);
   const monthName = new Date(Date.UTC(ym.y, ym.m, 1)).toLocaleDateString('en-PH', { month: 'long', year: 'numeric', timeZone: 'UTC' });
-  const shift = (n: number) => setYm(({ y, m }) => ({ y: m + n < 0 ? y - 1 : m + n > 11 ? y + 1 : y, m: (m + n + 12) % 12 }));
+  // month arrows slide the days in from the side you are heading to
+  const [dir, setDir] = useState(1);
+  const shift = (n: number) => { setDir(n); setYm(({ y, m }) => ({ y: m + n < 0 ? y - 1 : m + n > 11 ? y + 1 : y, m: (m + n + 12) % 12 })); };
   const goToday = () => { setYm({ y: Number(today.slice(0, 4)), m: Number(today.slice(5, 7)) - 1 }); setDay(today); };
 
   const labList = labs.data ?? [];
@@ -140,7 +142,7 @@ export default function Calendar() {
           <div className="mt-4 grid grid-cols-7 gap-1 text-center text-[11px] font-semibold uppercase tracking-wide text-muted sm:gap-2">
             {['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].map((d) => <div key={d} className="py-1">{d}</div>)}
           </div>
-          <div className="grid grid-cols-7 gap-1 sm:gap-2">
+          <div key={`${ym.y}-${ym.m}`} className="grid grid-cols-7 gap-1 sm:gap-2" style={{ ['--from' as string]: `${dir * 18}px` }}>
             {cells.map((d, i) => {
               const date = d >= 1 && d <= days ? iso(ym.y, ym.m, d) : null;
               const weekend = i % 7 === 0 || i % 7 === 6;
@@ -153,7 +155,8 @@ export default function Calendar() {
                   onDragOver={(e) => { if (dragging && date >= today) e.preventDefault(); }}
                   onDrop={(e) => { e.preventDefault(); dropMove({ new_date: date, new_start: dragging?.start_time, new_end: dragging?.end_time, new_lab: dragging?.lab_id }); }}
                   aria-label={`${date}: ${ev.length} events, ${bk.length} lab bookings`}
-                  className={`group relative flex min-h-16 min-w-0 flex-col gap-1 rounded-xl p-1 text-left transition-all sm:min-h-24 sm:rounded-2xl sm:p-2
+                  style={{ animationDelay: `${(i % 7) * 25 + Math.floor(i / 7) * 15}ms` }}
+                  className={`day-in group relative flex min-h-16 min-w-0 flex-col gap-1 rounded-xl p-1 text-left transition-all sm:min-h-24 sm:rounded-2xl sm:p-2
                     ${selected ? 'bg-white shadow-[0_12px_28px_-14px_rgb(15_23_42/.35)]' : weekend ? 'bg-white/25 hover:bg-white/60' : 'bg-white/45 hover:bg-white/75'}`}>
                   <div className="flex items-center justify-center sm:justify-between">
                     <span className={`inline-grid h-6 min-w-6 place-items-center rounded-full px-1 text-xs ${date === today ? 'bg-ink font-semibold text-white' : selected ? 'font-semibold text-ink' : 'text-ink'}`}>{d}</span>

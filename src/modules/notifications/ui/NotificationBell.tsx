@@ -8,7 +8,7 @@ import { peopleRepo } from '../../people/data/repository';
 import { reportsRepo } from '../../reports/data/repository';
 import { useCleared } from '../../../shared/hooks/useCleared';
 import type { Pc, PcReport, Profile, Reservation } from '../../../shared/data/types';
-import { fmtDate, fmtTime, useExclusive } from '../../../shared/ui/ui';
+import { fmtDate, fmtTime, useExclusive, toast } from '../../../shared/ui/ui';
 
 const LAB_SHORT: Record<string, string> = { lab1: 'ComLab 1', lab2: 'ComLab 2', netlab: 'NetLab' };
 const peopleTab = (p: Profile) => (p.role === 'student' ? 'accounts' : p.role === 'staff' ? 'staff' : 'teachers');
@@ -51,9 +51,9 @@ export function AttentionList({ page = false, onNavigate }: { page?: boolean; on
   const { cleared, clear } = useCleared(profile?.id);
   const [busy, setBusy] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
-  async function act(id: string, fn: () => Promise<void>) {
+  async function act(id: string, fn: () => Promise<void>, done = 'Done') {
     setBusy(id); setError(null);
-    try { await fn(); await load(); } catch (e) { setError((e as Error).message); } finally { setBusy(null); }
+    try { await fn(); toast(done); await load(); } catch (e) { setError((e as Error).message); } finally { setBusy(null); }
   }
   const done = () => onNavigate?.();
   const navigate = useNavigate();
@@ -90,8 +90,8 @@ export function AttentionList({ page = false, onNavigate }: { page?: boolean; on
               <Item key={p.id} to={`/people/${peopleTab(p)}`} onClick={done} onClear={() => clear([`acc-${p.id}`])}
                 title={p.full_name} sub={<><span className="capitalize">{p.role}</span> · {p.email}</>}
                 actions={<>
-                  <Act busy={busy === p.id} onClick={() => act(p.id, () => peopleRepo.updateProfile(p.id, { approved: true }))}>Approve</Act>
-                  <Act busy={busy === p.id} quiet onClick={() => act(p.id, () => peopleRepo.setAccountArchived(p.id, true))}>Archive</Act>
+                  <Act busy={busy === p.id} onClick={() => act(p.id, () => peopleRepo.updateProfile(p.id, { approved: true }), `${p.full_name} approved`)}>Approve</Act>
+                  <Act busy={busy === p.id} quiet onClick={() => act(p.id, () => peopleRepo.setAccountArchived(p.id, true), `${p.full_name} archived`)}>Archive</Act>
                 </>} />
             ))}
           </Section>
@@ -103,7 +103,7 @@ export function AttentionList({ page = false, onNavigate }: { page?: boolean; on
                 title={`${LAB_SHORT[r.lab_id] ?? r.lab_id} · ${pcLabel(r.pc_id)}: ${r.problem}`}
                 sub={`${r.user_name}${r.note ? ' · ' + r.note : ''} · ${fmtDate(r.created_at.slice(0, 10))}`}
                 actions={<>
-                  <Act busy={busy === r.id} danger onClick={() => act(r.id, () => reportsRepo.resolveReport(r.id, 'broken'))}>Mark broken</Act>
+                  <Act busy={busy === r.id} danger onClick={() => act(r.id, () => reportsRepo.resolveReport(r.id, 'broken'), 'PC marked broken')}>Mark broken</Act>
                 </>} />
             ))}
           </Section>

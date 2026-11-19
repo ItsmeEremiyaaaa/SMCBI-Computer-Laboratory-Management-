@@ -126,8 +126,12 @@ export default function Dashboard() {
   return (
     <>
       {/* 1 · greeting + quick actions */}
-      <section className="mb-8 grid items-center gap-6 xl:grid-cols-[minmax(0,27rem)_1fr]">
-        <div>
+      <section className="relative mb-8 grid items-center gap-6 xl:grid-cols-[minmax(0,27rem)_1fr]">
+        {/* soft floating dots behind the greeting */}
+        <span aria-hidden className="float-dot pointer-events-none absolute -left-3 top-2 h-3 w-3 rounded-full bg-accent/25" />
+        <span aria-hidden className="float-dot pointer-events-none absolute left-[22rem] top-6 h-2 w-2 rounded-full bg-amber-400/60 [animation-delay:-2s]" />
+        <span aria-hidden className="float-dot pointer-events-none absolute bottom-0 left-40 h-6 w-6 rounded-full border-2 border-accent/20 [animation-delay:-4s]" />
+        <div className="relative">
           <h1 className="text-4xl font-bold leading-[1.08] tracking-tight text-ink sm:text-5xl">
             <span className="sr-only">Overview. </span>
             {words(`Hi, ${first}!`)}<br />{words("What's happening in the labs today?", 2)}
@@ -307,7 +311,7 @@ function ActionTile({ to, icon: Icon, title, sub }: { to: string; icon: LucideIc
   return (
     <Link to={to} className="card lift group flex min-h-44 flex-col justify-between p-4">
       <span className="grid h-16 w-16 place-items-center rounded-2xl bg-accent-soft text-accent transition-transform duration-300 group-hover:-rotate-6 group-hover:scale-110">
-        <Icon size={30} strokeWidth={1.75} />
+        <Icon size={30} strokeWidth={1.75} className="bob-on-hover" />
       </span>
       <span><span className="block text-sm font-semibold text-ink">{title}</span><span className="block text-xs text-muted">{sub}</span></span>
     </Link>

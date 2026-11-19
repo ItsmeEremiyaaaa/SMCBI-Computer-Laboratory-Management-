@@ -23,7 +23,7 @@ import { classesOn } from '../../schedule/logic/rules';
 import PcPanel from './PcPanel';
 import SeatGrid from './SeatGrid';
 import SceneBoundary from './SceneBoundary';
-import { Alert, Button, Led, Modal, STATUS_LABEL, STATUSES, askConfirm, useExclusive } from '../../../shared/ui/ui';
+import { Alert, Button, Led, Modal, STATUS_LABEL, STATUSES, askConfirm, useExclusive, toast } from '../../../shared/ui/ui';
 import type { SimMode } from './LabCharacters3D';
 import type { Student } from '../../../shared/data/types';
 import { effectiveStatuses } from '../logic/status';
@@ -392,6 +392,7 @@ export default function Labs3D() {
                     await Promise.all(on
                       ? inMaint.map((p) => labsRepo.setPcStatus(p.id, 'free', null))
                       : pcs.filter((p) => p.status !== 'broken' && p.status !== 'maintenance').map((p) => labsRepo.setPcStatus(p.id, 'maintenance', 'Lab maintenance')));
+                    toast(on ? 'Maintenance ended' : 'Lab under maintenance', on ? `${lab.name}: PCs are back to Free` : `${lab.name}: PCs can't be used or booked`);
                   } catch (e) { setMaintError((e as Error).message); } finally { setMaintBusy(false); }
                 });
               return (
