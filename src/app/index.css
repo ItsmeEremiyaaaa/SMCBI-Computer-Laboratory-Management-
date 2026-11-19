@@ -91,6 +91,8 @@ body {
 @keyframes fade-up { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: none; } }
 @keyframes slide-in { from { opacity: 0; transform: translateX(-14px); } to { opacity: 1; transform: none; } }
 @keyframes grow-x { from { transform: scaleX(0); } to { transform: scaleX(1); } }
+@keyframes donut-sweep { from { stroke-dashoffset: var(--c); } to { stroke-dashoffset: 0; } }
+.donut-sweep { animation: donut-sweep 1.1s cubic-bezier(.3,.7,.2,1) .2s both; }
 
 .page-enter h1, .page-enter header p { animation: fade-up .55s cubic-bezier(.2,.8,.2,1) both; }
 .page-enter header p { animation-delay: .08s; }
@@ -118,7 +120,7 @@ body {
 .lift:hover { transform: translateY(-3px); box-shadow: 0 2px 4px rgb(23 43 77 / .05), 0 18px 34px -16px rgb(27 70 134 / .35); }
 
 @media (prefers-reduced-motion: reduce) {
-  .page-enter *, .menu-enter > a, .bar-grow { animation: none !important; }
+  .page-enter *, .menu-enter > a, .bar-grow, .donut-sweep { animation: none !important; }
   .lift, .lift:hover { transition: none; transform: none; }
 }
 

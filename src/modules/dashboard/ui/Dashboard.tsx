@@ -120,6 +120,10 @@ function StatusDonut({ pcs }: { pcs: LivePc[] }) {
     <div className="flex flex-wrap items-center gap-6 px-5 pb-5">
       <svg viewBox="0 0 140 140" className="h-36 w-36 -rotate-90" role="img" aria-label="PC status across all labs">
         <circle cx="70" cy="70" r={r} fill="none" stroke="#e8f0fb" strokeWidth="16" />
+        {/* the segments are uncovered by a ring that draws itself clockwise */}
+        <mask id="donut-sweep"><circle className="donut-sweep" cx="70" cy="70" r={r} fill="none" stroke="#fff" strokeWidth="18"
+          strokeDasharray={c} style={{ ['--c' as string]: c }} /></mask>
+        <g mask="url(#donut-sweep)">
         {STATUSES.map((s) => {
           const n = pcs.filter((p) => p.shown === s).length;
           const len = (n / total) * c;
@@ -128,7 +132,8 @@ function StatusDonut({ pcs }: { pcs: LivePc[] }) {
           offset += len;
           return el;
         })}
-        <text x="70" y="66" textAnchor="middle" className="rotate-90 fill-ink text-[22px] font-bold" transform="rotate(90 70 70)">{free}</text>
+        </g>
+        <text x="70" y="66" textAnchor="middle" className="fill-ink text-[22px] font-bold" transform="rotate(90 70 70)"><CountUp value={free} /></text>
         <text x="70" y="86" textAnchor="middle" className="fill-muted text-[10px]" transform="rotate(90 70 70)">free now</text>
       </svg>
       <ul className="grid flex-1 grid-cols-1 gap-2 text-sm">
