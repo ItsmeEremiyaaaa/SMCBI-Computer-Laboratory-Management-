@@ -61,3 +61,16 @@ describe('studentNotes', () => {
     expect(notes[0].sub).toMatch(/repaired and is now available/);
   });
 });
+
+describe('class change notices', () => {
+  const ch = { id: 'k1', date: '2026-11-23', kind: 'moved', new_date: '2026-11-25', new_start: '13:00', new_end: '16:00', new_lab: 'lab2', note: 'Bring USB', created_at: recent };
+  const schedules = [{ section: 'BSIT 1A', subject: 'IT111 Intro', changes: [ch] }, { section: 'BSIT 2B', subject: 'IT213', changes: [{ ...ch, id: 'k2', kind: 'cancelled' }] }];
+  it("tells a section's students when their class is moved or cancelled, not other sections", () => {
+    const notes = studentNotes({ ...base, schedules });
+    expect(notes.map((n) => n.title)).toEqual(['BSIT 1A IT111 Intro on Mon, Nov 23 is moved to Wed, Nov 25, 1:00 PM–4:00 PM']);
+    expect(notes[0]).toMatchObject({ group: 'class', sub: 'ComLab 2 · “Bring USB”' });
+  });
+  it('drops notices once the class date has passed', () => {
+    expect(studentNotes({ ...base, now: { date: '2026-11-26', time: '08:00' }, schedules })).toEqual([]);
+  });
+});

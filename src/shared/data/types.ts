@@ -54,6 +54,10 @@ export interface Reservation {
   /** Class section the booking is for (teacher bookings), e.g. 'BSIT 2B'; its students are notified. */
   section?: string | null;
   created_at?: string;
+  /** Class meetings only: which weekly class and date this is, and its one-day change if any. */
+  schedule_id?: string;
+  class_date?: string;
+  class_change?: ClassChange;
 }
 
 export type ReservationInput = Pick<Reservation,
@@ -114,8 +118,24 @@ export interface ClassSchedule {
   end_time: string;
   starts_on: string;
   ends_on: string;
+  /** One-day changes to this class (cancelled / activity only / moved), attached when classes are loaded. */
+  changes?: ClassChange[];
 }
-export type ScheduleInput = Omit<ClassSchedule, 'id'> & { id?: string };
+export type ScheduleInput = Omit<ClassSchedule, 'id' | 'changes'> & { id?: string };
+
+export type ClassChangeKind = 'cancelled' | 'activity' | 'moved';
+/** One meeting of a weekly class, changed for that date only. */
+export interface ClassChange {
+  id: string;
+  schedule_id: string;
+  date: string; // the meeting that changes (YYYY-MM-DD)
+  kind: ClassChangeKind;
+  new_date: string | null; new_start: string | null; new_end: string | null; new_lab: string | null; // when moved
+  note: string | null;
+  created_by_name?: string | null;
+  created_at?: string;
+}
+export type ClassChangeInput = Omit<ClassChange, 'id' | 'created_by_name' | 'created_at'>;
 
 // A student confirming which PC they're sitting at (scanned from the PC's QR code).
 export interface CheckIn {

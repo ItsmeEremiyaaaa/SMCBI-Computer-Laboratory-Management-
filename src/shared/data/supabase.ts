@@ -107,7 +107,7 @@ export function createSupabaseApi(url: string, key: string): Api {
       let t: ReturnType<typeof setTimeout> | undefined;
       const fire = () => { clearTimeout(t); t = setTimeout(cb, 150); };
       const id = Math.random().toString(36).slice(2);
-      const chs = ['reservations', 'class_schedules', 'pc_reports', 'profiles'].map((table) =>
+      const chs = ['reservations', 'class_schedules', 'class_changes', 'pc_reports', 'profiles'].map((table) =>
         sb.channel(`${table}:${id}`).on('postgres_changes', { event: '*', schema: 'public', table }, fire).subscribe());
       return () => { clearTimeout(t); chs.forEach((ch) => sb.removeChannel(ch)); };
     },
@@ -160,14 +160,24 @@ export function createSupabaseApi(url: string, key: string): Api {
     async deleteEvent(id) { ok(await sb.rpc('archive_row', { kind: 'event', row_id: id })); },
 
     async listSchedules() {
-      return (ok(await sb.from('class_schedules').select('*').order('day_of_week').order('start_time')) as ClassSchedule[])
-        .map((c) => ({ ...c, start_time: hhmm(c.start_time), end_time: hhmm(c.end_time) }));
+      // each class with its one-day changes (embedded through the class_changes.schedule_id foreign key)
+      return (ok(await sb.from('class_schedules').select('*, changes:class_changes(*)').order('day_of_week').order('start_time')) as ClassSchedule[])
+        .map((c) => ({ ...c, start_time: hhmm(c.start_time), end_time: hhmm(c.end_time),
+          changes: (c.changes ?? []).map((x) => ({ ...x, new_start: x.new_start && hhmm(x.new_start), new_end: x.new_end && hhmm(x.new_end) })) }));
     },
     async saveSchedule({ id, ...c }) {
       const rows = ok(await (id ? sb.from('class_schedules').update(c).eq('id', id) : sb.from('class_schedules').insert(c)).select('id'));
       if (!rows.length) throw new Error('Not allowed for your role.');
     },
     async deleteSchedule(id) { ok(await sb.rpc('archive_row', { kind: 'class', row_id: id })); },
+    async saveClassChange(c) {
+      // permission and clash checks run in the database trigger (migration 0020)
+      ok(await sb.from('class_changes').upsert(c, { onConflict: 'schedule_id,date' }));
+    },
+    async deleteClassChange(id) {
+      const rows = ok(await sb.from('class_changes').delete().eq('id', id).select('id'));
+      if (!rows.length) throw new Error('Not allowed for your role.');
+    },
 
     async stats() {
       const count = async (q: PromiseLike<{ count: number | null; error: { message: string } | null }>) => {

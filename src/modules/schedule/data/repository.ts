@@ -3,6 +3,6 @@
 import { api, type Api } from '../../../shared/data/api';
 
 export type ScheduleRepository = Pick<Api,
-  'listSchedules' | 'saveSchedule' | 'deleteSchedule'>;
+  'listSchedules' | 'saveSchedule' | 'deleteSchedule' | 'saveClassChange' | 'deleteClassChange'>;
 
 export const scheduleRepo: ScheduleRepository = api;

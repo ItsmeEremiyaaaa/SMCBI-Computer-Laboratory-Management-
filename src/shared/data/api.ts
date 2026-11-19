@@ -1,5 +1,5 @@
 import type {
-  ArchivedItem, CheckIn, ClassSchedule, PcReport, ScheduleInput,
+  ArchivedItem, CheckIn, ClassChangeInput, ClassSchedule, PcReport, ScheduleInput,
   Lab, LabEvent, Pc, PcStatus, Profile, Reservation, ReservationInput, ResStatus, Role, Student,
 } from './types';
 import { createMock } from './mock';
@@ -59,6 +59,10 @@ export interface Api {
   listSchedules(): Promise<ClassSchedule[]>;
   saveSchedule(s: ScheduleInput): Promise<void>;
   deleteSchedule(id: string): Promise<void>;
+  /** Change one meeting of a weekly class (cancel / activity only / move); refused when a move clashes. Replaces an earlier change for that date. */
+  saveClassChange(c: ClassChangeInput): Promise<void>;
+  /** Undo a one-day change: the meeting goes back to normal. */
+  deleteClassChange(id: string): Promise<void>;
 
   stats(): Promise<Stats>;
 

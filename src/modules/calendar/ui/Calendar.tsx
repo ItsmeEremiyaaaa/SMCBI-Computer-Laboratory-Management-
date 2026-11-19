@@ -8,8 +8,10 @@ import { calendarRepo } from '../data/repository';
 import { labsRepo } from '../../labs/data/repository';
 import { scheduleRepo } from '../../schedule/data/repository';
 import { classesOn } from '../../schedule/logic/rules';
+import ClassChangeModal from '../../schedule/ui/ClassChangeModal';
+import { nameKey } from '../../people/logic/rules';
 import { manilaNow } from '../../../shared/time';
-import { EVENT_TYPES, type EventType, type LabEvent, type Reservation } from '../../../shared/data/types';
+import { EVENT_TYPES, type ClassChangeInput, type EventType, type LabEvent, type Reservation } from '../../../shared/data/types';
 import { Alert, Button, Field, fmtDate, fmtTime, Input, Modal, PageHeader, Panel, Select, Textarea, askConfirm } from '../../../shared/ui/ui';
 
 const TYPE_STYLE: Record<EventType, string> = {
@@ -29,6 +31,7 @@ const HOUR_PX = 44;
 const iso = (y: number, m: number, d: number) => `${y}-${String(m + 1).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
 const hours = (t: string) => Number(t.slice(0, 2)) + Number(t.slice(3, 5)) / 60;
 const isClass = (r: Reservation) => r.id.startsWith('class-');
+const hhmm = (h: number) => `${String(Math.floor(h)).padStart(2, '0')}:${String(Math.round((h % 1) * 60)).padStart(2, '0')}`;
 
 export default function Calendar() {
   const { profile } = useAuth();
@@ -41,9 +44,16 @@ export default function Calendar() {
   const res = useLoad(() => bookingsRepo.listReservations({ status: 'approved' }));
   // cancelled bookings stay on the day view, red and crossed out, so nobody shows up for them
   const cancelled = useLoad(() => bookingsRepo.listReservations({ status: 'cancelled' }).catch(() => []));
-  useEffect(() => bookingsRepo.subscribeReservations(() => { res.reload(); cancelled.reload(); }), [res.reload, cancelled.reload]);
   const labs = useLoad(() => labsRepo.listLabs());
   const classes = useLoad(() => scheduleRepo.listSchedules());
+  useEffect(() => bookingsRepo.subscribeReservations(() => { res.reload(); cancelled.reload(); classes.reload(); }), [res.reload, cancelled.reload, classes.reload]);
+
+  // one-day class changes: click a class to change it, or drag it (desktop) to another time/lab/day or onto "cancel"
+  const [change, setChange] = useState<{ session: Reservation; preset?: Partial<ClassChangeInput> } | null>(null);
+  const [dragging, setDragging] = useState<Reservation | null>(null);
+  const canChange = (r: Reservation) => isClass(r) && !!r.schedule_id && (r.class_date ?? '') >= today && (
+    profile?.role === 'admin' || profile?.role === 'staff' || (profile?.role === 'teacher' && nameKey(profile.full_name) === nameKey(r.requester_name)));
+  const dropMove = (preset: Partial<ClassChangeInput>) => { if (dragging) setChange({ session: dragging, preset: { kind: 'moved', ...preset } }); setDragging(null); };
 
   const first = new Date(Date.UTC(ym.y, ym.m, 1)).getUTCDay();
   const days = new Date(Date.UTC(ym.y, ym.m + 1, 0)).getUTCDate();
@@ -69,7 +79,10 @@ export default function Calendar() {
     .sort((a, b) => a.start_time.localeCompare(b.start_time));
 
   const dayEvents = eventsOn(day);
-  const dayBookings = [...(cancelled.data ?? []).filter((r) => r.date === day), ...bookingsOn(day)]; // cancelled first = drawn underneath
+  const dayClasses = classesOn(day, classes.data ?? [], { includeOff: true });
+  // cancelled first = drawn underneath
+  const dayBookings = [...(cancelled.data ?? []).filter((r) => r.date === day), ...dayClasses.filter((r) => r.status === 'cancelled'),
+    ...(res.data ?? []).filter((r) => r.date === day), ...dayClasses.filter((r) => r.status !== 'cancelled')];
   const dayTitle = new Date(`${day}T00:00:00Z`).toLocaleDateString('en-PH', { weekday: 'long', month: 'long', day: 'numeric', timeZone: 'UTC' });
   const nowH = hours(now.time);
 
@@ -115,6 +128,8 @@ export default function Calendar() {
               const selected = date === day;
               return (
                 <button key={i} type="button" onClick={() => setDay(date)} aria-pressed={selected}
+                  onDragOver={(e) => { if (dragging && date >= today) e.preventDefault(); }}
+                  onDrop={(e) => { e.preventDefault(); dropMove({ new_date: date, new_start: dragging?.start_time, new_end: dragging?.end_time, new_lab: dragging?.lab_id }); }}
                   aria-label={`${date}: ${ev.length} events, ${bk.length} lab bookings`}
                   className={`group relative flex min-h-16 min-w-0 flex-col gap-1 p-1 text-left transition-colors sm:min-h-28 sm:p-1.5 ${border}
                     ${selected ? 'bg-accent/5 ring-2 ring-inset ring-accent' : weekend ? 'bg-chalk/40 hover:bg-chalk' : 'hover:bg-chalk/70'}`}>
@@ -196,20 +211,36 @@ export default function Calendar() {
                 ))}
                 <div className="absolute inset-y-0 left-12 right-0 grid gap-1" style={{ gridTemplateColumns: `repeat(${Math.max(1, labList.length)}, minmax(0, 1fr))` }}>
                   {labList.map((l) => (
-                    <div key={l.id} className="relative">
+                    <div key={l.id} className="relative"
+                      onDragOver={(e) => { if (dragging) e.preventDefault(); }}
+                      onDrop={(e) => {
+                        e.preventDefault(); if (!dragging) return;
+                        const len = hours(dragging.end_time) - hours(dragging.start_time);
+                        const y = e.clientY - e.currentTarget.getBoundingClientRect().top;
+                        const start = Math.min(DAY_END - len, Math.max(DAY_START, Math.round((DAY_START + y / HOUR_PX) * 2) / 2));
+                        dropMove({ new_date: day, new_start: hhmm(start), new_end: hhmm(start + len), new_lab: l.id });
+                      }}>
                       {dayBookings.filter((r) => r.lab_id === l.id).map((r) => {
                         const s = Math.max(DAY_START, hours(r.start_time));
                         const e = Math.min(DAY_END, hours(r.end_time));
                         if (e <= s) return null;
                         const off = r.status === 'cancelled';
                         const c = off ? '#dc2626' : labColor(l.id);
+                        const editable = canChange(r);
                         return (
-                          <div key={r.id} title={`${off ? 'CANCELLED: ' : ''}${r.title}\n${fmtTime(r.start_time)} – ${fmtTime(r.end_time)}\n${r.requester_name}${off && r.admin_notes ? `\n${r.admin_notes}` : ''}`}
-                            className={`absolute inset-x-0 overflow-hidden rounded-md border-l-4 px-1.5 py-1 text-[10px] leading-tight ${isClass(r) ? '' : 'border-dashed'} ${off ? 'line-through decoration-red-600 decoration-2 opacity-80' : ''}`}
+                          <div key={r.id + (off ? '-off' : '')} title={`${off ? (isClass(r) ? '' : 'CANCELLED: ') : ''}${r.title}\n${fmtTime(r.start_time)} – ${fmtTime(r.end_time)}\n${r.requester_name}${off && r.admin_notes ? `\n${r.admin_notes}` : ''}`}
+                            role={editable ? 'button' : undefined} tabIndex={editable ? 0 : undefined}
+                            aria-label={editable ? `Change ${r.title} on ${r.class_date}` : undefined}
+                            onClick={editable ? () => setChange({ session: r }) : undefined}
+                            onKeyDown={editable ? (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setChange({ session: r }); } } : undefined}
+                            draggable={editable && !off}
+                            onDragStart={editable && !off ? (e) => { e.dataTransfer.effectAllowed = 'move'; setDragging(r); } : undefined}
+                            onDragEnd={() => setTimeout(() => setDragging(null), 0)}
+                            className={`absolute inset-x-0 overflow-hidden rounded-md border-l-4 px-1.5 py-1 text-[10px] leading-tight ${isClass(r) ? '' : 'border-dashed'} ${off ? 'line-through decoration-red-600 decoration-2 opacity-80' : ''} ${editable ? 'cursor-pointer hover:ring-2 hover:ring-accent/40' : ''} ${editable && !off ? 'active:cursor-grabbing' : ''} ${dragging?.id === r.id ? 'opacity-40' : ''}`}
                             style={{ top: (s - DAY_START) * HOUR_PX + 1, height: (e - s) * HOUR_PX - 2, borderColor: c, background: `${c}1f`, color: off ? '#b91c1c' : '#0f172a' }}>
                             <p className="font-semibold">{fmtTime(r.start_time).replace(':00', '')}–{fmtTime(r.end_time).replace(':00', '')}</p>
                             <p className="truncate">{r.title}</p>
-                            {(e - s) >= 1.2 && <p className="truncate opacity-70">{isClass(r) ? r.requester_name : `${off ? 'Cancelled' : 'Booking'} · ${r.requester_name}`}</p>}
+                            {(e - s) >= 1.2 && <p className="truncate opacity-70">{isClass(r) ? (r.class_change ? (off ? ({ cancelled: 'Cancelled', activity: 'Activity only', moved: 'Moved' } as const)[r.class_change.kind] : `Moved here · ${r.requester_name}`) : r.requester_name) : `${off ? 'Cancelled' : 'Booking'} · ${r.requester_name}`}</p>}
                           </div>
                         );
                       })}
@@ -222,6 +253,16 @@ export default function Calendar() {
                   </div>
                 )}
               </div>
+              {dragging && (
+                <div onDragOver={(e) => e.preventDefault()}
+                  onDrop={(e) => { e.preventDefault(); if (dragging) setChange({ session: dragging, preset: { kind: 'cancelled' } }); setDragging(null); }}
+                  className="mt-3 rounded-lg border-2 border-dashed border-red-400 bg-red-50 py-3 text-center text-xs font-semibold text-red-700">
+                  Drop here to cancel {dragging.title.split(':')[0]} on {fmtDate(dragging.class_date ?? day)}
+                </div>
+              )}
+              {!dragging && dayClasses.some(canChange) && (
+                <p className="mt-2 text-center text-[11px] text-muted">Click a class to cancel, set activity only or move it, or drag it to another time, lab or day.</p>
+              )}
               {dayBookings.length === 0 && <p className="mt-2 text-center text-xs text-muted">All labs are free this day.</p>}
               <p className="mt-3 flex flex-wrap gap-x-3 gap-y-1 text-[10px] text-muted">
                 <span className="flex items-center gap-1"><span className="h-3 w-3 rounded-sm border-l-4 border-slate-500 bg-slate-500/15" />Regular class</span>
@@ -234,6 +275,10 @@ export default function Calendar() {
         </Panel>
       </div>
 
+      {change && classes.data && labs.data && (
+        <ClassChangeModal session={change.session} preset={change.preset} schedules={classes.data} bookings={res.data ?? []} labs={labs.data}
+          today={today} onClose={() => setChange(null)} onDone={async () => { setChange(null); await classes.reload(); }} />
+      )}
       {edit && <EventModal e={edit} onClose={() => setEdit(null)}
         onDelete={edit.id ? async () => { await calendarRepo.deleteEvent(edit.id!); setEdit(null); await events.reload(); } : undefined}
         onSave={async (x) => { await calendarRepo.saveEvent(x); setEdit(null); await events.reload(); }} />}

@@ -17,7 +17,7 @@ const SEEN_KEY = 'comlab-student-bell-seen';
 const LAB_SHORT: Record<string, string> = { lab1: 'ComLab 1', lab2: 'ComLab 2', netlab: 'NetLab' };
 const RECENT_DAYS = 14;
 
-type Note = { id: string; at: string; group: 'today' | 'booking' | 'report'; title: string; sub: string; to: string; tone?: 'good' | 'bad' };
+type Note = { id: string; at: string; group: 'today' | 'class' | 'booking' | 'report'; title: string; sub: string; to: string; tone?: 'good' | 'bad' };
 
 const lastSeen = () => { try { return localStorage.getItem(SEEN_KEY) ?? ''; } catch { return ''; } };
 const minutes = (t: string) => Number(t.slice(0, 2)) * 60 + Number(t.slice(3, 5));
@@ -33,6 +33,8 @@ export function studentNotes(input: {
   pcLabel: (id: string) => string;
   /** PCs currently marked broken (updated_at = when) */
   brokenPcs?: { id: string; updated_at: string }[];
+  /** Weekly classes with their one-day changes (cancelled / activity only / moved). */
+  schedules?: { section: string; subject: string; changes?: { id: string; date: string; kind: string; new_date: string | null; new_start: string | null; new_end: string | null; new_lab: string | null; note: string | null; created_at?: string }[] }[];
 }): Note[] {
   const { now, section, userId, pcLabel } = input;
   const since = new Date(Date.now() - RECENT_DAYS * 864e5).toISOString();
@@ -117,12 +119,28 @@ export function studentNotes(input: {
       });
     }
   }
+  // a class of theirs was cancelled, made activity-only or moved (for a date that hasn't passed)
+  for (const c of input.schedules ?? []) {
+    if (!section || !sectionIncludes(c.section, section)) continue;
+    for (const ch of c.changes ?? []) {
+      const until = ch.kind === 'moved' && ch.new_date && ch.new_date > ch.date ? ch.new_date : ch.date;
+      if (until < now.date) continue;
+      const what = `${c.section} ${c.subject} on ${fmtDate(ch.date)}`;
+      const note = ch.note ? ` · “${ch.note.replace(/\s+/g, ' ')}”` : '';
+      notes.push({ id: `chg-${ch.id}-${ch.kind}-${ch.new_date ?? ''}${ch.new_start ?? ''}`, at: ch.created_at ?? manilaIso(now.date, now.time), group: 'class', to: '/calendar',
+        tone: ch.kind === 'moved' ? undefined : 'bad',
+        title: ch.kind === 'cancelled' ? `${what} is cancelled` : ch.kind === 'activity' ? `${what} is activity only (no lab)`
+          : `${what} is moved to ${fmtDate(ch.new_date!)}, ${fmtTime(ch.new_start!)}–${fmtTime(ch.new_end!)}`,
+        sub: `${ch.kind === 'moved' ? `${LAB_SHORT[ch.new_lab!] ?? ch.new_lab}` : 'Check the calendar for details'}${note}` });
+    }
+  }
   return notes.sort((a, b) => b.at.localeCompare(a.at));
 }
 
 const GROUPS: { g: Note['group']; title: string; icon: React.ReactNode }[] = [
   { g: 'today', title: 'Today', icon: <CalendarClock size={15} /> },
   { g: 'booking', title: 'Bookings', icon: <ClipboardCheck size={15} /> },
+  { g: 'class', title: 'Class changes', icon: <CalendarClock size={15} /> },
   { g: 'report', title: 'Your problem reports', icon: <Wrench size={15} /> },
 ];
 
@@ -141,7 +159,7 @@ function useStudentNotes() {
     ]);
     const now = manilaNow();
     setNotes(studentNotes({ now, section: sectionOf(profile.department, profile.course), userId: profile.id, bookings, reports,
-      classes: classesOn(now.date, schedules), pcLabel: (id) => pcs.find((p) => p.id === id)?.label ?? id,
+      classes: classesOn(now.date, schedules), schedules, pcLabel: (id) => pcs.find((p) => p.id === id)?.label ?? id,
       brokenPcs: pcs.filter((p) => p.status === 'broken') }));
   }, [profile]);
   useEffect(() => { load(); const t = setInterval(load, 60_000); return () => clearInterval(t); }, [load]);

@@ -1,6 +1,6 @@
 // Demo backend: in-memory state persisted to localStorage. Used when Supabase isn't configured.
 import type { Api } from './api';
-import { classesOn } from '../../modules/schedule/logic/rules';
+import { classChangeProblems, classesOn } from '../../modules/schedule/logic/rules';
 import { manilaNow, slotsOverlap } from '../time';
 import { seed, seedSchedules, type MockState } from './seed';
 import type { ArchivedItem, ArchiveKind, Pc, Profile, Reservation, Role } from './types';
@@ -28,6 +28,9 @@ export function createMock(storage: Store | null = browserStorage()): Api {
   state.checkIns ??= [];
   state.reports ??= [];
   state.archive ??= [];
+  state.classChanges ??= [];
+  // classes with their one-day changes attached, as the database returns them
+  const schedules = () => state.schedules.map((s) => ({ ...s, changes: state.classChanges!.filter((c) => c.schedule_id === s.id) }));
   state.labs.forEach((l) => {
     if (l.id === 'lab1') l.name = 'Computer Laboratory 1';
     if (l.id === 'lab2') l.name = 'Computer Laboratory 2';
@@ -147,7 +150,7 @@ export function createMock(storage: Store | null = browserStorage()): Api {
     async createReservation(input) {
       const p = me();
       const errs = [...validateReservation(input, manilaNow().date),
-        ...bookingProblems(input, { role: p.role, pcs: state.pcs, reservations: state.reservations, schedules: state.schedules })];
+        ...bookingProblems(input, { role: p.role, pcs: state.pcs, reservations: state.reservations, schedules: schedules() })];
       if (errs.length) throw new Error(errs.join(' '));
       if (input.section && p.role === 'student') throw new Error('Only teachers can book for a class section.');
       // an admin may file it under an approved teacher (same as the database trigger)
@@ -164,7 +167,7 @@ export function createMock(storage: Store | null = browserStorage()): Api {
       if (!r) throw new Error('Reservation not found.');
       if (status === 'approved' && state.reservations.some((o) => o.id !== id && o.status === 'approved' && slotsOverlap(o, r)))
         throw new Error('This slot overlaps an approved reservation.');
-      if (status === 'approved' && classesOn(r.date, state.schedules).some((c) => slotsOverlap(c, r)))
+      if (status === 'approved' && classesOn(r.date, schedules()).some((c) => slotsOverlap(c, r)))
         throw new Error('This slot overlaps a regular class in this lab.');
       Object.assign(r, { status, admin_notes: notes ?? r.admin_notes, reviewed_at: new Date().toISOString() });
       changedRes();
@@ -217,7 +220,7 @@ export function createMock(storage: Store | null = browserStorage()): Api {
     },
     async deleteEvent(id) { archiveRow('event', id); },
 
-    async listSchedules() { me(); return clone(state.schedules); },
+    async listSchedules() { me(); return clone(schedules()); },
     async saveSchedule(s) {
       need('admin');
       const errs = validateSchedule(s);
@@ -229,6 +232,24 @@ export function createMock(storage: Store | null = browserStorage()): Api {
       save(); resListeners.forEach((f) => f());
     },
     async deleteSchedule(id) { archiveRow('class', id); },
+    async saveClassChange(c) {
+      const p = me();
+      const s = state.schedules.find((x) => x.id === c.schedule_id);
+      if (!s) throw new Error('Class not found.');
+      if (!(p.role === 'admin' || p.role === 'staff' || (p.role === 'teacher' && p.full_name.trim().toLowerCase() === s.instructor.trim().toLowerCase())))
+        throw new Error("Only the admin, staff or this class's teacher can change it.");
+      const errs = classChangeProblems(c, { schedules: schedules(), approvedBookings: state.reservations, today: manilaNow().date });
+      if (errs.length) throw new Error(errs.join(' '));
+      const fixed = c.kind === 'moved' ? c : { ...c, new_date: null, new_start: null, new_end: null, new_lab: null };
+      state.classChanges = state.classChanges!.filter((x) => !(x.schedule_id === c.schedule_id && x.date === c.date));
+      state.classChanges.push({ ...fixed, id: uid(), created_by_name: p.full_name, created_at: new Date().toISOString() });
+      changedRes();
+    },
+    async deleteClassChange(id) {
+      me();
+      state.classChanges = state.classChanges!.filter((x) => x.id !== id);
+      changedRes();
+    },
 
     async stats() {
       me();
