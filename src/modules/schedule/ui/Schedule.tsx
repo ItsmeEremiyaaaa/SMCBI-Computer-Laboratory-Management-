@@ -1,5 +1,5 @@
-import { useEffect, useState, type FormEvent } from 'react';
-import { CalendarClock, Pencil, Plus, Trash2 } from 'lucide-react';
+import { useEffect, useRef, useState, type FormEvent } from 'react';
+import { CalendarClock, Download, Pencil, Plus, Trash2, Upload } from 'lucide-react';
 import { useAuth } from '../../auth/hooks/auth';
 import { useLoad } from '../../../shared/hooks/useLoad';
 import { bookingsRepo } from '../../bookings/data/repository';
@@ -9,6 +9,7 @@ import { isoWeekday, LAB_CLOSE, LAB_OPEN, manilaNow } from '../../../shared/time
 import { termOf } from '../logic/rules';
 import type { ClassSchedule, Lab, ScheduleInput } from '../../../shared/data/types';
 import { validateSchedule } from '../logic/rules';
+import { COLUMNS, rowsToSchedules, schedulesToRows, type Cell } from '../logic/excel';
 import { Alert, Button, Empty, Field, fmtDate, fmtTime, Input, Modal, PageHeader, Panel, Select, askConfirm } from '../../../shared/ui/ui';
 
 const DAYS = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
@@ -51,6 +52,68 @@ export default function Schedule() {
     try { await scheduleRepo.deleteSchedule(r.id); await list.reload(); } catch (e) { setError((e as Error).message); }
   }
 
+  // ---- Excel export / import (exceljs only loads when one of these is used) ----
+  const fileInput = useRef<HTMLInputElement>(null);
+  const [preview, setPreview] = useState<{ name: string; ok: ScheduleInput[]; problems: string[] } | null>(null);
+  const [importing, setImporting] = useState(false);
+
+  async function exportExcel() {
+    try {
+      const { Workbook } = await import('exceljs');
+      const wb = new Workbook();
+      const ws = wb.addWorksheet('Class schedule');
+      ws.addRow([...COLUMNS]).font = { bold: true };
+      schedulesToRows(rows, labs.data ?? []).forEach((r) => ws.addRow(r));
+      ws.columns.forEach((c, i) => { c.width = [24, 12, 30, 30, 12, 9, 9, 13, 13][i]; });
+      ws.views = [{ state: 'frozen', ySplit: 1 }];
+      const blob = new Blob([await wb.xlsx.writeBuffer()], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+      const a = document.createElement('a');
+      a.href = URL.createObjectURL(blob);
+      a.download = `ComLab class schedule - ${shown === 'all' ? 'all terms' : termLabel}.xlsx`;
+      a.click();
+      URL.revokeObjectURL(a.href);
+    } catch (e) { setError(`Couldn't create the Excel file: ${(e as Error).message}`); }
+  }
+
+  async function readExcel(file: File) {
+    if (!/\.xlsx$/i.test(file.name)) { setError('Choose an Excel file (.xlsx).'); return; }
+    try {
+      const { Workbook } = await import('exceljs');
+      const wb = new Workbook();
+      await wb.xlsx.load(await file.arrayBuffer());
+      const ws = wb.worksheets[0];
+      if (!ws) { setError('That Excel file has no sheets.'); return; }
+      // plain values: formulas → result, rich text / links → their text
+      const plain = (v: unknown): Cell => {
+        if (v && typeof v === 'object' && !(v instanceof Date)) {
+          const o = v as { result?: unknown; richText?: { text: string }[]; text?: string };
+          if ('result' in o) return plain(o.result);
+          if (o.richText) return o.richText.map((t) => t.text).join('');
+          if (typeof o.text === 'string') return o.text;
+          return '';
+        }
+        return v as Cell;
+      };
+      const sheet: Cell[][] = [];
+      ws.eachRow({ includeEmpty: true }, (row) => { sheet.push((row.values as unknown[]).slice(1).map(plain)); });
+      setPreview({ name: file.name, ...rowsToSchedules(sheet, labs.data ?? [], all) });
+    } catch { setError("Couldn't read that file. Save it as an Excel workbook (.xlsx) and try again."); }
+  }
+
+  async function importClasses() {
+    if (!preview) return;
+    setImporting(true); setError(null);
+    const failed: string[] = [];
+    for (const c of preview.ok) {
+      try { await scheduleRepo.saveSchedule(c); } catch (e) { failed.push(`${c.section} ${c.subject}: ${(e as Error).message}`); }
+    }
+    setImporting(false);
+    await list.reload();
+    if (preview.ok[0]) setTerm(termOf(preview.ok[0].starts_on).key);
+    setPreview(null);
+    if (failed.length) setError(`${failed.length} class(es) were not added: ${failed.join(' · ')}`);
+  }
+
   const blank = (): ScheduleInput => ({
     lab_id: labs.data?.[0]?.id ?? '', section: '', subject: '', instructor: '', day_of_week: 1,
     start_time: '09:00', end_time: '12:00', starts_on: first || today.date, ends_on: last || today.date,
@@ -61,7 +124,50 @@ export default function Schedule() {
       <PageHeader title="Class schedule"
         sub={<>Regular weekly lab classes{shown === 'all' ? ', all terms' : <> for the {termLabel}</>}{first && <> ({fmtDate(first)} to {fmtDate(last)})</>}.
           Labs show as In use during these hours and can’t be booked over them.</>}
-        actions={isAdmin && labs.data && <Button onClick={() => setEdit(blank())}><Plus size={16} />Add class</Button>} />
+        actions={isAdmin && labs.data && (
+          <div className="flex flex-wrap gap-2">
+            <Button variant="ghost" onClick={exportExcel} disabled={!rows.length} title="Download this term as an Excel file"><Download size={16} />Export Excel</Button>
+            <Button variant="ghost" onClick={() => fileInput.current?.click()} title="Add classes from an Excel file"><Upload size={16} />Import Excel</Button>
+            <input ref={fileInput} type="file" hidden accept=".xlsx,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+              onChange={(e) => { const f = e.target.files?.[0]; e.target.value = ''; if (f) void readExcel(f); }} />
+            <Button onClick={() => setEdit(blank())}><Plus size={16} />Add class</Button>
+          </div>
+        )} />
+
+      {preview && (
+        <Modal open wide title={`Import from ${preview.name}`} onClose={() => setPreview(null)}>
+          <div className="grid gap-4">
+            <p className="text-sm">
+              <b className="text-emerald-700">{preview.ok.length} class{preview.ok.length === 1 ? '' : 'es'} ready to add</b>
+              {preview.problems.length > 0 && <> · <b className="text-red-700">{preview.problems.length} row{preview.problems.length === 1 ? '' : 's'} skipped</b></>}
+              {preview.ok[0] && <span className="text-muted"> · {termOf(preview.ok[0].starts_on).label}</span>}
+            </p>
+            {preview.problems.length > 0 && (
+              <ul className="max-h-40 overflow-y-auto rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-800">
+                {preview.problems.map((x) => <li key={x}>{x}</li>)}
+              </ul>
+            )}
+            {preview.ok.length > 0 && (
+              <div className="max-h-72 overflow-auto rounded-md border border-line">
+                <table className="w-full text-left text-xs">
+                  <thead className="sticky top-0 bg-chalk"><tr>{COLUMNS.map((c) => <th key={c} className="px-2 py-1.5 font-semibold">{c}</th>)}</tr></thead>
+                  <tbody className="divide-y divide-line">
+                    {schedulesToRows(preview.ok.map((c, i) => ({ ...c, id: String(i) })), labs.data ?? []).map((r, i) => (
+                      <tr key={i}>{r.map((v, j) => <td key={j} className="whitespace-nowrap px-2 py-1">{v}</td>)}</tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+            <div className="flex justify-end gap-2">
+              <Button variant="ghost" onClick={() => setPreview(null)}>Cancel</Button>
+              <Button disabled={!preview.ok.length || importing} onClick={importClasses}>
+                {importing ? 'Adding…' : `Add ${preview.ok.length} class${preview.ok.length === 1 ? '' : 'es'}`}
+              </Button>
+            </div>
+          </div>
+        </Modal>
+      )}
 
       {(error || list.error) && <div className="mb-4"><Alert>{error || list.error}</Alert></div>}
 
