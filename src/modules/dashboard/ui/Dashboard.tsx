@@ -1,6 +1,6 @@
 import { useEffect } from 'react';
 import { Link } from 'react-router-dom';
-import { ArrowRight, CalendarClock, CalendarDays, ClipboardList, MessageCircle, Monitor, Plus, Users, type LucideIcon } from 'lucide-react';
+import { ArrowRight, CalendarClock, CalendarDays, ClipboardList, MessageCircle, Monitor, Users, type LucideIcon } from 'lucide-react';
 import { useAuth } from '../../auth/hooks/auth';
 import { useLabLive, type LivePc } from '../../labs/hooks/useLabLive';
 import { useLoad } from '../../../shared/hooks/useLoad';

@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
+import { flushSync } from 'react-dom';
 import { NavLink, useNavigate } from 'react-router-dom';
 import { Download, MessageCircle, Moon, Plus, Search, Sun, UserRound, type LucideIcon } from 'lucide-react';
 import { useMessages } from '../modules/messages/hooks/useMessages';
@@ -19,6 +20,27 @@ export default function TopBar({ role, pages, bells, start }: { role: Role; page
   const navigate = useNavigate();
   const [theme, setTheme] = useState(savedTheme);
   useEffect(() => { applyTheme(theme); try { localStorage.setItem(THEME_KEY, theme); } catch { /* private mode */ } }, [theme]);
+  // the new theme is revealed by a circle growing from the click; browsers without view transitions fade the colours
+  function switchTheme(t: 'light' | 'dark', e: React.MouseEvent) {
+    if (t === theme) return;
+    const root = document.documentElement;
+    const calm = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
+    if (calm) { setTheme(t); return; }
+    if (!document.startViewTransition) {
+      root.classList.add('theme-fade'); setTheme(t);
+      setTimeout(() => root.classList.remove('theme-fade'), 600);
+      return;
+    }
+    const x = e.clientX, y = e.clientY;
+    const r = Math.hypot(Math.max(x, innerWidth - x), Math.max(y, innerHeight - y));
+    root.classList.add('liquid-switching');
+    const vt = document.startViewTransition(() => { flushSync(() => setTheme(t)); applyTheme(t); });
+    vt.ready.then(() => root.animate(
+      { clipPath: [`circle(0px at ${x}px ${y}px)`, `circle(${r}px at ${x}px ${y}px)`] },
+      { duration: 700, easing: 'cubic-bezier(.65,0,.35,1)', pseudoElement: '::view-transition-new(root)' },
+    )).catch(() => {});
+    vt.finished.finally(() => root.classList.remove('liquid-switching'));
+  }
 
   // tabs for things the sidebar doesn't have: your profile and your messages (with unread count)
   const { unread } = useMessages();
@@ -121,9 +143,11 @@ export default function TopBar({ role, pages, bells, start }: { role: Role; page
         <div role="radiogroup" aria-label="Theme" className="relative grid grid-cols-2 rounded-xl bg-chalk p-1 text-xs font-semibold ring-1 ring-line">
           <span aria-hidden className={`absolute inset-y-1 left-1 w-[calc(50%-0.25rem)] rounded-lg bg-accent shadow-md shadow-accent/30 transition-transform duration-300 ${theme === 'dark' ? 'translate-x-full' : ''}`} />
           {(['light', 'dark'] as const).map((t) => (
-            <button key={t} role="radio" aria-checked={theme === t} onClick={() => setTheme(t)}
+            <button key={t} role="radio" aria-checked={theme === t} onClick={(e) => switchTheme(t, e)}
               className={`relative z-10 flex items-center gap-1.5 rounded-lg px-2.5 py-1.5 capitalize transition-colors sm:px-3 ${theme === t ? 'text-white' : 'text-muted hover:text-ink'}`}>
-              {t === 'light' ? <Sun size={14} /> : <Moon size={14} />}<span className="hidden sm:inline">{t}</span>
+              {t === 'light'
+                ? <Sun size={14} className={`transition-transform duration-700 ease-[cubic-bezier(.34,1.56,.64,1)] ${theme === 'light' ? 'rotate-90 scale-110' : ''}`} />
+                : <Moon size={14} className={`transition-transform duration-700 ease-[cubic-bezier(.34,1.56,.64,1)] ${theme === 'dark' ? '-rotate-[20deg] scale-110' : ''}`} />}<span className="hidden sm:inline">{t}</span>
             </button>
           ))}
         </div>
