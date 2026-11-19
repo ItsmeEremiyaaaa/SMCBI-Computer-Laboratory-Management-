@@ -14,6 +14,7 @@ import { isoWeekday, manilaNow } from '../../../shared/time';
 import { usedHours } from '../../bookings/logic/rules';
 import type { Lab, Reservation } from '../../../shared/data/types';
 import { Button, Empty, fmtDate, fmtTime, Led, Panel, ResBadge, STATUS_COLOR, STATUS_LABEL, STATUSES } from '../../../shared/ui/ui';
+import { CountUp } from '../../../shared/ui/CountUp';
 
 const labDisplayName = (name: string) => {
   if (name.includes('1')) return 'Computer Laboratory 1';
@@ -34,12 +35,12 @@ function StatCard({ icon: Icon, label, value, note, to }: { icon: LucideIcon; la
         <p className="text-sm font-medium text-muted">{label}</p>
         <span className="grid h-9 w-9 place-items-center rounded-xl bg-accent-soft text-accent"><Icon size={18} strokeWidth={2} /></span>
       </div>
-      <p className="mt-2 text-3xl font-bold tracking-tight text-ink">{value}</p>
+      <p className="mt-2 text-3xl font-bold tracking-tight text-ink">{typeof value === 'number' ? <CountUp value={value} /> : value}</p>
       <p className="mt-1 text-xs text-muted">{note}</p>
     </>
   );
   return to
-    ? <Link to={to} className="card block p-5 transition-transform hover:-translate-y-0.5">{body}</Link>
+    ? <Link to={to} className="card lift block p-5">{body}</Link>
     : <div className="card p-5">{body}</div>;
 }
 
@@ -91,7 +92,7 @@ function LabTile({ lab, pcs, later = 0 }: { lab: Lab; pcs: LivePc[]; later?: num
             <span className="font-semibold text-ink">{pct}% available</span>
           </div>
           <div className="h-2 overflow-hidden rounded-full bg-accent-soft" aria-label={`${pct}% free`}>
-            <div className="h-full rounded-full bg-accent transition-all duration-500" style={{ width: `${pct}%` }} />
+            <div className="bar-grow h-full rounded-full bg-accent transition-all duration-500" style={{ width: `${pct}%` }} />
           </div>
           {later > 0 && (
             <p className="mt-2 flex items-center gap-1.5 text-xs font-medium text-amber-700">
@@ -161,7 +162,7 @@ function WeekUsage({ labs, booked }: { labs: Lab[]; booked: Record<string, numbe
               <span className="text-muted"><b className="font-semibold text-ink">{Math.round(h * 10) / 10}</b> hrs</span>
             </div>
             <div className="h-2.5 overflow-hidden rounded-full bg-accent-soft">
-              <div className="h-full rounded-full bg-gradient-to-r from-accent to-gold" style={{ width: `${(h / max) * 100}%` }} />
+              <div className="bar-grow h-full rounded-full bg-gradient-to-r from-accent to-gold" style={{ width: `${(h / max) * 100}%` }} />
             </div>
           </li>
         );
@@ -225,7 +226,7 @@ export default function Dashboard() {
       </header>
 
       <div className="mb-6 grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
-        <StatCard icon={MonitorCheck} label="PCs free now" value={<>{free}<span className="text-lg font-semibold text-muted">/{pcs.length}</span></>} note="Across all three labs" to="/labs" />
+        <StatCard icon={MonitorCheck} label="PCs free now" value={<><CountUp value={free} /><span className="text-lg font-semibold text-muted">/{pcs.length}</span></>} note="Across all three labs" to="/labs" />
         <StatCard icon={MonitorSmartphone} label="In use or reserved" value={inUse} note="Students, classes and bookings" to="/labs" />
         <StatCard icon={CalendarClock} label="Classes today" value={classesOn(today, classes.data ?? []).length} note="From the weekly class schedule" to="/schedule" />
         {isTeacher

@@ -86,6 +86,42 @@ body {
 /* little tag ("Figma") */
 .soft-chip { border-radius: 999px; background: rgb(255 255 255 / .6); padding: .25rem .75rem; }
 
+/* ---- Motion: pages arrive in order (title, then cards one by one, then list rows); bars grow; menu slides in ---- */
+@keyframes rise { from { opacity: 0; transform: translateY(14px) scale(.985); } to { opacity: 1; transform: none; } }
+@keyframes fade-up { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: none; } }
+@keyframes slide-in { from { opacity: 0; transform: translateX(-14px); } to { opacity: 1; transform: none; } }
+@keyframes grow-x { from { transform: scaleX(0); } to { transform: scaleX(1); } }
+
+.page-enter h1, .page-enter header p { animation: fade-up .55s cubic-bezier(.2,.8,.2,1) both; }
+.page-enter header p { animation-delay: .08s; }
+.page-enter :is(.card, .soft-card) { animation: rise .6s cubic-bezier(.2,.8,.2,1) both; }
+/* stagger: siblings in a grid come in one after another */
+.page-enter :is(.card, .soft-card):nth-child(2) { animation-delay: .07s; }
+.page-enter :is(.card, .soft-card):nth-child(3) { animation-delay: .14s; }
+.page-enter :is(.card, .soft-card):nth-child(4) { animation-delay: .21s; }
+.page-enter :is(.card, .soft-card):nth-child(5) { animation-delay: .28s; }
+.page-enter :is(.card, .soft-card):nth-child(n+6) { animation-delay: .34s; }
+.page-enter :is(.card, .soft-card) ul > li { animation: fade-up .45s ease-out both; animation-delay: .25s; }
+.page-enter :is(.card, .soft-card) ul > li:nth-child(2) { animation-delay: .3s; }
+.page-enter :is(.card, .soft-card) ul > li:nth-child(3) { animation-delay: .35s; }
+.page-enter :is(.card, .soft-card) ul > li:nth-child(4) { animation-delay: .4s; }
+.page-enter :is(.card, .soft-card) ul > li:nth-child(n+5) { animation-delay: .45s; }
+/* bars (usage, availability, month calendar) grow from the left */
+.bar-grow { transform-origin: left; animation: grow-x .9s cubic-bezier(.2,.8,.2,1) .25s both; }
+/* sidebar menu slides in when the app opens */
+.menu-enter > a { animation: slide-in .5s cubic-bezier(.2,.8,.2,1) both; }
+.menu-enter > a:nth-child(2) { animation-delay: .04s; } .menu-enter > a:nth-child(3) { animation-delay: .08s; }
+.menu-enter > a:nth-child(4) { animation-delay: .12s; } .menu-enter > a:nth-child(5) { animation-delay: .16s; }
+.menu-enter > a:nth-child(6) { animation-delay: .2s; } .menu-enter > a:nth-child(n+7) { animation-delay: .24s; }
+/* clickable cards lift a little */
+.lift { transition: transform .2s ease, box-shadow .2s ease; }
+.lift:hover { transform: translateY(-3px); box-shadow: 0 2px 4px rgb(23 43 77 / .05), 0 18px 34px -16px rgb(27 70 134 / .35); }
+
+@media (prefers-reduced-motion: reduce) {
+  .page-enter *, .menu-enter > a, .bar-grow { animation: none !important; }
+  .lift, .lift:hover { transition: none; transform: none; }
+}
+
 /* Twinkling stars on the sign-in background. */
 @keyframes auth-twinkle { 0%, 100% { opacity: .25; } 50% { opacity: 1; } }
 .auth-twinkle { animation: auth-twinkle 3.2s ease-in-out infinite; }

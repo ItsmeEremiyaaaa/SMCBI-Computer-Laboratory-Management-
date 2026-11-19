@@ -10,6 +10,7 @@ import { scheduleRepo } from '../../schedule/data/repository';
 import { classesOn } from '../../schedule/logic/rules';
 import ClassChangeModal from '../../schedule/ui/ClassChangeModal';
 import { placeLanes } from '../logic/lanes';
+import { CountUp } from '../../../shared/ui/CountUp';
 import { nameKey } from '../../people/logic/rules';
 import { manilaNow } from '../../../shared/time';
 import { EVENT_TYPES, type ClassChangeInput, type EventType, type LabEvent, type Reservation } from '../../../shared/data/types';
@@ -176,7 +177,7 @@ export default function Calendar() {
                         const h = bk.filter((r) => r.lab_id === l.id).reduce((s, r) => s + hours(r.end_time) - hours(r.start_time), 0);
                         return h > 0 && (
                           <div key={l.id} className="h-1 overflow-hidden rounded-full bg-white/70 sm:h-1.5" title={`${labShort(l.id)}: ${Math.round(h * 10) / 10} h booked`}>
-                            <div className="h-full rounded-full" style={{ width: `${Math.min(100, (h / (DAY_END - DAY_START)) * 100)}%`, background: labColor(l.id) }} />
+                            <div className="bar-grow h-full rounded-full" style={{ width: `${Math.min(100, (h / (DAY_END - DAY_START)) * 100)}%`, background: labColor(l.id) }} />
                           </div>
                         );
                       })}
@@ -205,10 +206,10 @@ export default function Calendar() {
           {(() => {
             const active = dayBookings.filter((r) => r.status !== 'cancelled');
             const usedH = active.reduce((t, r) => t + Math.max(0, Math.min(DAY_END, hours(r.end_time)) - Math.max(DAY_START, hours(r.start_time))), 0);
-            const stats: [string, string][] = [
-              [String(active.filter(isClass).length), 'Classes'],
-              [String(active.filter((r) => !isClass(r)).length), 'Bookings'],
-              [`${Math.round(usedH * 10) / 10} h`, 'Lab time in use'],
+            const stats: [React.ReactNode, string][] = [
+              [<CountUp value={active.filter(isClass).length} />, 'Classes'],
+              [<CountUp value={active.filter((r) => !isClass(r)).length} />, 'Bookings'],
+              [<><CountUp value={Math.round(usedH * 10) / 10} decimals={usedH % 1 ? 1 : 0} /> h</>, 'Lab time in use'],
             ];
             return (
               <div className="mt-5 grid grid-cols-3 divide-x divide-white/80 text-center">

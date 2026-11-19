@@ -54,7 +54,7 @@ export default function Layout() {
 
   // Left sidebar menu (all pages, Labs included); `compact` = the collapsed icon rail
   const nav = (compact: boolean) => (
-    <nav className="mt-8 grid gap-1">
+    <nav className="menu-enter mt-8 grid gap-1">
       <p className={compact ? 'sr-only' : 'mb-1 px-3 text-[11px] font-medium text-blue-200/80'}>Menu</p>
       {NAV.filter((n) => n.roles.includes(profile.role)).map(({ to, label, icon: Icon }) => (
         <NavLink key={to} to={to} end={to === '/'} title={compact ? label : undefined} aria-label={compact ? label : undefined}
@@ -132,7 +132,8 @@ export default function Layout() {
           )}
           <div className="ml-auto flex items-center gap-2">{bells}</div>
         </div>
-        <main className="mx-auto w-full max-w-7xl flex-1 px-4 py-5 md:px-6"><Outlet /></main>
+        {/* full width; each page replays its entrance (key = path) */}
+        <main key={pathname} className="page-enter w-full flex-1 px-4 py-5 md:px-6 xl:px-8"><Outlet /></main>
       </div>
     </div>
   );
