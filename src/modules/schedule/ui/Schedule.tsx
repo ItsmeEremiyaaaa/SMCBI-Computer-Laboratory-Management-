@@ -6,7 +6,7 @@ import { bookingsRepo } from '../../bookings/data/repository';
 import { labsRepo } from '../../labs/data/repository';
 import { scheduleRepo } from '../data/repository';
 import { isoWeekday, LAB_CLOSE, LAB_OPEN, manilaNow } from '../../../shared/time';
-import { termOf } from '../logic/rules';
+import { classesOn, termOf } from '../logic/rules';
 import type { ClassSchedule, Lab, ScheduleInput } from '../../../shared/data/types';
 import { validateSchedule } from '../logic/rules';
 import { COLUMNS, rowsToSchedules, schedulesToRows, type Cell } from '../logic/excel';
@@ -44,8 +44,9 @@ export default function Schedule() {
   const days = DAYS.map((name, i) => ({ name, dow: i + 1 })).filter((d) => d.dow <= 5 || rows.some((r) => r.day_of_week === d.dow));
   const first = rows.reduce((a, r) => (r.starts_on < a ? r.starts_on : a), rows[0]?.starts_on ?? '');
   const last = rows.reduce((a, r) => (r.ends_on > a ? r.ends_on : a), rows[0]?.ends_on ?? '');
-  const live = (r: ClassSchedule) => r.day_of_week === todayDow && r.starts_on <= today.date && today.date <= r.ends_on &&
-    r.start_time <= today.time && today.time < r.end_time;
+  // happening right now (one-day changes apply: a cancelled class isn't 'now', a moved one is at its new time)
+  const nowMeetings = classesOn(today.date, all);
+  const live = (r: ClassSchedule) => nowMeetings.some((m) => m.schedule_id === r.id && m.start_time <= today.time && today.time < m.end_time);
 
   async function remove(r: ClassSchedule) {
     if (!(await askConfirm({ title: `Remove ${r.section} ${r.subject}?`, message: `The ${DAYS[r.day_of_week - 1]} class. It moves to the Archive, where an admin can restore it.`, confirmLabel: 'Remove', danger: true }))) return;

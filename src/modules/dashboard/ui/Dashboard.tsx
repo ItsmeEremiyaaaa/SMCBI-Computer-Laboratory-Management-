@@ -185,7 +185,7 @@ export default function Dashboard() {
   const weekCheckIns = useLoad(() => labsRepo.listCheckIns(undefined, monday).catch(() => []), [monday]);
   const classes = useLoad(() => scheduleRepo.listSchedules());
   const events = useLoad(() => calendarRepo.listEvents());
-  useEffect(() => bookingsRepo.subscribeReservations(() => { res.reload(); stats.reload(); allApproved.reload(); }), [res.reload, stats.reload, allApproved.reload]);
+  useEffect(() => bookingsRepo.subscribeReservations(() => { res.reload(); stats.reload(); allApproved.reload(); classes.reload(); }), [res.reload, stats.reload, allApproved.reload, classes.reload]);
 
   const labName = (id: string) => labDisplayName(labs.data?.find((l) => l.id === id)?.name ?? id);
   const pcLabel = (id: string | null) => (id ? pcs.find((p) => p.id === id)?.label : 'whole lab');

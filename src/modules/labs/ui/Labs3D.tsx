@@ -18,7 +18,8 @@ import { bookingsRepo } from '../../bookings/data/repository';
 import { labsRepo } from '../data/repository';
 import { peopleRepo } from '../../people/data/repository';
 import { scheduleRepo } from '../../schedule/data/repository';
-import { isoWeekday, manilaNow } from '../../../shared/time';
+import { manilaNow } from '../../../shared/time';
+import { classesOn } from '../../schedule/logic/rules';
 import PcPanel from './PcPanel';
 import SeatGrid from './SeatGrid';
 import SceneBoundary from './SceneBoundary';
@@ -164,13 +165,16 @@ export default function Labs3D() {
   const [studentPick, setStudentPick] = useState<{ s: Student; pcId: string } | null>(null);
 
   const today = manilaNow();
-  const dow = isoWeekday(today.date);
+  // class meetings that really happen in this lab today: one-day changes apply (cancelled / activity only
+  // are left out, a moved meeting counts at its new time and lab)
+  useEffect(() => bookingsRepo.subscribeReservations(schedules.reload), [schedules.reload]);
   const labSchedules = useMemo(() => {
     if (!schedules.data || !lab) return [];
-    return schedules.data
-      .filter((s) => s.lab_id === lab.id && s.starts_on <= today.date && today.date <= s.ends_on && s.day_of_week === dow)
+    return classesOn(today.date, schedules.data)
+      .filter((m) => m.lab_id === lab.id)
+      .map((m) => ({ ...schedules.data!.find((s) => s.id === m.schedule_id)!, lab_id: m.lab_id, start_time: m.start_time, end_time: m.end_time }))
       .sort((a, b) => a.start_time.localeCompare(b.start_time));
-  }, [schedules.data, lab?.id, today.date, dow]);
+  }, [schedules.data, lab?.id, today.date]);
 
   const toMin = (t: string) => {
     const [h, m] = t.split(':').map(Number);
