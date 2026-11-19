@@ -1,4 +1,4 @@
-import { render, screen, within } from '@testing-library/react';
+import { render, screen, within, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { MemoryRouter, Route, Routes } from 'react-router-dom';
 import People from './People';
@@ -16,9 +16,11 @@ describe('People', () => {
 
   it('lets an admin approve a pending teacher', async () => {
     renderTab('teachers');
-    const row = (await screen.findByText('Carlo Dizon')).closest('li')!;
-    await userEvent.click(within(row).getByRole('button', { name: /approve/i }));
-    expect(within(row).queryByRole('button', { name: /approve/i })).not.toBeInTheDocument();
+    // the row opens the person window, where the actions live
+    await userEvent.click((await screen.findByText('Carlo Dizon')).closest('button')!);
+    const win = await screen.findByRole('dialog', { name: 'Carlo Dizon' });
+    await userEvent.click(within(win).getByRole('button', { name: /^approve$/i }));
+    await waitFor(() => expect(within(win).queryByRole('button', { name: /^approve$/i })).not.toBeInTheDocument());
     expect((await api.listProfiles('teacher')).find((p) => p.full_name === 'Carlo Dizon')?.approved).toBe(true);
   });
 

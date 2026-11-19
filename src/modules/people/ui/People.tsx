@@ -1,6 +1,6 @@
-import { useMemo, useState, type FormEvent } from 'react';
+import { useMemo, useState, type FormEvent, type ReactNode } from 'react';
 import { NavLink, useParams } from 'react-router-dom';
-import { Plus, Search } from 'lucide-react';
+import { Plus, Search, ChevronRight } from 'lucide-react';
 import { useAuth } from '../../auth/hooks/auth';
 import { useLoad } from '../../../shared/hooks/useLoad';
 import { type StudentInput } from '../../../shared/data/api';
@@ -9,7 +9,7 @@ import { scheduleRepo } from '../../schedule/data/repository';
 import { DEPARTMENTS, SEXES, STUDENT_STATUSES, YEAR_LEVELS, type ClassSchedule, type Profile, type Role, type Student, type StudentStatus } from '../../../shared/data/types';
 import { validateStudent } from '../logic/rules';
 import { nameKey } from '../logic/rules';
-import { Alert, Button, Empty, Field, Input, Modal, PageHeader, Panel, Select, askConfirm } from '../../../shared/ui/ui';
+import { Alert, Button, Empty, Field, Input, Modal, PageHeader, Panel, Select, askConfirm, toast } from '../../../shared/ui/ui';
 
 const TABS = [
   { id: 'teachers', label: 'Teachers' },
@@ -68,6 +68,7 @@ function Accounts({ role, q }: { role: Role; q: string }) {
   const { profile: me } = useAuth();
   const list = useLoad(() => peopleRepo.listProfiles(role), [role]);
   const [edit, setEdit] = useState<Profile | null>(null);
+  const [open, setOpen] = useState<Profile | null>(null);
   const [error, setError] = useState<string | null>(null);
   const rows = (list.data ?? []).filter((p) => !p.archived_at && match(q, p.full_name, p.email, p.department))
     .sort((a, b) => Number(a.approved) - Number(b.approved) || a.full_name.localeCompare(b.full_name));
@@ -122,31 +123,26 @@ function Accounts({ role, q }: { role: Role; q: string }) {
         )}
         {rows.length === 0 ? <Empty>{list.loading ? 'Loading…' : `No ${role === 'staff' ? 'staff' : role === 'student' ? 'student accounts' : 'teachers'} found.`}</Empty> : (
           <ul className="divide-y divide-line">
-            {rows.map((p) => (
-              <li key={p.id} className="flex flex-wrap items-center gap-3 px-4 py-3">
-                <span className="grid h-9 w-9 shrink-0 place-items-center rounded-full bg-accent-soft text-sm font-semibold text-accent">
-                  {p.full_name.split(' ').map((w) => w[0]).slice(0, 2).join('')}
-                </span>
-                <div className="min-w-0 flex-1">
-                  <p className="font-medium">{p.full_name}</p>
-                  <p className="truncate text-sm text-muted">{p.email}{p.department && `, ${p.department}`}{p.course && `, ${p.course}`}</p>
-                  {byInstructor.get(nameKey(p.full_name)) && <ClassList classes={byInstructor.get(nameKey(p.full_name))!.classes} />}
-                  {role === 'student' && !records.loading && (recordOf(p)
-                    ? <p className="mt-1 text-xs text-emerald-700">Record: <b>{recordOf(p)!.student_id}</b> · {recordOf(p)!.course} {recordOf(p)!.year_level} {recordOf(p)!.section}</p>
-                    : <p className="mt-1 text-xs font-medium text-red-700">No student record with this email</p>)}
-                </div>
-                {!p.approved && <span className="rounded bg-amber-50 px-2 py-0.5 text-xs font-medium text-amber-800 ring-1 ring-amber-200 ring-inset">Waiting for approval</span>}
-                <div className="flex gap-2">
-                  {role === 'student' && !records.loading && (recordOf(p)
-                    ? <Button size="sm" variant="ghost" onClick={() => setNewRecord(recordOf(p)!)}>Edit record</Button>
-                    : <Button size="sm" variant="ghost" onClick={() => setNewRecord(draftRecord(p))}>Add student record</Button>)}
-                  {!p.approved && <Button size="sm" onClick={() => patch(p.id, { approved: true })}>Approve</Button>}
-                  {p.approved && p.id !== me?.id &&
-                    <Button size="sm" variant="quiet" onClick={() => askConfirm({ title: `Archive ${p.full_name}?`, message: 'They lose access right away. You can restore them from the Archive.', confirmLabel: 'Archive', danger: true }).then((ok) => { if (ok) void archive(p.id); })}>Archive</Button>}
-                  <Button size="sm" variant="ghost" onClick={() => setEdit(p)}>Edit</Button>
-                </div>
-              </li>
-            ))}
+            {rows.map((p) => {
+              const rec = role === 'student' && !records.loading ? recordOf(p) : undefined;
+              return (
+                <li key={p.id}>
+                  <button type="button" onClick={() => setOpen(p)} className="flex w-full flex-wrap items-center gap-3 px-4 py-3 text-left transition-colors hover:bg-chalk">
+                    <span className="grid h-9 w-9 shrink-0 place-items-center rounded-full bg-accent-soft text-sm font-semibold text-accent">
+                      {p.full_name.split(' ').map((w) => w[0]).slice(0, 2).join('')}
+                    </span>
+                    <span className="min-w-0 flex-1">
+                      <span className="block font-medium">{p.full_name}</span>
+                      <span className="block truncate text-sm text-muted">{p.email}{p.department && `, ${p.department}`}{p.course && `, ${p.course}`}</span>
+                    </span>
+                    {!p.approved && <span className="rounded bg-amber-50 px-2 py-0.5 text-xs font-medium text-amber-800 ring-1 ring-amber-200 ring-inset">Waiting for approval</span>}
+                    {role === 'student' && !records.loading && !rec && <span className="rounded bg-red-50 px-2 py-0.5 text-xs font-medium text-red-700 ring-1 ring-red-200 ring-inset">No student record</span>}
+                    {byInstructor.get(nameKey(p.full_name)) && <span className="soft-chip text-xs text-muted">{byInstructor.get(nameKey(p.full_name))!.classes.length} classes</span>}
+                    <ChevronRight size={16} className="text-muted" />
+                  </button>
+                </li>
+              );
+            })}
           </ul>
         )}
       </Panel>
@@ -173,6 +169,44 @@ function Accounts({ role, q }: { role: Role; q: string }) {
           </ul>
         </Panel>
       )}
+      {open && (() => {
+        const p = rows.find((x) => x.id === open.id) ?? open;
+        const rec = role === 'student' ? recordOf(p) : undefined;
+        const classes = byInstructor.get(nameKey(p.full_name))?.classes;
+        const facts: [string, ReactNode][] = [
+          ['Email', p.email], ['Role', <span className="capitalize">{p.role}</span>], ['Department', p.department ?? '—'],
+          [p.role === 'student' ? 'Year and section' : 'Course taught', p.course ?? '—'], ['Phone', p.phone ?? '—'],
+          ...(role === 'student' ? [['Student record', rec ? `${rec.student_id} · ${rec.course} ${rec.year_level} ${rec.section}` : <span className="font-medium text-red-700">None with this email</span>] as [string, ReactNode]] : []),
+        ];
+        return (
+          <Modal open wide title={p.full_name} onClose={() => setOpen(null)}>
+            <div className="grid gap-5 lg:grid-cols-[1fr_auto]">
+              <div>
+                <div className="mb-4 flex items-center gap-3">
+                  <span className="grid h-14 w-14 place-items-center rounded-full bg-accent text-lg font-bold text-white">{p.full_name.split(' ').map((w) => w[0]).slice(0, 2).join('')}</span>
+                  <div>
+                    <p className="text-lg font-semibold text-ink">{p.full_name}</p>
+                    {p.approved ? <span className="text-xs font-medium text-emerald-700">Approved account</span> : <span className="text-xs font-medium text-amber-700">Waiting for approval</span>}
+                  </div>
+                </div>
+                <dl className="grid gap-2 text-sm sm:grid-cols-[9rem_1fr]">
+                  {facts.map(([k, v]) => (<div key={k} className="contents"><dt className="text-muted">{k}</dt><dd className="break-words font-medium text-ink">{v}</dd></div>))}
+                </dl>
+                {classes && <div className="mt-4"><p className="text-sm font-medium text-ink">Lab classes</p><ClassList classes={classes} /></div>}
+              </div>
+              <div className="grid content-start gap-2 lg:w-52">
+                {!p.approved && <Button onClick={() => { void patch(p.id, { approved: true }); toast(`${p.full_name} approved`); }}>Approve</Button>}
+                <Button variant="ghost" onClick={() => { setOpen(null); setEdit(p); }}>Edit account</Button>
+                {role === 'student' && <Button variant="ghost" onClick={() => { setOpen(null); setNewRecord(rec ?? draftRecord(p)); }}>{rec ? 'Edit student record' : 'Add student record'}</Button>}
+                {p.approved && p.id !== me?.id && (
+                  <Button variant="quiet" className="text-red-700" onClick={() => askConfirm({ title: `Archive ${p.full_name}?`, message: 'They lose access right away. You can restore them from the Archive.', confirmLabel: 'Archive', danger: true })
+                    .then((ok) => { if (ok) { setOpen(null); void archive(p.id); toast(`${p.full_name} archived`); } })}>Archive account</Button>
+                )}
+              </div>
+            </div>
+          </Modal>
+        );
+      })()}
       {newRecord && <StudentModal s={newRecord} onClose={() => setNewRecord(null)}
         onSave={async (x) => { await saveRecordKeepingLogin(x, newRecord, list.data ?? []); setNewRecord(null); await records.reload(); await list.reload(); }} />}
       {edit && <ProfileModal p={edit} canChangeRole={edit.id !== me?.id} onClose={() => setEdit(null)}
