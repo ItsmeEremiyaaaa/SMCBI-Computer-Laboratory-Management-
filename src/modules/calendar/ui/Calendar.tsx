@@ -111,40 +111,39 @@ export default function Calendar() {
   return (
     <>
       <PageHeader title="Calendar" sub="Pick a day to see what's happening in each lab, hour by hour."
-        actions={<Button onClick={() => setEdit({ title: '', description: null, event_date: day, event_time: '08:00', event_type: 'academic' })}><Plus size={16} />Add event</Button>} />
+/>
 
       <div className="grid grid-cols-1 gap-4">
         {/* Month overview */}
-        <Panel>
-          <div className="flex flex-wrap items-center justify-between gap-2 border-b border-line px-4 py-3">
-            <h2 className="text-lg font-semibold">{monthName}</h2>
-            <div className="flex gap-1">
-              <Button size="sm" variant="ghost" onClick={goToday}>Today</Button>
-              <Button size="sm" variant="ghost" onClick={() => shift(-1)} aria-label="Previous month"><ChevronLeft size={16} /></Button>
-              <Button size="sm" variant="ghost" onClick={() => shift(1)} aria-label="Next month"><ChevronRight size={16} /></Button>
+        <Panel className="soft-card overflow-hidden p-4 sm:p-6">
+          <div className="flex flex-wrap items-start justify-between gap-3">
+            <div>
+              <h2 className="text-2xl font-semibold tracking-tight sm:text-3xl">{monthName}</h2>
+              <p className="mt-0.5 text-sm text-muted">Lab usage and school events</p>
+            </div>
+            <div className="flex items-center gap-2">
+              <button type="button" onClick={goToday} className="soft-pill px-5 py-2 text-sm">Today</button>
+              <button type="button" onClick={() => shift(-1)} aria-label="Previous month" className="soft-round h-10 w-10"><ChevronLeft size={18} /></button>
+              <button type="button" onClick={() => shift(1)} aria-label="Next month" className="soft-round h-10 w-10"><ChevronRight size={18} /></button>
             </div>
           </div>
 
-          {/* Legend */}
-          <div className="flex flex-wrap items-center gap-x-4 gap-y-1.5 border-b border-line px-4 py-2.5 text-xs text-muted">
-            <span className="font-semibold text-ink">Lab usage</span>
+          {/* Legend as chips */}
+          <div className="mt-4 flex flex-wrap items-center gap-1.5 text-xs text-ink">
             {labList.map((l) => (
-              <span key={l.id} className="flex items-center gap-1.5"><span className="h-2 w-4 rounded-full" style={{ background: labColor(l.id) }} />{labShort(l.id)}</span>
+              <span key={l.id} className="soft-chip flex items-center gap-1.5"><span className="h-2 w-2 rounded-full" style={{ background: labColor(l.id) }} />{labShort(l.id)}</span>
             ))}
-            <span className="mx-1 hidden h-3 w-px bg-line sm:block" />
-            <span className="font-semibold text-ink">Events</span>
-            {EVENT_TYPES.map((t) => <span key={t} className="flex items-center gap-1.5 capitalize"><span className={`h-2 w-2 rounded-full ${TYPE_DOT[t]}`} />{t}</span>)}
+            {EVENT_TYPES.map((t) => <span key={t} className="soft-chip flex items-center gap-1.5 capitalize text-muted"><span className={`h-2 w-2 rounded-full ${TYPE_DOT[t]}`} />{t}</span>)}
           </div>
 
-          <div className="grid grid-cols-7 border-b border-line text-center text-[11px] font-semibold uppercase tracking-wide text-muted">
-            {['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].map((d) => <div key={d} className="py-2">{d}</div>)}
+          <div className="mt-4 grid grid-cols-7 gap-1 text-center text-[11px] font-semibold uppercase tracking-wide text-muted sm:gap-2">
+            {['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].map((d) => <div key={d} className="py-1">{d}</div>)}
           </div>
-          <div className="grid grid-cols-7">
+          <div className="grid grid-cols-7 gap-1 sm:gap-2">
             {cells.map((d, i) => {
               const date = d >= 1 && d <= days ? iso(ym.y, ym.m, d) : null;
               const weekend = i % 7 === 0 || i % 7 === 6;
-              const border = `border-b border-r border-line ${i % 7 === 6 ? 'border-r-0' : ''}`;
-              if (!date) return <div key={i} className={`min-h-24 bg-chalk/50 sm:min-h-28 ${border}`} />;
+              if (!date) return <div key={i} className="min-h-16 sm:min-h-24" />;
               const ev = eventsOn(date);
               const bk = bookingsOn(date);
               const selected = date === day;
@@ -153,10 +152,10 @@ export default function Calendar() {
                   onDragOver={(e) => { if (dragging && date >= today) e.preventDefault(); }}
                   onDrop={(e) => { e.preventDefault(); dropMove({ new_date: date, new_start: dragging?.start_time, new_end: dragging?.end_time, new_lab: dragging?.lab_id }); }}
                   aria-label={`${date}: ${ev.length} events, ${bk.length} lab bookings`}
-                  className={`group relative flex min-h-16 min-w-0 flex-col gap-1 p-1 text-left transition-colors sm:min-h-28 sm:p-1.5 ${border}
-                    ${selected ? 'bg-accent/5 ring-2 ring-inset ring-accent' : weekend ? 'bg-chalk/40 hover:bg-chalk' : 'hover:bg-chalk/70'}`}>
+                  className={`group relative flex min-h-16 min-w-0 flex-col gap-1 rounded-xl p-1 text-left transition-all sm:min-h-24 sm:rounded-2xl sm:p-2
+                    ${selected ? 'bg-white shadow-[0_12px_28px_-14px_rgb(15_23_42/.35)]' : weekend ? 'bg-white/25 hover:bg-white/60' : 'bg-white/45 hover:bg-white/75'}`}>
                   <div className="flex items-center justify-center sm:justify-between">
-                    <span className={`inline-grid h-6 min-w-6 place-items-center rounded-full px-1 text-xs ${date === today ? 'bg-accent font-semibold text-white' : selected ? 'font-semibold text-accent' : 'text-ink'}`}>{d}</span>
+                    <span className={`inline-grid h-6 min-w-6 place-items-center rounded-full px-1 text-xs ${date === today ? 'bg-ink font-semibold text-white' : selected ? 'font-semibold text-ink' : 'text-ink'}`}>{d}</span>
                     {bk.length > 0 && <span className="hidden text-[10px] font-medium text-muted sm:inline">{bk.length} use{bk.length > 1 ? 's' : ''}</span>}
                   </div>
                   {/* phones: a dot per event; larger screens: the event names */}
@@ -176,7 +175,7 @@ export default function Calendar() {
                       {labList.map((l) => {
                         const h = bk.filter((r) => r.lab_id === l.id).reduce((s, r) => s + hours(r.end_time) - hours(r.start_time), 0);
                         return h > 0 && (
-                          <div key={l.id} className="h-1 overflow-hidden rounded-full bg-line/60 sm:h-1.5" title={`${labShort(l.id)}: ${Math.round(h * 10) / 10} h booked`}>
+                          <div key={l.id} className="h-1 overflow-hidden rounded-full bg-white/70 sm:h-1.5" title={`${labShort(l.id)}: ${Math.round(h * 10) / 10} h booked`}>
                             <div className="h-full rounded-full" style={{ width: `${Math.min(100, (h / (DAY_END - DAY_START)) * 100)}%`, background: labColor(l.id) }} />
                           </div>
                         );
@@ -190,20 +189,39 @@ export default function Calendar() {
         </Panel>
 
         {/* Selected day agenda */}
-        <Panel className="flex flex-col">
-          <div className="flex items-center justify-between gap-2 border-b border-line px-4 py-3">
+        <Panel className="soft-card flex flex-col overflow-hidden p-4 sm:p-6">
+          <div className="flex flex-wrap items-start justify-between gap-3">
             <div>
-              <p className="text-[11px] font-semibold uppercase tracking-wide text-muted">{day === today ? 'Today' : 'Selected day'}</p>
-              <h2 className="text-base font-semibold">{dayTitle}</h2>
+              <span className="soft-chip text-xs font-medium text-muted">{day === today ? 'Today' : 'Selected day'}</span>
+              <h2 className="mt-2 text-2xl font-semibold tracking-tight sm:text-3xl">{dayTitle}</h2>
+              <p className="mt-0.5 text-sm text-muted">Every lab, hour by hour</p>
             </div>
-            <Button size="sm" variant="ghost" onClick={() => setEdit({ title: '', description: null, event_date: day, event_time: '08:00', event_type: 'academic' })}>
-              <Plus size={14} />Event
-            </Button>
+            <button type="button" className="soft-pill flex items-center gap-1.5 px-5 py-2.5 text-sm"
+              onClick={() => setEdit({ title: '', description: null, event_date: day, event_time: '08:00', event_type: 'academic' })}>
+              <Plus size={16} />Add event
+            </button>
           </div>
+          {/* the day at a glance */}
+          {(() => {
+            const active = dayBookings.filter((r) => r.status !== 'cancelled');
+            const usedH = active.reduce((t, r) => t + Math.max(0, Math.min(DAY_END, hours(r.end_time)) - Math.max(DAY_START, hours(r.start_time))), 0);
+            const stats: [string, string][] = [
+              [String(active.filter(isClass).length), 'Classes'],
+              [String(active.filter((r) => !isClass(r)).length), 'Bookings'],
+              [`${Math.round(usedH * 10) / 10} h`, 'Lab time in use'],
+            ];
+            return (
+              <div className="mt-5 grid grid-cols-3 divide-x divide-white/80 text-center">
+                {stats.map(([v, k]) => (
+                  <div key={k} className="px-2"><p className="text-2xl font-semibold text-ink">{v}</p><p className="text-sm text-muted">{k}</p></div>
+                ))}
+              </div>
+            );
+          })()}
 
           <div>
             {/* Events, side by side */}
-            <div className="flex flex-wrap gap-2 border-b border-line px-4 py-3">
+            <div className="mt-5 flex flex-wrap gap-2">
               {dayEvents.length === 0 && <p className="flex items-center gap-2 text-xs text-muted"><CalendarDays size={14} />No school events this day.</p>}
               {dayEvents.map((e) => (
                 <div key={e.id} className={`flex min-w-56 flex-1 items-start gap-2 rounded-lg border-l-4 px-3 py-2 sm:max-w-sm ${TYPE_STYLE[e.event_type]}`}>
@@ -220,7 +238,7 @@ export default function Calendar() {
             </div>
 
             {/* Hour-by-hour lab timeline, landscape: one row per lab, hours left to right */}
-            <div className="px-4 py-3">
+            <div className="mt-4">
               <div className="overflow-x-auto">
                 <div className="min-w-[44rem]">
                   {/* hour scale */}
@@ -236,9 +254,9 @@ export default function Calendar() {
                       const placed = placeLanes(dayBookings.filter((r) => r.lab_id === l.id), DAY_START, DAY_END);
                       const laneH = placed.lanes > 1 ? 38 : 56;
                       return (
-                      <div key={l.id} className="flex items-stretch gap-2">
-                        <span className="flex w-22 shrink-0 items-center justify-center rounded-md px-1 text-center text-[11px] font-semibold text-white" style={{ background: labColor(l.id) }}>{labShort(l.id)}</span>
-                        <div data-lab-row className="relative flex-1 rounded-md bg-chalk/60"
+                      <div key={l.id} className="flex items-center gap-2">
+                        <span className="flex h-9 w-22 shrink-0 items-center justify-center rounded-full px-1 text-center text-[11px] font-semibold text-white" style={{ background: labColor(l.id) }}>{labShort(l.id)}</span>
+                        <div data-lab-row className="relative flex-1 rounded-2xl bg-white/50"
                           style={{ height: placed.lanes * laneH + 8, backgroundImage: `repeating-linear-gradient(to right, var(--color-line) 0 1px, transparent 1px ${100 / SPAN}%)` }}
                           onDragOver={(e) => { if (dragging) e.preventDefault(); }}
                           onDrop={(e) => {
@@ -264,7 +282,7 @@ export default function Calendar() {
                                 draggable={editable && !off && !resize}
                                 onDragStart={editable && !off ? (ev) => { ev.dataTransfer.effectAllowed = 'move'; setDragging(r); } : undefined}
                                 onDragEnd={() => setTimeout(() => setDragging(null), 0)}
-                                className={`absolute overflow-hidden rounded-md border-l-4 px-1.5 py-1 text-[10px] leading-tight ${isClass(r) ? '' : 'border-dashed'} ${off ? 'line-through decoration-red-600 decoration-2 opacity-80' : ''} ${editable ? 'cursor-pointer hover:ring-2 hover:ring-accent/40' : ''} ${editable && !off ? 'active:cursor-grabbing' : ''} ${dragging?.id === r.id ? 'opacity-40' : ''}`}
+                                className={`absolute overflow-hidden rounded-xl border-l-4 px-1.5 py-1 text-[10px] leading-tight ${isClass(r) ? '' : 'border-dashed'} ${off ? 'line-through decoration-red-600 decoration-2 opacity-80' : ''} ${editable ? 'cursor-pointer hover:ring-2 hover:ring-accent/40' : ''} ${editable && !off ? 'active:cursor-grabbing' : ''} ${dragging?.id === r.id ? 'opacity-40' : ''}`}
                                 style={{ top: 4 + lane * laneH, height: laneH - 4, left: `calc(${((s - DAY_START) / SPAN) * 100}% + 1px)`, width: `calc(${((e - s) / SPAN) * 100}% - 2px)`, borderColor: c, background: `${c}1f`, color: off ? '#b91c1c' : '#0f172a' }}>
                                 {editable && !off && (['start', 'end'] as const).map((edge) => (
                                   <span key={edge} role="separator" aria-orientation="vertical" aria-label={`Drag to change the ${edge} time`}
