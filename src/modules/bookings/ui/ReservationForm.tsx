@@ -1,7 +1,7 @@
 import { useState, type FormEvent } from 'react';
 import { useLoad } from '../../../shared/hooks/useLoad';
 import { peopleRepo } from '../../people/data/repository';
-import { manilaNow } from '../../../shared/time';
+import { LAB_CLOSE, LAB_OPEN, manilaNow } from '../../../shared/time';
 import { bookingProblems, STUDENT_LAB } from '../logic/rules';
 import { nameKey, sectionSize } from '../../people/logic/rules';
 import type { ClassSchedule, Lab, Pc, Reservation, ReservationInput, Role } from '../../../shared/data/types';
@@ -157,8 +157,8 @@ export default function ReservationForm({ labs: allLabs, pcs, initial, onSubmit,
           <Field label="Purpose" required><Textarea value={f.purpose} onChange={set('purpose')} rows={2} /></Field>
           <div className="grid gap-3 sm:grid-cols-3">
             <Field label="Date" required><Input type="date" value={f.date} onChange={set('date')} min={manilaNow().date} /></Field>
-            <Field label="Start time" required hint="Labs open 8 AM – 8 PM"><Input type="time" min="08:00" max="20:00" value={f.start_time} onChange={set('start_time')} /></Field>
-            <Field label="End time" required><Input type="time" min="08:00" max="20:00" value={f.end_time} onChange={set('end_time')} /></Field>
+            <Field label="Start time" required hint="Labs open 8 AM – 8 PM"><Input type="time" min={LAB_OPEN} max={LAB_CLOSE} value={f.start_time} onChange={set('start_time')} /></Field>
+            <Field label="End time" required><Input type="time" min={LAB_OPEN} max={LAB_CLOSE} value={f.end_time} onChange={set('end_time')} /></Field>
           </div>
         </div>
       </div>

@@ -8,7 +8,7 @@ import { box, cyl } from './labGeometry';
 
 export type SimMode = 'walk_in' | 'in_session' | 'walk_out' | 'empty';
 
-export function isFemaleTeacher(name?: string | null): boolean {
+function isFemaleTeacher(name?: string | null): boolean {
   if (!name) return false;
   const n = name.toLowerCase();
   if (
@@ -81,7 +81,7 @@ function getWorkstationPlacement(pc: LivePc, lab: Lab, _style?: 'island' | 'tabl
 }
 
 // 3D Low-Poly Teacher at the whiteboard
-export function Teacher3D({ gender }: { gender: 'male' | 'female' }) {
+function Teacher3D({ gender }: { gender: 'male' | 'female' }) {
   const isMale = gender === 'male';
   const skinMat = <meshStandardMaterial color="#f0c29e" roughness={0.6} />;
   const hairMat = <meshStandardMaterial color="#2b1d14" roughness={0.7} />;

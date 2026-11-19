@@ -80,7 +80,7 @@ export interface Student {
 }
 
 export const SEXES = ['Male', 'Female'] as const;
-export type Sex = (typeof SEXES)[number];
+type Sex = (typeof SEXES)[number];
 export const STUDENT_STATUSES = ['Enrolled', 'Inactive', 'Dropped', 'Graduated'] as const;
 export type StudentStatus = (typeof STUDENT_STATUSES)[number];
 

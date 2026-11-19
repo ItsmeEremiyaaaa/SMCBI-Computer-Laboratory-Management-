@@ -5,7 +5,7 @@ import { useLoad } from '../../../shared/hooks/useLoad';
 import { bookingsRepo } from '../../bookings/data/repository';
 import { labsRepo } from '../../labs/data/repository';
 import { scheduleRepo } from '../data/repository';
-import { isoWeekday, manilaNow } from '../../../shared/time';
+import { isoWeekday, LAB_CLOSE, LAB_OPEN, manilaNow } from '../../../shared/time';
 import { termOf } from '../logic/rules';
 import type { ClassSchedule, Lab, ScheduleInput } from '../../../shared/data/types';
 import { validateSchedule } from '../logic/rules';
@@ -151,8 +151,8 @@ function ScheduleModal({ s, labs, onClose, onSave }:
         <Field label="Instructor"><Input value={f.instructor} onChange={set('instructor')} /></Field>
         <div className="grid gap-3 sm:grid-cols-3">
           <Field label="Day"><Select value={f.day_of_week} onChange={set('day_of_week')}>{DAYS.map((d, i) => <option key={d} value={i + 1}>{d}</option>)}</Select></Field>
-          <Field label="Start time"><Input type="time" min="08:00" max="20:00" value={f.start_time} onChange={set('start_time')} /></Field>
-          <Field label="End time"><Input type="time" min="08:00" max="20:00" value={f.end_time} onChange={set('end_time')} /></Field>
+          <Field label="Start time"><Input type="time" min={LAB_OPEN} max={LAB_CLOSE} value={f.start_time} onChange={set('start_time')} /></Field>
+          <Field label="End time"><Input type="time" min={LAB_OPEN} max={LAB_CLOSE} value={f.end_time} onChange={set('end_time')} /></Field>
         </div>
         <div className="grid gap-3 sm:grid-cols-2">
           <Field label="First day"><Input type="date" value={f.starts_on} onChange={set('starts_on')} /></Field>

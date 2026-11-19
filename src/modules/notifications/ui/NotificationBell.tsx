@@ -14,7 +14,7 @@ const LAB_SHORT: Record<string, string> = { lab1: 'ComLab 1', lab2: 'ComLab 2', 
 const peopleTab = (p: Profile) => (p.role === 'student' ? 'accounts' : p.role === 'staff' ? 'staff' : 'teachers');
 type Data = { accounts: Profile[]; reports: PcReport[]; requests: Reservation[]; broken: Pc[]; pcs: Pc[] };
 // notice ids: a PC that breaks again (new updated_at) shows up again even if its old notice was cleared
-export const noticeIds = (d: Data) => [
+const noticeIds = (d: Data) => [
   ...d.accounts.map((p) => `acc-${p.id}`), ...d.reports.map((r) => `rep-${r.id}`),
   ...d.requests.map((r) => `req-${r.id}`), ...d.broken.map((p) => `pc-${p.id}-${p.updated_at}`),
 ];
