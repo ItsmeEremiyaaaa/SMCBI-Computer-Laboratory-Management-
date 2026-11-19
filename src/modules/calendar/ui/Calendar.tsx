@@ -9,6 +9,7 @@ import { labsRepo } from '../../labs/data/repository';
 import { scheduleRepo } from '../../schedule/data/repository';
 import { classesOn } from '../../schedule/logic/rules';
 import ClassChangeModal from '../../schedule/ui/ClassChangeModal';
+import { placeLanes } from '../logic/lanes';
 import { nameKey } from '../../people/logic/rules';
 import { manilaNow } from '../../../shared/time';
 import { EVENT_TYPES, type ClassChangeInput, type EventType, type LabEvent, type Reservation } from '../../../shared/data/types';
@@ -31,6 +32,7 @@ const SPAN = DAY_END - DAY_START; // hours shown across the day timeline
 const iso = (y: number, m: number, d: number) => `${y}-${String(m + 1).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
 const hours = (t: string) => Number(t.slice(0, 2)) + Number(t.slice(3, 5)) / 60;
 const isClass = (r: Reservation) => r.id.startsWith('class-');
+
 const hhmm = (h: number) => `${String(Math.floor(h)).padStart(2, '0')}:${String(Math.round((h % 1) * 60)).padStart(2, '0')}`;
 
 export default function Calendar() {
@@ -53,6 +55,26 @@ export default function Calendar() {
   const [dragging, setDragging] = useState<Reservation | null>(null);
   const canChange = (r: Reservation) => isClass(r) && !!r.schedule_id && (r.class_date ?? '') >= today && (
     profile?.role === 'admin' || profile?.role === 'staff' || (profile?.role === 'teacher' && nameKey(profile.full_name) === nameKey(r.requester_name)));
+  // resize: drag a class block's left/right edge to change its start/end for this date (snapped to 30 min)
+  const [resize, setResize] = useState<{ id: string; s: number; e: number } | null>(null);
+  function startResize(ev: React.PointerEvent, r: Reservation, edge: 'start' | 'end') {
+    ev.preventDefault(); ev.stopPropagation();
+    const row = (ev.currentTarget as HTMLElement).closest('[data-lab-row]')!.getBoundingClientRect();
+    const s0 = hours(r.start_time), e0 = hours(r.end_time);
+    let cur = { id: r.id, s: s0, e: e0 };
+    const at = (x: number) => Math.round((DAY_START + ((x - row.left) / row.width) * SPAN) * 2) / 2;
+    const move = (m: PointerEvent) => {
+      const h = Math.min(DAY_END, Math.max(DAY_START, at(m.clientX)));
+      cur = edge === 'end' ? { ...cur, e: Math.max(cur.s + 0.5, h) } : { ...cur, s: Math.min(cur.e - 0.5, h) };
+      setResize(cur);
+    };
+    const up = () => {
+      window.removeEventListener('pointermove', move); window.removeEventListener('pointerup', up);
+      setResize(null);
+      if (cur.s !== s0 || cur.e !== e0) setChange({ session: r, preset: { kind: 'moved', new_date: day, new_lab: r.lab_id, new_start: hhmm(cur.s), new_end: hhmm(cur.e) } });
+    };
+    window.addEventListener('pointermove', move); window.addEventListener('pointerup', up);
+  }
   const dropMove = (preset: Partial<ClassChangeInput>) => { if (dragging) setChange({ session: dragging, preset: { kind: 'moved', ...preset } }); setDragging(null); };
 
   const first = new Date(Date.UTC(ym.y, ym.m, 1)).getUTCDay();
@@ -210,11 +232,14 @@ export default function Calendar() {
                     ))}
                   </div>
                   <div className="relative grid gap-1.5">
-                    {labList.map((l) => (
+                    {labList.map((l) => {
+                      const placed = placeLanes(dayBookings.filter((r) => r.lab_id === l.id), DAY_START, DAY_END);
+                      const laneH = placed.lanes > 1 ? 38 : 56;
+                      return (
                       <div key={l.id} className="flex items-stretch gap-2">
                         <span className="flex w-22 shrink-0 items-center justify-center rounded-md px-1 text-center text-[11px] font-semibold text-white" style={{ background: labColor(l.id) }}>{labShort(l.id)}</span>
-                        <div className="relative h-16 flex-1 rounded-md bg-chalk/60"
-                          style={{ backgroundImage: `repeating-linear-gradient(to right, var(--color-line) 0 1px, transparent 1px ${100 / SPAN}%)` }}
+                        <div data-lab-row className="relative flex-1 rounded-md bg-chalk/60"
+                          style={{ height: placed.lanes * laneH + 8, backgroundImage: `repeating-linear-gradient(to right, var(--color-line) 0 1px, transparent 1px ${100 / SPAN}%)` }}
                           onDragOver={(e) => { if (dragging) e.preventDefault(); }}
                           onDrop={(e) => {
                             e.preventDefault(); if (!dragging) return;
@@ -224,10 +249,9 @@ export default function Calendar() {
                             const start = Math.min(DAY_END - len, Math.max(DAY_START, Math.round(at * 2) / 2));
                             dropMove({ new_date: day, new_start: hhmm(start), new_end: hhmm(start + len), new_lab: l.id });
                           }}>
-                          {dayBookings.filter((r) => r.lab_id === l.id).map((r) => {
-                            const s = Math.max(DAY_START, hours(r.start_time));
-                            const e = Math.min(DAY_END, hours(r.end_time));
-                            if (e <= s) return null;
+                          {placed.items.map(({ r, s: s0, e: e0, lane }) => {
+                            const live = resize?.id === r.id ? resize : null;
+                            const s = live?.s ?? s0, e = live?.e ?? e0;
                             const off = r.status === 'cancelled';
                             const c = off ? '#dc2626' : labColor(l.id);
                             const editable = canChange(r);
@@ -237,19 +261,25 @@ export default function Calendar() {
                                 aria-label={editable ? `Change ${r.title} on ${r.class_date}` : undefined}
                                 onClick={editable ? () => setChange({ session: r }) : undefined}
                                 onKeyDown={editable ? (ev) => { if (ev.key === 'Enter' || ev.key === ' ') { ev.preventDefault(); setChange({ session: r }); } } : undefined}
-                                draggable={editable && !off}
+                                draggable={editable && !off && !resize}
                                 onDragStart={editable && !off ? (ev) => { ev.dataTransfer.effectAllowed = 'move'; setDragging(r); } : undefined}
                                 onDragEnd={() => setTimeout(() => setDragging(null), 0)}
-                                className={`absolute inset-y-1 overflow-hidden rounded-md border-l-4 px-1.5 py-1 text-[10px] leading-tight ${isClass(r) ? '' : 'border-dashed'} ${off ? 'line-through decoration-red-600 decoration-2 opacity-80' : ''} ${editable ? 'cursor-pointer hover:ring-2 hover:ring-accent/40' : ''} ${editable && !off ? 'active:cursor-grabbing' : ''} ${dragging?.id === r.id ? 'opacity-40' : ''}`}
-                                style={{ left: `calc(${((s - DAY_START) / SPAN) * 100}% + 1px)`, width: `calc(${((e - s) / SPAN) * 100}% - 2px)`, borderColor: c, background: `${c}1f`, color: off ? '#b91c1c' : '#0f172a' }}>
-                                <p className="truncate font-semibold">{fmtTime(r.start_time).replace(':00', '')}–{fmtTime(r.end_time).replace(':00', '')} · {r.title}</p>
+                                className={`absolute overflow-hidden rounded-md border-l-4 px-1.5 py-1 text-[10px] leading-tight ${isClass(r) ? '' : 'border-dashed'} ${off ? 'line-through decoration-red-600 decoration-2 opacity-80' : ''} ${editable ? 'cursor-pointer hover:ring-2 hover:ring-accent/40' : ''} ${editable && !off ? 'active:cursor-grabbing' : ''} ${dragging?.id === r.id ? 'opacity-40' : ''}`}
+                                style={{ top: 4 + lane * laneH, height: laneH - 4, left: `calc(${((s - DAY_START) / SPAN) * 100}% + 1px)`, width: `calc(${((e - s) / SPAN) * 100}% - 2px)`, borderColor: c, background: `${c}1f`, color: off ? '#b91c1c' : '#0f172a' }}>
+                                {editable && !off && (['start', 'end'] as const).map((edge) => (
+                                  <span key={edge} role="separator" aria-orientation="vertical" aria-label={`Drag to change the ${edge} time`}
+                                    title={`Drag to change the ${edge} time`} onPointerDown={(ev) => startResize(ev, r, edge)} onClick={(ev) => ev.stopPropagation()}
+                                    className={`absolute inset-y-0 z-10 w-2 cursor-ew-resize hover:bg-accent/30 ${edge === 'start' ? 'left-0' : 'right-0'}`} />
+                                ))}
+                                <p className="truncate font-semibold">{live ? `${fmtTime(hhmm(s))}–${fmtTime(hhmm(e))}` : `${fmtTime(r.start_time).replace(':00', '')}–${fmtTime(r.end_time).replace(':00', '')}`} · {r.title}</p>
                                 <p className="truncate opacity-70">{isClass(r) ? (r.class_change ? (off ? ({ cancelled: 'Cancelled', activity: 'Activity only', moved: 'Moved' } as const)[r.class_change.kind] : `Moved here · ${r.requester_name}`) : r.requester_name) : `${off ? 'Cancelled' : 'Booking'} · ${r.requester_name}`}</p>
                               </div>
                             );
                           })}
                         </div>
                       </div>
-                    ))}
+                      );
+                    })}
                     {day === today && nowH >= DAY_START && nowH <= DAY_END && (
                       <div className="pointer-events-none absolute inset-y-0 ml-24 w-[calc(100%-6rem)]">
                         <span className="absolute inset-y-0 w-0.5 bg-red-500" style={{ left: `${((nowH - DAY_START) / SPAN) * 100}%` }} />
