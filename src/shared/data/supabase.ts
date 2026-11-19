@@ -2,7 +2,7 @@
 // in supabase/migrations; this file only maps rows and errors.
 import { createClient } from '@supabase/supabase-js';
 import type { Api } from './api';
-import type { ArchivedItem, CheckIn, ClassSchedule, Pc, PcReport, Profile, Reservation } from './types';
+import type { ArchivedItem, CheckIn, ClassSchedule, Pc, PcReport, Profile, Reservation, Contact, Message } from './types';
 import { manilaNow } from '../time';
 
 export const hhmm = (t: string) => t.slice(0, 5);
@@ -107,7 +107,7 @@ export function createSupabaseApi(url: string, key: string): Api {
       let t: ReturnType<typeof setTimeout> | undefined;
       const fire = () => { clearTimeout(t); t = setTimeout(cb, 150); };
       const id = Math.random().toString(36).slice(2);
-      const chs = ['reservations', 'class_schedules', 'class_changes', 'pc_reports', 'profiles'].map((table) =>
+      const chs = ['reservations', 'class_schedules', 'class_changes', 'pc_reports', 'profiles', 'messages'].map((table) =>
         sb.channel(`${table}:${id}`).on('postgres_changes', { event: '*', schema: 'public', table }, fire).subscribe());
       return () => { clearTimeout(t); chs.forEach((ch) => sb.removeChannel(ch)); };
     },
@@ -174,6 +174,18 @@ export function createSupabaseApi(url: string, key: string): Api {
       // permission and clash checks run in the database trigger (migration 0020)
       ok(await sb.from('class_changes').upsert(c, { onConflict: 'schedule_id,date' }));
     },
+    async listMessages() {
+      return ok(await sb.from('messages').select('*').order('created_at', { ascending: true })) as Message[];
+    },
+    async sendMessage(toId, body) {
+      // sender, names and time are set by the database trigger (migration 0021)
+      ok(await sb.from('messages').insert({ to_id: toId, body }));
+    },
+    async markRead(fromId) {
+      const me = await uid();
+      ok(await sb.from('messages').update({ read_at: new Date().toISOString() }).eq('from_id', fromId).eq('to_id', me ?? '').is('read_at', null));
+    },
+    async messageContacts() { return (ok(await sb.rpc('message_contacts')) ?? []) as Contact[]; },
     async deleteClassChange(id) {
       const rows = ok(await sb.from('class_changes').delete().eq('id', id).select('id'));
       if (!rows.length) throw new Error('Not allowed for your role.');

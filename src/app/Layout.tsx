@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { NavLink, Outlet, useLocation } from 'react-router-dom';
 import NotificationBell from '../modules/notifications/ui/NotificationBell';
 import StudentBell from '../modules/notifications/ui/StudentBell';
-import { Archive, Bell, Box, CalendarClock, CalendarDays, ClipboardList, LayoutGrid, LogOut, Menu, PanelLeftClose, PanelLeftOpen, QrCode, Users, X } from 'lucide-react';
+import { Archive, Bell, MessageCircle, UserRound, Box, CalendarClock, CalendarDays, ClipboardList, LayoutGrid, LogOut, Menu, PanelLeftClose, PanelLeftOpen, QrCode, Users, X } from 'lucide-react';
 import { Crest, useExclusive } from '../shared/ui/ui';
 import IntroSplash from './IntroSplash';
 import TopBar from './TopBar';
@@ -86,7 +86,16 @@ export default function Layout() {
       <aside className="absolute inset-y-0 left-0 flex w-64 flex-col navy-weave p-4">
         <div className="flex items-center justify-between"><Brand />
           <button onClick={() => setOpen(false)} aria-label="Close menu" className="text-slate-300"><X /></button></div>
-        {nav(false)}<UserBox />
+        {nav(false)}
+        {/* phones: the top-bar tabs are hidden, so they live in the menu */}
+        <div className="mt-1 grid gap-1">
+          {([['/messages', 'Messages', MessageCircle], ['/profile', 'Profile', UserRound]] as const).map(([to, label, Icon]) => (
+            <NavLink key={to} to={to} className={({ isActive }) => `flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium ${isActive ? 'bg-white text-rail' : 'text-blue-100 hover:bg-white/10'}`}>
+              <Icon size={18} strokeWidth={1.75} />{label}
+            </NavLink>
+          ))}
+        </div>
+        <UserBox />
       </aside>
     </div>
   );
@@ -119,7 +128,7 @@ export default function Layout() {
   return (
     <div className="flex min-h-full gap-3 p-0 md:p-3">
       <IntroSplash />
-      <aside className={`sticky top-3 hidden h-[calc(100vh-1.5rem)] shrink-0 flex-col rounded-2xl navy-weave shadow-lg transition-[width] duration-200 md:flex print:!hidden ${sidebarSize}`}>
+      <aside className={`sticky top-3 hidden h-[calc(100vh-1.5rem)] shrink-0 flex-col rounded-2xl navy-weave shadow-lg transition-[width] duration-200 md:flex print:hidden! ${sidebarSize}`}>
         {sidebarBody}
       </aside>
 
@@ -146,9 +155,9 @@ function UserBox({ compact = false }: { compact?: boolean }) {
   if (compact) {
     return (
       <div className="mt-auto grid justify-items-center gap-2" title={`${profile.full_name} · ${profile.role}`}>
-        <span className="grid h-9 w-9 place-items-center rounded-full bg-white text-sm font-semibold text-rail">
+        <NavLink to="/profile" className="grid h-9 w-9 place-items-center rounded-full bg-white text-sm font-semibold text-rail hover:ring-2 hover:ring-white/40" title="Your profile">
           {profile.full_name.split(' ').map((w) => w[0]).slice(0, 2).join('')}
-        </span>
+        </NavLink>
         <button onClick={() => authRepo.signOut()} aria-label="Sign out" title="Sign out" className="rounded-lg p-1.5 text-blue-200 hover:bg-white/15 hover:text-white"><LogOut size={18} /></button>
       </div>
     );
@@ -158,10 +167,10 @@ function UserBox({ compact = false }: { compact?: boolean }) {
       <span className="grid h-9 w-9 shrink-0 place-items-center rounded-full bg-white text-sm font-semibold text-rail">
         {profile.full_name.split(' ').map((w) => w[0]).slice(0, 2).join('')}
       </span>
-      <div className="min-w-0 flex-1">
+      <NavLink to="/profile" className="min-w-0 flex-1 rounded-lg hover:underline" title="Your profile">
         <p className="truncate text-sm font-medium text-white">{profile.full_name}</p>
         <p className="text-xs capitalize text-blue-200">{profile.role}</p>
-      </div>
+      </NavLink>
       <button onClick={() => authRepo.signOut()} aria-label="Sign out" className="rounded-lg p-1.5 text-blue-200 hover:bg-white/15 hover:text-white"><LogOut size={18} /></button>
     </div>
   );

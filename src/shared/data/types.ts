@@ -175,3 +175,14 @@ export interface ArchivedItem {
   archived_by_name: string | null;
   archived_at: string;
 }
+
+/** One chat message between two accounts. Names are copied in so students never read the accounts table. */
+export interface Message {
+  id: string;
+  from_id: string; to_id: string;
+  from_name: string | null; to_name: string | null;
+  body: string;
+  created_at: string;
+  read_at: string | null;
+}
+export interface Contact { id: string; full_name: string; role: Role }

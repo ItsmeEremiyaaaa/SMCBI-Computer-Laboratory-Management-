@@ -244,7 +244,7 @@ export default function Calendar() {
             {/* Hour-by-hour lab timeline, landscape: one row per lab, hours left to right */}
             <div className="mt-4">
               <div className="overflow-x-auto">
-                <div className="min-w-[44rem]">
+                <div className="min-w-176">
                   {/* hour scale */}
                   <div className="relative ml-24 h-5">
                     {Array.from({ length: SPAN + 1 }, (_, i) => (

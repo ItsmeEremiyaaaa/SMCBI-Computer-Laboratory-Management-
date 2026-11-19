@@ -1,6 +1,6 @@
 import { useEffect } from 'react';
 import { Link } from 'react-router-dom';
-import { ArrowRight, CalendarClock, CalendarDays, ClipboardList, Monitor, Plus, Users, type LucideIcon } from 'lucide-react';
+import { ArrowRight, CalendarClock, CalendarDays, ClipboardList, MessageCircle, Monitor, Plus, Users, type LucideIcon } from 'lucide-react';
 import { useAuth } from '../../auth/hooks/auth';
 import { useLabLive, type LivePc } from '../../labs/hooks/useLabLive';
 import { useLoad } from '../../../shared/hooks/useLoad';
@@ -12,6 +12,7 @@ import { scheduleRepo } from '../../schedule/data/repository';
 import { classesOn } from '../../schedule/logic/rules';
 import { isoWeekday, manilaNow } from '../../../shared/time';
 import { usedHours } from '../../bookings/logic/rules';
+import { useMessages } from '../../messages/hooks/useMessages';
 import type { Reservation } from '../../../shared/data/types';
 import { Button, Empty, fmtDate, fmtTime, Led, ResBadge, STATUS_COLOR, STATUS_LABEL, STATUSES } from '../../../shared/ui/ui';
 import { CountUp } from '../../../shared/ui/CountUp';
@@ -86,6 +87,7 @@ export default function Dashboard() {
   const weekCheckIns = useLoad(() => labsRepo.listCheckIns(undefined, monday).catch(() => []), [monday]);
   const classes = useLoad(() => scheduleRepo.listSchedules());
   const events = useLoad(() => calendarRepo.listEvents());
+  const { unread: unreadMsg } = useMessages();
   useEffect(() => bookingsRepo.subscribeReservations(() => { res.reload(); stats.reload(); allApproved.reload(); classes.reload(); }), [res.reload, stats.reload, allApproved.reload, classes.reload]);
 
   const labName = (id: string) => labDisplayName(labs.data?.find((l) => l.id === id)?.name ?? id);
@@ -129,7 +131,7 @@ export default function Dashboard() {
       <section className="relative mb-8 grid items-center gap-6 xl:grid-cols-[minmax(0,27rem)_1fr]">
         {/* soft floating dots behind the greeting */}
         <span aria-hidden className="float-dot pointer-events-none absolute -left-3 top-2 h-3 w-3 rounded-full bg-accent/25" />
-        <span aria-hidden className="float-dot pointer-events-none absolute left-[22rem] top-6 h-2 w-2 rounded-full bg-amber-400/60 [animation-delay:-2s]" />
+        <span aria-hidden className="float-dot pointer-events-none absolute left-88 top-6 h-2 w-2 rounded-full bg-amber-400/60 [animation-delay:-2s]" />
         <span aria-hidden className="float-dot pointer-events-none absolute bottom-0 left-40 h-6 w-6 rounded-full border-2 border-accent/20 [animation-delay:-4s]" />
         <div className="relative">
           <h1 className="text-4xl font-bold leading-[1.08] tracking-tight text-ink sm:text-5xl">
@@ -151,7 +153,7 @@ export default function Dashboard() {
           </Link>
           <ActionTile to="/labs" icon={Monitor} title="Open the labs" sub="3D view and floor plan, live" />
           <ActionTile to="/schedule" icon={CalendarClock} title="Class schedule" sub="Weekly classes by semester" />
-          <ActionTile to="/calendar" icon={CalendarDays} title="Calendar" sub="Cancel or move a class" />
+          <ActionTile to="/messages" icon={MessageCircle} title="Messages" sub={unreadMsg ? `${unreadMsg} unread` : 'Chat with the lab office'} badge={unreadMsg} />
         </div>
       </section>
 
@@ -196,7 +198,7 @@ export default function Dashboard() {
               ))}
             </ul>
           )}
-          <Link to="/reservations?new=1" className="mt-auto flex items-center justify-center gap-2 rounded-2xl bg-accent-soft py-3 pt-3 text-sm font-semibold text-ink transition-colors hover:bg-accent/15 [margin-top:max(1rem,auto)]">
+          <Link to="/reservations?new=1" className="mt-[max(1rem,auto)] flex items-center justify-center gap-2 rounded-2xl bg-accent-soft py-3 text-sm font-semibold text-ink transition-colors hover:bg-accent/15">
             <span className="grid h-6 w-6 place-items-center rounded-md bg-accent text-white"><Plus size={15} /></span>Request a lab
           </Link>
         </section>
@@ -255,7 +257,7 @@ export default function Dashboard() {
           </ul>
         </section>
 
-        <section className="lift relative flex flex-col overflow-hidden rounded-[1.75rem] bg-gradient-to-b from-rail-2 to-rail p-6 text-center text-white shadow-xl shadow-rail/30 [animation:rise_.6s_cubic-bezier(.2,.8,.2,1)_.2s_both]">
+        <section className="lift relative flex flex-col overflow-hidden rounded-[1.75rem] bg-linear-to-b from-rail-2 to-rail p-6 text-center text-white shadow-xl shadow-rail/30 animate-[rise_.6s_cubic-bezier(.2,.8,.2,1)_.2s_both]">
           <span className="pointer-events-none absolute -right-10 -top-10 h-40 w-40 rounded-full bg-white/10" />
           <span className="pointer-events-none absolute -bottom-12 -left-8 h-36 w-36 rounded-full bg-white/5" />
           <span className="mx-auto grid h-14 w-14 place-items-center rounded-2xl bg-white/15"><ClipboardList size={26} /></span>
@@ -307,9 +309,10 @@ export default function Dashboard() {
 }
 
 // a quick-action tile: big icon, title, one line
-function ActionTile({ to, icon: Icon, title, sub }: { to: string; icon: LucideIcon; title: string; sub: string }) {
+function ActionTile({ to, icon: Icon, title, sub, badge }: { to: string; icon: LucideIcon; title: string; sub: string; badge?: number }) {
   return (
-    <Link to={to} className="card lift group flex min-h-44 flex-col justify-between p-4">
+    <Link to={to} className="card lift group relative flex min-h-44 flex-col justify-between p-4">
+      {badge ? <span className="absolute right-3 top-3 grid h-5 min-w-5 place-items-center rounded-full bg-broken px-1 text-[10px] font-bold text-white">{badge}</span> : null}
       <span className="grid h-16 w-16 place-items-center rounded-2xl bg-accent-soft text-accent transition-transform duration-300 group-hover:-rotate-6 group-hover:scale-110">
         <Icon size={30} strokeWidth={1.75} className="bob-on-hover" />
       </span>

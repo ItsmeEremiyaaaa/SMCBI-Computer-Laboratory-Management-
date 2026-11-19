@@ -1,5 +1,5 @@
 import { Link } from 'react-router-dom';
-import { CalendarClock, LogOut, MonitorCheck, Plus, QrCode } from 'lucide-react';
+import { CalendarClock, LogOut, MessageCircle, MonitorCheck, Plus, QrCode } from 'lucide-react';
 import { useAuth } from '../../auth/hooks/auth';
 import { useLoad } from '../../../shared/hooks/useLoad';
 import { bookingsRepo } from '../../bookings/data/repository';
@@ -8,6 +8,7 @@ import { scheduleRepo } from '../../schedule/data/repository';
 import { classesOn } from '../../schedule/logic/rules';
 import { sectionOf } from '../../people/logic/rules';
 import { manilaNow } from '../../../shared/time';
+import { useMessages } from '../../messages/hooks/useMessages';
 import { Button, Empty, fmtDate, fmtTime, PageHeader, Panel, ResBadge } from '../../../shared/ui/ui';
 
 const LAB_NAME: Record<string, string> = { lab1: 'ComLab 1', lab2: 'ComLab 2', netlab: 'NetLab' };
@@ -20,6 +21,7 @@ export default function StudentHome() {
   const seat = useLoad(() => labsRepo.listCheckIns().then((rows) => rows.find((c) => c.user_id === profile?.id) ?? null));
   const schedules = useLoad(() => scheduleRepo.listSchedules());
   const bookings = useLoad(() => bookingsRepo.listReservations({ mine: true }));
+  const { unread } = useMessages();
 
   const section = sectionOf(profile?.department ?? null, profile?.course ?? null);
   const today = classesOn(now.date, schedules.data ?? []).filter((c) => !section || c.title.startsWith(`${section}:`))
@@ -29,7 +31,24 @@ export default function StudentHome() {
 
   return (
     <div className="mx-auto max-w-3xl">
-      <PageHeader title={`Hi, ${profile?.full_name.split(' ')[0] ?? 'there'}`} sub={section ? `${section} · student` : 'Student account'} />
+      <PageHeader
+        title={`Hi, ${profile?.full_name.split(' ')[0] ?? 'there'}`}
+        sub={section ? `${section} · student` : 'Student account'}
+        actions={
+          <Link
+            to="/messages"
+            className="flex items-center gap-2 rounded-xl border border-line bg-panel px-3 py-2 text-sm font-semibold text-ink shadow-sm transition-colors hover:bg-chalk"
+          >
+            <MessageCircle size={16} className="text-accent" />
+            <span>Messages</span>
+            {unread > 0 && (
+              <span className="grid h-5 min-w-5 place-items-center rounded-full bg-broken px-1 text-[10px] font-bold text-white">
+                {unread}
+              </span>
+            )}
+          </Link>
+        }
+      />
 
       <div className="grid grid-cols-1 items-start gap-4 md:grid-cols-2">
         <Panel className="p-5">

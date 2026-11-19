@@ -1,7 +1,7 @@
 import { manilaNow } from '../time';
 import { LAYOUTS, seatsFor } from '../../modules/labs/logic/layouts';
 import { TIMETABLE } from './timetable';
-import { BSIT_ROSTER, type ArchivedItem, type CheckIn, type ClassChange, type ClassSchedule, type PcReport, type Lab, type LabEvent, type Pc, type Profile, type Reservation, type Student } from './types';
+import { BSIT_ROSTER, type ArchivedItem, type CheckIn, type ClassChange, type Message, type ClassSchedule, type PcReport, type Lab, type LabEvent, type Pc, type Profile, type Reservation, type Student } from './types';
 
 export interface MockState {
   profiles: Profile[];
@@ -15,6 +15,7 @@ export interface MockState {
   reports: PcReport[];
   archive: ArchivedItem[];
   classChanges?: ClassChange[];
+  messages?: Message[];
 }
 
 const person = (id: string, full_name: string, role: Profile['role'], approved: boolean, department: string): Profile => ({

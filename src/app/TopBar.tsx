@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { NavLink, useNavigate } from 'react-router-dom';
-import { Box, CalendarDays, Download, LayoutGrid, Moon, Plus, Search, Sun, type LucideIcon } from 'lucide-react';
+import { Download, MessageCircle, Moon, Plus, Search, Sun, UserRound, type LucideIcon } from 'lucide-react';
+import { useMessages } from '../modules/messages/hooks/useMessages';
 import type { Role } from '../shared/data/types';
 import { bookingsRepo } from '../modules/bookings/data/repository';
 import { labsRepo } from '../modules/labs/data/repository';
@@ -19,10 +20,11 @@ export default function TopBar({ role, pages, bells, start }: { role: Role; page
   const [theme, setTheme] = useState(savedTheme);
   useEffect(() => { applyTheme(theme); try { localStorage.setItem(THEME_KEY, theme); } catch { /* private mode */ } }, [theme]);
 
+  // tabs for things the sidebar doesn't have: your profile and your messages (with unread count)
+  const { unread } = useMessages();
   const tabs = [
-    { to: '/', label: 'Overview', icon: LayoutGrid },
-    { to: '/labs', label: 'Labs', icon: Box },
-    { to: '/calendar', label: 'Calendar', icon: CalendarDays },
+    { to: '/profile', label: 'Profile', icon: UserRound, badge: 0 },
+    { to: '/messages', label: 'Messages', icon: MessageCircle, badge: unread },
   ];
   const student = role === 'student';
   const staff = role === 'admin' || role === 'staff';
@@ -30,6 +32,7 @@ export default function TopBar({ role, pages, bells, start }: { role: Role; page
   // ---- search / command box ----
   const commands: Cmd[] = useMemo(() => [
     ...pages.map((p) => ({ label: p.label, hint: 'Go to page', to: p.to, icon: p.icon })),
+    { label: 'Messages', hint: 'Chat', to: '/messages', icon: MessageCircle }, { label: 'Profile', hint: 'Your account', to: '/profile', icon: UserRound },
     { label: student ? 'Book a NetLab PC' : 'Request a lab', hint: 'New booking', to: student ? '/reservations?new=1&lab=netlab' : '/reservations?new=1', icon: Plus },
     ...(student ? [] : [{ label: 'Pending requests', hint: 'Reservations', to: '/reservations?status=pending' }]),
     { label: 'ComLab 1', hint: 'Open the lab', to: '/labs/lab1' }, { label: 'ComLab 2', hint: 'Open the lab', to: '/labs/lab2' },
@@ -72,11 +75,11 @@ export default function TopBar({ role, pages, bells, start }: { role: Role; page
     <div className="flex min-w-0 flex-1 items-center gap-3 lg:gap-5">
       {start}
       {/* quick tabs with an underline that slides in */}
-      <nav aria-label="Quick tabs" className="hidden items-center gap-5 xl:flex">
-        {tabs.map(({ to, label, icon: Icon }) => (
+      <nav aria-label="Quick tabs" className="hidden items-center gap-5 lg:flex">
+        {tabs.map(({ to, label, icon: Icon, badge }) => (
           <NavLink key={to} to={to} end={to === '/'} className={({ isActive }) =>
             `group relative flex items-center gap-1.5 py-2 text-sm font-semibold transition-colors ${isActive ? 'text-ink' : 'text-muted hover:text-ink'}`}>
-            {({ isActive }) => (<><Icon size={15} />{label}
+            {({ isActive }) => (<><Icon size={15} />{label}{badge > 0 && <span className="grid h-5 min-w-5 place-items-center rounded-full bg-broken px-1 text-[10px] font-bold text-white">{badge}</span>}
               <span className={`absolute inset-x-0 -bottom-0.5 h-0.5 origin-left rounded-full bg-ink transition-transform duration-300 ${isActive ? 'scale-x-100' : 'scale-x-0 group-hover:scale-x-50'}`} /></>)}
           </NavLink>
         ))}

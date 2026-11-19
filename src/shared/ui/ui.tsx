@@ -133,7 +133,7 @@ export function ToastHost() {
     return () => { pushToast = null; };
   }, []);
   return (
-    <div aria-live="polite" className="pointer-events-none fixed inset-x-3 bottom-4 z-[60] grid justify-items-end gap-2 sm:inset-x-auto sm:right-5">
+    <div aria-live="polite" className="pointer-events-none fixed inset-x-3 bottom-4 z-60 grid justify-items-end gap-2 sm:inset-x-auto sm:right-5">
       {list.map((t) => (
         <div key={t.id} role="status" className="toast-in pointer-events-auto flex w-full max-w-sm items-start gap-3 rounded-2xl bg-ink px-4 py-3 text-white shadow-2xl">
           <span className={cx('mt-0.5 grid h-7 w-7 shrink-0 place-items-center rounded-lg', t.tone === 'ok' ? 'bg-emerald-500' : 'bg-broken')}>

@@ -314,7 +314,7 @@ export default function Labs3D() {
       <LabLoadingOverlay labName={lab?.name} ready={sceneReady} />
 
       {/* Top toolbar: lab + view switcher, then live class status, PC counts and simulation controls */}
-      <div className="absolute left-[3.75rem] md:left-[var(--labs-left,1rem)] top-4 z-20 flex max-w-[calc(100%-5rem)] flex-col items-start gap-2 transition-[left] duration-200 md:max-w-[calc(100%-var(--labs-left,1rem)-5rem)]">
+      <div className="absolute left-15 md:left-(--labs-left,1rem) top-4 z-20 flex max-w-[calc(100%-5rem)] flex-col items-start gap-2 transition-[left] duration-200 md:max-w-[calc(100%-var(--labs-left,1rem)-5rem)]">
         <div className="flex max-w-[calc(100vw-9.5rem)] flex-wrap items-center gap-1 rounded-2xl bg-slate-900/80 sm:max-w-none p-1 text-white shadow-lg ring-1 ring-white/10 backdrop-blur-md">
           <nav className="flex min-w-0 max-w-full gap-1 overflow-x-auto" aria-label="Choose lab">
             {labs.data?.map((l) => (
@@ -419,7 +419,7 @@ export default function Labs3D() {
 
       {maintError && <div className="absolute left-1/2 top-40 z-30 w-[min(90vw,28rem)] -translate-x-1/2"><Alert>{maintError}</Alert></div>}
       {(error || labs.error) && (
-        <div className="absolute left-[3.75rem] md:left-[var(--labs-left,1rem)] top-36 z-20 max-w-md">
+        <div className="absolute left-15 md:left-(--labs-left,1rem) top-36 z-20 max-w-md">
           <Alert>{error || labs.error}</Alert>
         </div>
       )}

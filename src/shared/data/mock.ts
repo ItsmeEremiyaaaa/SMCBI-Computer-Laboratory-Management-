@@ -29,6 +29,10 @@ export function createMock(storage: Store | null = browserStorage()): Api {
   state.reports ??= [];
   state.archive ??= [];
   state.classChanges ??= [];
+  // demo: a welcome message from the lab admin to the teacher and the student
+  state.messages ??= ['teacher', 'student'].map((to, i) => ({ id: `m${i}`, from_id: 'admin', to_id: to, from_name: 'Lab Administrator',
+    to_name: state.profiles.find((p) => p.id === to)?.full_name ?? to, body: 'Good Day! Message the lab office here if you have questions about bookings or the labs.',
+    created_at: new Date(Date.now() - 36e5).toISOString(), read_at: null }));
   // classes with their one-day changes attached, as the database returns them
   const schedules = () => state.schedules.map((s) => ({ ...s, changes: state.classChanges!.filter((c) => c.schedule_id === s.id) }));
   state.labs.forEach((l) => {
@@ -244,6 +248,29 @@ export function createMock(storage: Store | null = browserStorage()): Api {
       state.classChanges = state.classChanges!.filter((x) => !(x.schedule_id === c.schedule_id && x.date === c.date));
       state.classChanges.push({ ...fixed, id: uid(), created_by_name: p.full_name, created_at: new Date().toISOString() });
       changedRes();
+    },
+    async listMessages() { const p = me(); return clone(state.messages!.filter((m) => m.from_id === p.id || m.to_id === p.id).sort((a, b) => a.created_at.localeCompare(b.created_at))); },
+    async sendMessage(toId, body) {
+      const p = me();
+      const them = state.profiles.find((x) => x.id === toId);
+      if (!them || !them.approved || them.archived_at) throw new Error("That person can't receive messages.");
+      if (them.id === p.id) throw new Error("You can't message yourself.");
+      if (p.role === 'student' && them.role === 'student') throw new Error('Students can message the lab admin, staff and teachers.');
+      if (!body.trim() || body.trim().length > 1000) throw new Error('Write a message (up to 1000 characters).');
+      state.messages!.push({ id: uid(), from_id: p.id, to_id: them.id, from_name: p.full_name, to_name: them.full_name, body: body.trim(), created_at: new Date().toISOString(), read_at: null });
+      changedRes();
+    },
+    async markRead(fromId) {
+      const p = me(); const at = new Date().toISOString();
+      state.messages!.forEach((m) => { if (m.to_id === p.id && m.from_id === fromId && !m.read_at) m.read_at = at; });
+      changedRes();
+    },
+    async messageContacts() {
+      const p = me();
+      const order = { admin: 0, staff: 1, teacher: 2, student: 3 } as const;
+      return state.profiles.filter((x) => x.approved && !x.archived_at && x.id !== p.id && (p.role !== 'student' || x.role !== 'student'))
+        .sort((a, b) => order[a.role] - order[b.role] || a.full_name.localeCompare(b.full_name))
+        .map((x) => ({ id: x.id, full_name: x.full_name, role: x.role }));
     },
     async deleteClassChange(id) {
       me();

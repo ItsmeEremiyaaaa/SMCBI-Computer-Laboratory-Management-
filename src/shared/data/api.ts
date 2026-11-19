@@ -1,5 +1,5 @@
 import type {
-  ArchivedItem, CheckIn, ClassChangeInput, ClassSchedule, PcReport, ScheduleInput,
+  ArchivedItem, CheckIn, ClassChangeInput, ClassSchedule, Contact, Message, PcReport, ScheduleInput,
   Lab, LabEvent, Pc, PcStatus, Profile, Reservation, ReservationInput, ResStatus, Role, Student,
 } from './types';
 import { createMock } from './mock';
@@ -89,6 +89,15 @@ export interface Api {
   setAccountArchived(profileId: string, archived: boolean): Promise<void>;
   /** Admin: change a login's email (sign-in, profile and matching student record together). */
   updateAccountEmail(profileId: string, email: string): Promise<void>;
+
+  // Messages
+  /** Every message I sent or received, oldest first. */
+  listMessages(): Promise<Message[]>;
+  sendMessage(toId: string, body: string): Promise<void>;
+  /** Mark everything `fromId` sent me as read. */
+  markRead(fromId: string): Promise<void>;
+  /** People I may start a conversation with. */
+  messageContacts(): Promise<Contact[]>;
 }
 
 const url = import.meta.env.VITE_SUPABASE_URL as string | undefined;
