@@ -159,7 +159,7 @@ export default function Calendar() {
                   className={`day-in group relative flex min-h-16 min-w-0 flex-col gap-1 rounded-xl p-1 text-left transition-all sm:min-h-24 sm:rounded-2xl sm:p-2
                     ${selected ? 'bg-white shadow-[0_12px_28px_-14px_rgb(15_23_42/.35)]' : weekend ? 'bg-white/25 hover:bg-white/60' : 'bg-white/45 hover:bg-white/75'}`}>
                   <div className="flex items-center justify-center sm:justify-between">
-                    <span className={`inline-grid h-6 min-w-6 place-items-center rounded-full px-1 text-xs ${date === today ? 'bg-ink font-semibold text-white' : selected ? 'font-semibold text-ink' : 'text-ink'}`}>{d}</span>
+                    <span className={`inline-grid h-6 min-w-6 place-items-center rounded-full px-1 text-xs ${date === today ? 'bg-accent font-semibold text-white' : selected ? 'font-semibold text-ink' : 'text-ink'}`}>{d}</span>
                     {bk.length > 0 && <span className="hidden text-[10px] font-medium text-muted sm:inline">{bk.length} use{bk.length > 1 ? 's' : ''}</span>}
                   </div>
                   {/* phones: a dot per event; larger screens: the event names */}

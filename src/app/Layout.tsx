@@ -5,6 +5,7 @@ import StudentBell from '../modules/notifications/ui/StudentBell';
 import { Archive, Bell, Box, CalendarClock, CalendarDays, ClipboardList, LayoutGrid, LogOut, Menu, PanelLeftClose, PanelLeftOpen, QrCode, Users, X } from 'lucide-react';
 import { Crest, useExclusive } from '../shared/ui/ui';
 import IntroSplash from './IntroSplash';
+import TopBar from './TopBar';
 import { useAuth } from '../modules/auth/hooks/auth';
 import { authRepo } from '../modules/auth/data/repository';
 import type { Role } from '../shared/data/types';
@@ -125,12 +126,12 @@ export default function Layout() {
       {mobileMenu}
 
       <div className="flex min-w-0 flex-1 flex-col">
-        <div className="sticky top-0 z-30 flex h-14 items-center gap-3 bg-chalk px-4 md:static md:bg-transparent md:px-6 print:hidden">
-          <button className="md:hidden" onClick={() => setOpen(true)} aria-label="Open menu"><Menu /></button>
-          {authRepo.demo && (
-            <span className="rounded bg-amber-100 px-2 py-0.5 text-xs font-medium text-amber-900">Demo mode, sample data</span>
-          )}
-          <div className="ml-auto flex items-center gap-2">{bells}</div>
+        <div className="sticky top-0 z-30 flex min-h-16 items-center gap-3 bg-chalk/90 px-4 py-2 backdrop-blur md:static md:bg-transparent md:px-6 md:backdrop-blur-none xl:px-8 print:hidden">
+          <TopBar role={profile.role} bells={bells} pages={NAV.filter((n) => n.roles.includes(profile.role))}
+            start={<>
+              <button className="md:hidden" onClick={() => setOpen(true)} aria-label="Open menu"><Menu /></button>
+              {authRepo.demo && <span className="hidden rounded bg-amber-100 px-2 py-0.5 text-xs font-medium text-amber-900 2xl:inline">Demo mode</span>}
+            </>} />
         </div>
         {/* full width; each page replays its entrance (key = path) */}
         <main key={pathname} className="page-enter w-full flex-1 px-4 py-5 md:px-6 xl:px-8"><Outlet /></main>
