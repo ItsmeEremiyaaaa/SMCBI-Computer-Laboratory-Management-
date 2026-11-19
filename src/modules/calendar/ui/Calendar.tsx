@@ -26,7 +26,7 @@ const LAB_COLORS = ['#2563eb', '#ea580c', '#059669', '#7c3aed'];
 
 const DAY_START = 8; // timeline = lab hours, 8:00 AM – 8:00 PM
 const DAY_END = 20;
-const HOUR_PX = 44;
+const SPAN = DAY_END - DAY_START; // hours shown across the day timeline
 
 const iso = (y: number, m: number, d: number) => `${y}-${String(m + 1).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
 const hours = (t: string) => Number(t.slice(0, 2)) + Number(t.slice(3, 5)) / 60;
@@ -91,7 +91,7 @@ export default function Calendar() {
       <PageHeader title="Calendar" sub="Pick a day to see what's happening in each lab, hour by hour."
         actions={<Button onClick={() => setEdit({ title: '', description: null, event_date: day, event_time: '08:00', event_type: 'academic' })}><Plus size={16} />Add event</Button>} />
 
-      <div className="grid grid-cols-1 gap-4 xl:grid-cols-[minmax(0,1fr)_400px]">
+      <div className="grid grid-cols-1 gap-4">
         {/* Month overview */}
         <Panel>
           <div className="flex flex-wrap items-center justify-between gap-2 border-b border-line px-4 py-3">
@@ -168,7 +168,7 @@ export default function Calendar() {
         </Panel>
 
         {/* Selected day agenda */}
-        <Panel className="flex flex-col xl:sticky xl:top-4 xl:max-h-[calc(100vh-2rem)]">
+        <Panel className="flex flex-col">
           <div className="flex items-center justify-between gap-2 border-b border-line px-4 py-3">
             <div>
               <p className="text-[11px] font-semibold uppercase tracking-wide text-muted">{day === today ? 'Today' : 'Selected day'}</p>
@@ -179,12 +179,12 @@ export default function Calendar() {
             </Button>
           </div>
 
-          <div className="min-h-0 flex-1 overflow-y-auto">
-            {/* Events */}
-            <div className="grid gap-2 border-b border-line px-4 py-3">
+          <div>
+            {/* Events, side by side */}
+            <div className="flex flex-wrap gap-2 border-b border-line px-4 py-3">
               {dayEvents.length === 0 && <p className="flex items-center gap-2 text-xs text-muted"><CalendarDays size={14} />No school events this day.</p>}
               {dayEvents.map((e) => (
-                <div key={e.id} className={`flex items-start gap-2 rounded-lg border-l-4 px-3 py-2 ${TYPE_STYLE[e.event_type]}`}>
+                <div key={e.id} className={`flex min-w-56 flex-1 items-start gap-2 rounded-lg border-l-4 px-3 py-2 sm:max-w-sm ${TYPE_STYLE[e.event_type]}`}>
                   <div className="min-w-0 flex-1">
                     <p className="text-[11px] font-semibold uppercase tracking-wide opacity-70">{fmtTime(e.event_time)} · {e.event_type}</p>
                     <p className="text-sm font-semibold">{e.title}</p>
@@ -197,61 +197,66 @@ export default function Calendar() {
               ))}
             </div>
 
-            {/* Hour-by-hour lab timeline */}
+            {/* Hour-by-hour lab timeline, landscape: one row per lab, hours left to right */}
             <div className="px-4 py-3">
-              <div className="mb-2 grid gap-1 pl-12 text-center text-[11px] font-semibold" style={{ gridTemplateColumns: `repeat(${Math.max(1, labList.length)}, minmax(0, 1fr))` }}>
-                {labList.map((l) => <span key={l.id} className="truncate rounded-md py-1 text-white" style={{ background: labColor(l.id) }}>{labShort(l.id)}</span>)}
-              </div>
-              <div className="relative" style={{ height: (DAY_END - DAY_START) * HOUR_PX }}>
-                {Array.from({ length: DAY_END - DAY_START + 1 }, (_, i) => (
-                  <div key={i} className="absolute inset-x-0 flex items-start" style={{ top: i * HOUR_PX }}>
-                    <span className="-mt-2 w-12 shrink-0 pr-2 text-right text-[10px] text-muted">{fmtTime(`${String(DAY_START + i).padStart(2, '0')}:00`).replace(':00', '')}</span>
-                    <span className="h-px flex-1 bg-line" />
+              <div className="overflow-x-auto">
+                <div className="min-w-[44rem]">
+                  {/* hour scale */}
+                  <div className="relative ml-24 h-5">
+                    {Array.from({ length: SPAN + 1 }, (_, i) => (
+                      <span key={i} className={`absolute whitespace-nowrap text-[10px] text-muted ${i === SPAN ? "-translate-x-full" : "-translate-x-1/2"}`} style={{ left: `${(i / SPAN) * 100}%` }}>
+                        {fmtTime(`${String(DAY_START + i).padStart(2, '0')}:00`).replace(':00', '')}
+                      </span>
+                    ))}
                   </div>
-                ))}
-                <div className="absolute inset-y-0 left-12 right-0 grid gap-1" style={{ gridTemplateColumns: `repeat(${Math.max(1, labList.length)}, minmax(0, 1fr))` }}>
-                  {labList.map((l) => (
-                    <div key={l.id} className="relative"
-                      onDragOver={(e) => { if (dragging) e.preventDefault(); }}
-                      onDrop={(e) => {
-                        e.preventDefault(); if (!dragging) return;
-                        const len = hours(dragging.end_time) - hours(dragging.start_time);
-                        const y = e.clientY - e.currentTarget.getBoundingClientRect().top;
-                        const start = Math.min(DAY_END - len, Math.max(DAY_START, Math.round((DAY_START + y / HOUR_PX) * 2) / 2));
-                        dropMove({ new_date: day, new_start: hhmm(start), new_end: hhmm(start + len), new_lab: l.id });
-                      }}>
-                      {dayBookings.filter((r) => r.lab_id === l.id).map((r) => {
-                        const s = Math.max(DAY_START, hours(r.start_time));
-                        const e = Math.min(DAY_END, hours(r.end_time));
-                        if (e <= s) return null;
-                        const off = r.status === 'cancelled';
-                        const c = off ? '#dc2626' : labColor(l.id);
-                        const editable = canChange(r);
-                        return (
-                          <div key={r.id + (off ? '-off' : '')} title={`${off ? (isClass(r) ? '' : 'CANCELLED: ') : ''}${r.title}\n${fmtTime(r.start_time)} – ${fmtTime(r.end_time)}\n${r.requester_name}${off && r.admin_notes ? `\n${r.admin_notes}` : ''}`}
-                            role={editable ? 'button' : undefined} tabIndex={editable ? 0 : undefined}
-                            aria-label={editable ? `Change ${r.title} on ${r.class_date}` : undefined}
-                            onClick={editable ? () => setChange({ session: r }) : undefined}
-                            onKeyDown={editable ? (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setChange({ session: r }); } } : undefined}
-                            draggable={editable && !off}
-                            onDragStart={editable && !off ? (e) => { e.dataTransfer.effectAllowed = 'move'; setDragging(r); } : undefined}
-                            onDragEnd={() => setTimeout(() => setDragging(null), 0)}
-                            className={`absolute inset-x-0 overflow-hidden rounded-md border-l-4 px-1.5 py-1 text-[10px] leading-tight ${isClass(r) ? '' : 'border-dashed'} ${off ? 'line-through decoration-red-600 decoration-2 opacity-80' : ''} ${editable ? 'cursor-pointer hover:ring-2 hover:ring-accent/40' : ''} ${editable && !off ? 'active:cursor-grabbing' : ''} ${dragging?.id === r.id ? 'opacity-40' : ''}`}
-                            style={{ top: (s - DAY_START) * HOUR_PX + 1, height: (e - s) * HOUR_PX - 2, borderColor: c, background: `${c}1f`, color: off ? '#b91c1c' : '#0f172a' }}>
-                            <p className="font-semibold">{fmtTime(r.start_time).replace(':00', '')}–{fmtTime(r.end_time).replace(':00', '')}</p>
-                            <p className="truncate">{r.title}</p>
-                            {(e - s) >= 1.2 && <p className="truncate opacity-70">{isClass(r) ? (r.class_change ? (off ? ({ cancelled: 'Cancelled', activity: 'Activity only', moved: 'Moved' } as const)[r.class_change.kind] : `Moved here · ${r.requester_name}`) : r.requester_name) : `${off ? 'Cancelled' : 'Booking'} · ${r.requester_name}`}</p>}
-                          </div>
-                        );
-                      })}
-                    </div>
-                  ))}
+                  <div className="relative grid gap-1.5">
+                    {labList.map((l) => (
+                      <div key={l.id} className="flex items-stretch gap-2">
+                        <span className="flex w-22 shrink-0 items-center justify-center rounded-md px-1 text-center text-[11px] font-semibold text-white" style={{ background: labColor(l.id) }}>{labShort(l.id)}</span>
+                        <div className="relative h-16 flex-1 rounded-md bg-chalk/60"
+                          style={{ backgroundImage: `repeating-linear-gradient(to right, var(--color-line) 0 1px, transparent 1px ${100 / SPAN}%)` }}
+                          onDragOver={(e) => { if (dragging) e.preventDefault(); }}
+                          onDrop={(e) => {
+                            e.preventDefault(); if (!dragging) return;
+                            const len = hours(dragging.end_time) - hours(dragging.start_time);
+                            const box = e.currentTarget.getBoundingClientRect();
+                            const at = DAY_START + ((e.clientX - box.left) / box.width) * SPAN;
+                            const start = Math.min(DAY_END - len, Math.max(DAY_START, Math.round(at * 2) / 2));
+                            dropMove({ new_date: day, new_start: hhmm(start), new_end: hhmm(start + len), new_lab: l.id });
+                          }}>
+                          {dayBookings.filter((r) => r.lab_id === l.id).map((r) => {
+                            const s = Math.max(DAY_START, hours(r.start_time));
+                            const e = Math.min(DAY_END, hours(r.end_time));
+                            if (e <= s) return null;
+                            const off = r.status === 'cancelled';
+                            const c = off ? '#dc2626' : labColor(l.id);
+                            const editable = canChange(r);
+                            return (
+                              <div key={r.id + (off ? '-off' : '')} title={`${off ? (isClass(r) ? '' : 'CANCELLED: ') : ''}${r.title}\n${fmtTime(r.start_time)} – ${fmtTime(r.end_time)}\n${r.requester_name}${off && r.admin_notes ? `\n${r.admin_notes}` : ''}`}
+                                role={editable ? 'button' : undefined} tabIndex={editable ? 0 : undefined}
+                                aria-label={editable ? `Change ${r.title} on ${r.class_date}` : undefined}
+                                onClick={editable ? () => setChange({ session: r }) : undefined}
+                                onKeyDown={editable ? (ev) => { if (ev.key === 'Enter' || ev.key === ' ') { ev.preventDefault(); setChange({ session: r }); } } : undefined}
+                                draggable={editable && !off}
+                                onDragStart={editable && !off ? (ev) => { ev.dataTransfer.effectAllowed = 'move'; setDragging(r); } : undefined}
+                                onDragEnd={() => setTimeout(() => setDragging(null), 0)}
+                                className={`absolute inset-y-1 overflow-hidden rounded-md border-l-4 px-1.5 py-1 text-[10px] leading-tight ${isClass(r) ? '' : 'border-dashed'} ${off ? 'line-through decoration-red-600 decoration-2 opacity-80' : ''} ${editable ? 'cursor-pointer hover:ring-2 hover:ring-accent/40' : ''} ${editable && !off ? 'active:cursor-grabbing' : ''} ${dragging?.id === r.id ? 'opacity-40' : ''}`}
+                                style={{ left: `calc(${((s - DAY_START) / SPAN) * 100}% + 1px)`, width: `calc(${((e - s) / SPAN) * 100}% - 2px)`, borderColor: c, background: `${c}1f`, color: off ? '#b91c1c' : '#0f172a' }}>
+                                <p className="truncate font-semibold">{fmtTime(r.start_time).replace(':00', '')}–{fmtTime(r.end_time).replace(':00', '')} · {r.title}</p>
+                                <p className="truncate opacity-70">{isClass(r) ? (r.class_change ? (off ? ({ cancelled: 'Cancelled', activity: 'Activity only', moved: 'Moved' } as const)[r.class_change.kind] : `Moved here · ${r.requester_name}`) : r.requester_name) : `${off ? 'Cancelled' : 'Booking'} · ${r.requester_name}`}</p>
+                              </div>
+                            );
+                          })}
+                        </div>
+                      </div>
+                    ))}
+                    {day === today && nowH >= DAY_START && nowH <= DAY_END && (
+                      <div className="pointer-events-none absolute inset-y-0 ml-24 w-[calc(100%-6rem)]">
+                        <span className="absolute inset-y-0 w-0.5 bg-red-500" style={{ left: `${((nowH - DAY_START) / SPAN) * 100}%` }} />
+                      </div>
+                    )}
+                  </div>
                 </div>
-                {day === today && nowH >= DAY_START && nowH <= DAY_END && (
-                  <div className="pointer-events-none absolute left-10 right-0 flex items-center" style={{ top: (nowH - DAY_START) * HOUR_PX }}>
-                    <span className="h-2 w-2 rounded-full bg-red-500" /><span className="h-0.5 flex-1 bg-red-500" />
-                  </div>
-                )}
               </div>
               {dragging && (
                 <div onDragOver={(e) => e.preventDefault()}
@@ -268,7 +273,7 @@ export default function Calendar() {
                 <span className="flex items-center gap-1"><span className="h-3 w-3 rounded-sm border-l-4 border-slate-500 bg-slate-500/15" />Regular class</span>
                 <span className="flex items-center gap-1"><span className="h-3 w-3 rounded-sm border-l-4 border-dashed border-slate-500 bg-slate-500/15" />Approved booking</span>
                 <span className="flex items-center gap-1"><span className="h-3 w-3 rounded-sm border-l-4 border-dashed border-red-600 bg-red-600/15" /><span className="line-through decoration-red-600">Cancelled</span></span>
-                <span className="flex items-center gap-1"><span className="h-0.5 w-3 bg-red-500" />Now</span>
+                <span className="flex items-center gap-1"><span className="h-3 w-0.5 bg-red-500" />Now</span>
               </p>
             </div>
           </div>
